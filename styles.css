@@ -428,3 +428,692 @@ html,body,#app{height:100%;overflow:hidden}
   .hud-broadcast .clock-rate{display:none}
 }
 
+/* Breaking Events Banner */
+.breaking-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  margin: 6px 0 10px;
+  font-size: 0.82rem;
+  border: 1px solid #6366f1;
+  background: linear-gradient(90deg, rgba(30, 27, 75, 0.95), rgba(49, 46, 129, 0.92), rgba(30, 27, 75, 0.95));
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.22);
+  flex-shrink: 0;
+  animation: bannerFadeIn 0.3s ease-out;
+}
+.breaking-banner.local {
+  border-color: #f59e0b;
+  background: linear-gradient(90deg, rgba(69, 26, 3, 0.95), rgba(120, 53, 15, 0.92), rgba(69, 26, 3, 0.95));
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.22);
+}
+.breaking-banner-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.breaking-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f43f5e;
+  box-shadow: 0 0 10px #f43f5e;
+  animation: pulseDot 1.4s infinite;
+}
+@keyframes pulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.6; }
+}
+.breaking-timer {
+  font-size: 0.72rem;
+  color: #fbbf24;
+  font-weight: 700;
+}
+.breaking-banner-body {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.breaking-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+}
+.breaking-desc {
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@keyframes bannerFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Event Modifier Badges */
+.event-mod-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 5px;
+  white-space: nowrap;
+}
+.event-mod-tag.boost {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.event-mod-tag.debuff {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.event-mod-note {
+  margin-top: 5px;
+  font-size: 0.7rem;
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px dashed rgba(245, 158, 11, 0.35);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+/* Special Audience Choices */
+.audience-item.is-special-audience {
+  border-color: #6366f1;
+  background: linear-gradient(145deg, #181c2e, #131726);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.12);
+}
+.audience-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.audience-item-head small {
+  color: #fcd34d;
+  font-weight: 700;
+}
+.letter-choices-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.letter-choice-btn {
+  text-align: left;
+  background: #242b3d;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #f1f5f9;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.letter-choice-btn:hover:not(:disabled) {
+  background: #333d54;
+  border-color: #f59e0b;
+  transform: translateY(-1px);
+}
+.letter-choice-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.letter-choice-btn .choice-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+.letter-choice-btn strong {
+  font-size: 0.78rem;
+  color: #f8fafc;
+  display: block;
+}
+.letter-choice-btn b {
+  font-size: 0.72rem;
+  color: #f59e0b;
+  white-space: nowrap;
+}
+.letter-choice-btn small {
+  display: block;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+.resolved-note {
+  margin-top: 7px;
+  font-size: 0.73rem;
+  color: #a7f3d0;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+/* Month Result Modal */
+.month-result-modal {
+  max-width: 620px;
+  width: 95vw;
+  background: #141b29;
+  border: 1px solid #f59e0b;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.8), 0 0 30px rgba(245, 158, 11, 0.25);
+  padding: 24px;
+  border-radius: 16px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.month-modal-header {
+  text-align: center;
+  margin-bottom: 16px;
+}
+.month-modal-header h2 {
+  font-size: 1.35rem;
+  color: #fff;
+  margin: 4px 0 2px;
+}
+.gold-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #f59e0b;
+}
+.month-date-tag {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+.month-champion-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2a2214, #1a1e2b);
+  border: 1px solid #d97706;
+  margin-bottom: 14px;
+}
+.month-champion-card.our-win {
+  background: linear-gradient(135deg, #3d2b0e, #1a272e);
+  border-color: #fbbf24;
+  box-shadow: inset 0 0 20px rgba(251, 191, 36, 0.15);
+}
+.champion-crown {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+.champion-info {
+  flex: 1;
+  min-width: 0;
+}
+.champion-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 2px;
+}
+.champion-title {
+  display: block;
+  font-size: 1.15rem;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.champion-station {
+  display: block;
+  font-size: 0.74rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.champion-rating-box {
+  text-align: right;
+  flex-shrink: 0;
+}
+.champion-rating-box small {
+  display: block;
+  font-size: 0.65rem;
+  color: #94a3b8;
+}
+.champion-rating-box strong {
+  display: block;
+  font-size: 1.8rem;
+  color: #fcd34d;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.champion-bonus-callout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.champion-bonus-callout .bonus-icon {
+  font-size: 1.6rem;
+}
+.champion-bonus-callout strong {
+  display: block;
+  color: #6ee7b7;
+  font-size: 0.85rem;
+}
+.champion-bonus-callout small {
+  color: #a7f3d0;
+  font-size: 0.72rem;
+}
+.champion-encourage-callout {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.76rem;
+  color: #bae6fd;
+  margin-bottom: 14px;
+}
+.month-top5-table-box h3 {
+  font-size: 0.88rem;
+  color: #e2e8f0;
+  margin: 0 0 8px;
+}
+.month-top5-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+.month-top5-table th {
+  text-align: left;
+  padding: 6px 10px;
+  background: #1e2638;
+  color: #94a3b8;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
+.month-top5-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #252e42;
+  color: #e2e8f0;
+}
+.month-top5-table tr.is-ours {
+  background: rgba(245, 158, 11, 0.08);
+}
+.month-top5-table tr.is-ours td {
+  color: #fef08a;
+}
+.rank-badge {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  line-height: 22px;
+  text-align: center;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 0.72rem;
+  background: #334155;
+  color: #e2e8f0;
+}
+.rank-badge.rank-1 {
+  background: #f59e0b;
+  color: #111;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+.rank-badge.rank-2 {
+  background: #94a3b8;
+  color: #111;
+}
+.rank-badge.rank-3 {
+  background: #b45309;
+  color: #fff;
+}
+.station-tag {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #1e293b;
+  color: #cbd5e1;
+}
+.station-tag.tag-ours {
+  background: #451a03;
+  color: #fde68a;
+  border: 1px solid #d97706;
+}
+.rating-cell strong {
+  color: #f59e0b;
+  font-variant-numeric: tabular-nums;
+}
+.avg-cell {
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+.month-dismiss-btn, .ceremony-dismiss-btn {
+  font-size: 0.95rem;
+  padding: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* Reports view: Monthly archive and Awards Hall of Fame */
+.monthly-leaderboard-panel, .ceremonies-history-panel {
+  margin-top: 16px;
+}
+.month-selector-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  scrollbar-width: thin;
+}
+.month-selector-tabs button {
+  background: #202738;
+  border: 1px solid #3b465c;
+  color: #cbd5e1;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.month-selector-tabs button:hover {
+  background: #2d374d;
+}
+.month-selector-tabs button.active {
+  background: #451a03;
+  border-color: #f59e0b;
+  color: #fef3c7;
+}
+.month-champion-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #1e2638;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.month-champion-strip.our-win {
+  border-color: #f59e0b;
+  background: linear-gradient(90deg, #2a2012, #1b2434);
+}
+.strip-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.strip-crown {
+  font-size: 1.5rem;
+}
+.strip-sub {
+  display: block;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+.strip-title {
+  display: block;
+  font-size: 0.92rem;
+  color: #fff;
+}
+.strip-station {
+  display: block;
+  font-size: 0.72rem;
+  color: #cbd5e1;
+}
+.strip-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.strip-badge.gold {
+  background: #78350f;
+  color: #fde68a;
+  border: 1px solid #f59e0b;
+}
+.strip-badge.neutral {
+  background: #1e293b;
+  color: #94a3b8;
+}
+
+/* Annual Awards Ceremony Modal */
+.ceremony-modal {
+  max-width: 740px;
+  width: 95vw;
+  background: radial-gradient(circle at 50% 0%, #2a203d, #111422 65%);
+  border: 1px solid #fbbf24;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.85), 0 0 40px rgba(251, 191, 36, 0.25);
+  padding: 26px;
+  border-radius: 18px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.ceremony-modal-header {
+  text-align: center;
+  margin-bottom: 18px;
+}
+.ceremony-banner-tag {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #fbbf24;
+}
+.ceremony-modal-header h2 {
+  font-size: 1.5rem;
+  color: #fff;
+  margin: 6px 0 4px;
+}
+.ceremony-subtitle {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+.ceremony-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+.ceremony-summary-strip small, .ceremony-summary-strip span {
+  display: block;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+.ceremony-summary-strip strong {
+  display: block;
+  font-size: 1.1rem;
+  color: #f1f5f9;
+  margin-top: 3px;
+}
+.ceremony-summary-strip strong.gold-text {
+  color: #fbbf24;
+}
+.ceremony-awards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.award-card {
+  background: #171d2c;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+.award-card.is-ours {
+  background: linear-gradient(145deg, #2b2214, #18202d);
+  border-color: #f59e0b;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.18);
+}
+.award-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.award-icon {
+  font-size: 1.4rem;
+  line-height: 1;
+}
+.award-title-box {
+  flex: 1;
+  min-width: 0;
+}
+.award-title-box h4 {
+  font-size: 0.85rem;
+  color: #fff;
+  margin: 0;
+}
+.award-title-box small {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  display: block;
+  line-height: 1.25;
+}
+.award-status-pill {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+.award-status-pill.pill-ours {
+  background: #f59e0b;
+  color: #111;
+}
+.award-status-pill.pill-rival {
+  background: #334155;
+  color: #cbd5e1;
+}
+.award-winner-box {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.winner-label {
+  display: block;
+  font-size: 0.62rem;
+  color: #94a3b8;
+}
+.winner-name {
+  display: block;
+  font-size: 0.95rem;
+  color: #fbbf24;
+  margin: 1px 0;
+}
+.winner-station {
+  display: block;
+  font-size: 0.68rem;
+  color: #cbd5e1;
+}
+
+/* Ceremony Hall of Fame in Reports */
+.ceremony-history-card {
+  background: #171d2c;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.ceremony-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #283247;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.ceremony-history-header h3 {
+  font-size: 1rem;
+  color: #fff;
+  margin: 0;
+}
+.ceremony-wins-tag {
+  font-size: 0.74rem;
+  color: #fbbf24;
+  font-weight: 700;
+}
+.ceremony-history-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.ceremony-history-item {
+  background: #1d2538;
+  border: 1px solid #2e3a52;
+  border-radius: 8px;
+  padding: 10px;
+}
+.ceremony-history-item.is-ours {
+  border-color: #d97706;
+  background: #25231c;
+}
+.item-cat-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+.item-badge-ours {
+  background: #78350f;
+  color: #fde68a;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  margin-left: auto;
+}
+.item-winner {
+  display: block;
+  font-size: 0.85rem;
+  color: #f1f5f9;
+}
+.ceremony-history-item.is-ours .item-winner {
+  color: #fbbf24;
+}
+.item-station {
+  display: block;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+@media(max-width: 760px) {
+  .breaking-banner { flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px 12px; }
+  .breaking-desc { white-space: normal; }
+  .letter-choices-box { grid-template-columns: 1fr; }
+  .ceremony-awards-grid { grid-template-columns: 1fr; }
+  .ceremony-history-grid { grid-template-columns: 1fr 1fr; }
+  .ceremony-summary-strip { grid-template-columns: 1fr; gap: 6px; }
+}
+@media(max-width: 480px) {
+  .ceremony-history-grid { grid-template-columns: 1fr; }
+  .month-champion-card { flex-direction: column; align-items: flex-start; }
+  .champion-rating-box { text-align: left; }
+}
+
+

@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter } from './engine.js';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult } from './engine.js';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -38,6 +38,7 @@ let actorSearch='';
 let notice='';
 let showReset=false;
 let showTransfer=false;
+let selectedLeaderboardMonth=null;
 const app=document.getElementById('app');
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hourlyMoney=n=>{const amount=Math.abs(n),sign=n<0?'−':'';return amount>=1_000_000?`${sign}${money(amount)}`:amount>=1_000?`${sign}$${(amount/1_000).toFixed(amount<10_000?1:0)}k`:`${sign}$${Math.round(amount).toLocaleString()}`};
@@ -51,6 +52,133 @@ const catalogProgressLabel=p=>p.episodes===1?`已放映 ${catalogCompletedAiring
 function transferModalView() {
   const currentSave=localStorage.getItem(SAVE_KEY)??JSON.stringify(state);
   return `<div class="modal-backdrop"><div class="modal transfer-modal" role="dialog" aria-modal="true" aria-labelledby="transfer-title"><div class="transfer-head"><h2 id="transfer-title">⇄ 存檔備份與跨站轉移</h2><button class="editor-dismiss" data-action="close-transfer" aria-label="關閉">✕</button></div><p class="transfer-desc">你可以將此存檔複製至新網站，或貼上先前的存檔代碼無痛復原進度！</p><div class="transfer-block"><div class="transfer-label"><strong>目前遊戲存檔（第 ${state.day} 日 · ${money(state.cash)} · 口碑 ${state.reputation}）</strong><button class="copy-pill-btn" data-action="copy-save">📋 複製存檔代碼</button></div><textarea readonly class="transfer-text" id="export-save-box" onclick="this.select()">${safe(currentSave)}</textarea></div><div class="transfer-block"><div class="transfer-label"><strong>匯入新存檔（貼上存檔代碼）</strong></div><textarea class="transfer-text" id="import-save-box" placeholder="在此處貼上存檔 JSON 字串..."></textarea><div class="modal-actions"><button class="soft-button" data-action="close-transfer">取消</button><button class="primary-button import-btn" data-action="confirm-import">匯入並立即載入 →</button></div></div></div></div>`;
+}
+
+function breakingEventBannerView() {
+  const event=state.breakingEvent;
+  if (!event) return '';
+  const isWorld=event.scope==='worldwide';
+  const tag=isWorld?'全球大事':'本地突發';
+  return `<div class="breaking-banner ${isWorld?'worldwide':'local'}" role="region" aria-label="突發事件速報">
+    <div class="breaking-banner-badge">
+      <span class="breaking-dot"></span>
+      <strong>${safe(event.icon||'⚡')} ${safe(tag)}</strong>
+      <span class="breaking-timer">尚餘 ${event.daysLeft} 日</span>
+    </div>
+    <div class="breaking-banner-body">
+      <h3 class="breaking-title">【${safe(event.title)}】</h3>
+      <p class="breaking-desc">${safe(event.description)}</p>
+    </div>
+  </div>`;
+}
+
+function monthResultModalView() {
+  const result=state.lastMonthResult;
+  if (!result || !result.isNew) return '';
+  return `<div class="modal-backdrop month-modal-backdrop">
+    <div class="modal month-result-modal" role="dialog" aria-modal="true" aria-labelledby="month-result-title">
+      <div class="month-modal-header">
+        <span class="gold-badge">MONTHLY RATINGS REPORT</span>
+        <h2 id="month-result-title">第 ${result.month} 個月 · 全港電視收視龍虎榜</h2>
+        <span class="month-date-tag">結算於第 ${result.day} 日</span>
+      </div>
+      <div class="month-champion-card ${result.isOurWin?'our-win':'rival-win'}">
+        <div class="champion-crown">👑</div>
+        <div class="champion-info">
+          <span class="champion-label">${result.isOurWin?'🎉 恭喜我台勇奪全港月度最高收視總冠軍！':'⚔️ 本月全港最高收視節目'}</span>
+          <strong class="champion-title">${safe(result.champion.title)}</strong>
+          <span class="champion-station">${safe(result.champion.station)} · ${safe(result.champion.category||'電視節目')}</span>
+        </div>
+        <div class="champion-rating-box">
+          <small>峰值收視</small>
+          <strong>${result.champion.peakRating}</strong>
+          <small>平均 ${result.champion.avgRating} 點</small>
+        </div>
+      </div>
+      ${result.isOurWin?`
+        <div class="champion-bonus-callout">
+          <span class="bonus-icon">💰</span>
+          <div>
+            <strong>廣告商特別花紅獎金 +$600,000 已入帳！</strong>
+            <small>電視台口碑 +2 · 觀眾熱度 +3</small>
+          </div>
+        </div>
+      `:`
+        <div class="champion-encourage-callout">
+          <span>我台本月最高：<strong>《${safe(result.ourBest.title)}》</strong>（收視 ${result.ourBest.peakRating} 點 · 全港第 ${result.ourBest.rank} 名）</span>
+        </div>
+      `}
+      <div class="month-top5-table-box">
+        <h3>全港收視排行榜 Top 5</h3>
+        <table class="month-top5-table">
+          <thead>
+            <tr>
+              <th>名次</th>
+              <th>節目名稱</th>
+              <th>電視台</th>
+              <th>最高收視</th>
+              <th>平均收視</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${result.top5.map(item=>`
+              <tr class="${item.station==='你的電視台'?'is-ours':''}">
+                <td class="rank-cell"><span class="rank-badge rank-${item.rank}">${item.rank}</span></td>
+                <td class="title-cell"><strong>${safe(item.title)}</strong></td>
+                <td class="station-cell"><span class="station-tag ${item.station==='你的電視台'?'tag-ours':''}">${safe(item.station)}</span></td>
+                <td class="rating-cell"><strong>${item.peakRating}</strong></td>
+                <td class="avg-cell">${item.avgRating}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="primary-button month-dismiss-btn" data-action="dismiss-month-result">確認月結戰報 ➔</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function ceremonyModalView() {
+  const ceremony=state.pendingCeremony;
+  if (!ceremony || state.lastMonthResult?.isNew) return '';
+  return `<div class="modal-backdrop ceremony-modal-backdrop">
+    <div class="modal ceremony-modal" role="dialog" aria-modal="true" aria-labelledby="ceremony-title">
+      <div class="ceremony-modal-header">
+        <div class="ceremony-banner-tag">ANNUAL TELEVISION AWARDS GALA</div>
+        <h2 id="ceremony-title">🏆 第 ${ceremony.year} 屆 全城電視大獎 · 年度盛典</h2>
+        <p class="ceremony-subtitle">全港觀眾與業界專業評審聯合評選 · 總結 360 日電視風雲</p>
+      </div>
+      <div class="ceremony-summary-strip">
+        <div><span>我台獲獎數</span><strong class="gold-text">${ceremony.ourWins} / ${ceremony.awards.length} 項</strong></div>
+        <div><span>台慶大獎金</span><strong>+${money(ceremony.totalPrize)}</strong></div>
+        <div><span>聲望回報</span><strong>口碑 +${ceremony.ourWins*3} · 熱度 +${ceremony.ourWins*4}</strong></div>
+      </div>
+      <div class="ceremony-awards-grid">
+        ${ceremony.awards.map(award=>`
+          <div class="award-card ${award.isOurs?'is-ours':'is-rival'}">
+            <div class="award-header">
+              <span class="award-icon">${award.icon}</span>
+              <div class="award-title-box">
+                <h4>${safe(award.category)}</h4>
+                <small>${safe(award.description)}</small>
+              </div>
+              <span class="award-status-pill ${award.isOurs?'pill-ours':'pill-rival'}">${award.isOurs?'★ 我台榮獲':safe(award.station)}</span>
+            </div>
+            <div class="award-winner-box">
+              <span class="winner-label">得獎者 / 作品</span>
+              <strong class="winner-name">${safe(award.winner)}</strong>
+              <span class="winner-station">${safe(award.station)}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="modal-actions">
+        <button class="primary-button ceremony-dismiss-btn" data-action="dismiss-ceremony">全體祝賀 · 接受榮譽 ➔</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 function render() {
@@ -72,6 +200,7 @@ function render() {
         </div>
       </header>
       <div class="game-hud"><div class="hud-stats"><span>資金 <b class="${state.cash<0?'danger':''}">${money(state.cash)}</b></span><span>口碑 <b>${state.reputation}</b></span><span>熱度 <b>${state.fans}</b></span></div><div class="hud-broadcast"><span class="broadcast-clock"><span class="broadcast-clock-line"><i></i> <span id="broadcast-status">${live.finished?'今日播畢':'正在播映'}</span> <b id="live-clock">${live.clock}</b></span><small class="clock-rate">現實 30 秒＝遊戲 1 小時</small></span><strong id="now-title">${safe(live.title)}</strong><small id="now-episode">${safe(live.episode||'每日時段')}</small><small>下一節目 <b id="next-title"></b></small></div></div>
+      ${breakingEventBannerView()}
       <nav class="tabs" aria-label="遊戲功能">
         ${[['schedule','排播'],['studio','製作'],['catalog','片庫'],['rivals','對手'],['sports','體育'],['reports','戰報']].map(([id,label])=>`<button data-action="tab" data-tab="${id}" class="tab ${tab===id?'active':''}" ${tab===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}
       </nav>
@@ -81,6 +210,8 @@ function render() {
       <footer>電視夢工場：新世代 <span>進度自動保存在此瀏覽器</span></footer>
       ${notice?`<div class="toast" role="status">${safe(notice)}</div>`:''}
       ${premiereView()}
+      ${monthResultModalView()}
+      ${ceremonyModalView()}
       ${showReset?`<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="reset-title"><h2 id="reset-title">重新開局？</h2><p>目前電視台嘅進度會清除。</p><div class="modal-actions"><button class="soft-button" data-action="reset-cancel">取消</button><button class="danger-button" data-action="reset-confirm">重新開局</button></div></div></div>`:''}
       ${showTransfer?transferModalView():''}
     </div>`;
@@ -171,7 +302,7 @@ function broadcastResultsView(){
   const report=reports.find(item=>item.day===selectedBroadcastDay)??reports[0];
   const entries=[...report.details].sort((a,b)=>a.start-b.start);
   const charity=entries.filter(item=>item.kind==='charity').length;
-  return `<section class="panel broadcast-results" aria-label="逐套節目播映成績"><div class="section-heading"><div><div class="eyebrow gold">ON AIR RESULTS</div><h2>逐套節目成績戰報</h2></div><span class="report-meta-tag">第 ${report.day} 日 · ${entries.length} 個播映時段</span></div><p class="broadcast-results-help">即時播映成效報告：收視指數（0–100）與同時段最強對手比拼，廣告收入即日入帳。</p><div class="broadcast-days" aria-label="選擇播映日">${reports.map(item=>`<button data-action="broadcast-day" data-day="${item.day}" class="${item.day===report.day?'active':''}" aria-pressed="${item.day===report.day}">第 ${item.day} 日</button>`).join('')}</div>${charity?`<p class="charity-summary">累計慈善籌款 ${hourlyMoney(state.charityRaised??0)} · 款項不屬電視台資金</p>`:''}<div class="broadcast-result-grid">${entries.length?entries.map(item=>{const rival=Number.isFinite(item.rivalRating)?item.rivalRating:state.lastDayResult?.day===report.day?Math.max(...(state.lastDayResult.hours??[]).filter(hour=>hour&&hour.title===item.title&&hour.hour>=item.start&&hour.hour<item.start+item.duration).flatMap(hour=>hour.rivals??[0])):null;const won=Number.isFinite(rival)?item.rating>rival:null;const diff=Number.isFinite(rival)?item.rating-rival:0;const diffText=diff>0?`+${diff}`:`${diff}`;const totalRatings=Math.max(1,(item.rating+(rival||0)));const ourShare=Math.min(95,Math.max(5,Math.round((item.rating/totalRatings)*100)));return `<article class="broadcast-result-card ${won===true?'won':won===false?'lost':''}"><div class="broadcast-result-top"><span class="broadcast-time-tag">${hourLabel(item.start)}–${hourLabel(item.start+item.duration)}</span><b class="battle-badge ${won===true?'won':won===false?'lost':''}">${won===null?'成績':won?`搶贏對台 ${diffText}`:`未能勝出 ${diffText}`}</b></div><div class="broadcast-title-row"><h3>《${safe(item.title)}》</h3><span class="broadcast-cat-tag">${safe(item.category||'節目')}</span></div><p class="broadcast-ep-line">${safe(item.episode||item.category||'節目播映')}</p><div class="battle-bar-box" title="我台 ${item.rating} : 對手 ${Number.isFinite(rival)?rival:'—'}"><div class="battle-bar-labels"><span>我台 <b>${item.rating}</b></span><span>對手 <b>${Number.isFinite(rival)?rival:'—'}</b></span></div><div class="battle-bar-track"><div class="battle-bar-fill" style="width:${ourShare}%"></div></div></div><div class="broadcast-result-stats"><div><small>我台收視</small><strong>${item.rating}</strong></div><div><small>最強對手</small><strong>${Number.isFinite(rival)?rival:'—'}</strong></div><div><small>廣告收入</small><strong class="gold-text">${hourlyMoney(item.revenue??0)}</strong></div></div>${item.effect?`<p class="broadcast-result-effect">★ ${safe(item.effect)}</p>`:''}</article>`}).join(''):'<p class="empty">當日冇節目播映，排檔後先有逐套成績。</p>'}</div></section>`;
+  return `<section class="panel broadcast-results" aria-label="逐套節目播映成績"><div class="section-heading"><div><div class="eyebrow gold">ON AIR RESULTS</div><h2>逐套節目成績戰報</h2></div><span class="report-meta-tag">第 ${report.day} 日 · ${entries.length} 個播映時段</span></div><p class="broadcast-results-help">即時播映成效報告：收視指數（0–100）與同時段最強對手比拼，廣告收入即日入帳。</p><div class="broadcast-days" aria-label="選擇播映日">${reports.map(item=>`<button data-action="broadcast-day" data-day="${item.day}" class="${item.day===report.day?'active':''}" aria-pressed="${item.day===report.day}">第 ${item.day} 日</button>`).join('')}</div>${charity?`<p class="charity-summary">累計慈善籌款 ${hourlyMoney(state.charityRaised??0)} · 款項不屬電視台資金</p>`:''}<div class="broadcast-result-grid">${entries.length?entries.map(item=>{const rival=Number.isFinite(item.rivalRating)?item.rivalRating:state.lastDayResult?.day===report.day?Math.max(...(state.lastDayResult.hours??[]).filter(hour=>hour&&hour.title===item.title&&hour.hour>=item.start&&hour.hour<item.start+item.duration).flatMap(hour=>hour.rivals??[0])):null;const won=Number.isFinite(rival)?item.rating>rival:null;const diff=Number.isFinite(rival)?item.rating-rival:0;const diffText=diff>0?`+${diff}`:`${diff}`;const totalRatings=Math.max(1,(item.rating+(rival||0)));const ourShare=Math.min(95,Math.max(5,Math.round((item.rating/totalRatings)*100)));return `<article class="broadcast-result-card ${won===true?'won':won===false?'lost':''}"><div class="broadcast-result-top"><span class="broadcast-time-tag">${hourLabel(item.start)}–${hourLabel(item.start+item.duration)}</span>${item.eventMod?`<span class="event-mod-tag ${item.eventMod>0?'boost':'debuff'}">${item.eventMod>0?`▲ 突發 +${item.eventMod}`:`▼ 突發 ${item.eventMod}`}</span>`:''}<b class="battle-badge ${won===true?'won':won===false?'lost':''}">${won===null?'成績':won?`搶贏對台 ${diffText}`:`未能勝出 ${diffText}`}</b></div><div class="broadcast-title-row"><h3>《${safe(item.title)}》</h3><span class="broadcast-cat-tag">${safe(item.category||'節目')}</span></div><p class="broadcast-ep-line">${safe(item.episode||item.category||'節目播映')}</p><div class="battle-bar-box" title="我台 ${item.rating} : 對手 ${Number.isFinite(rival)?rival:'—'}"><div class="battle-bar-labels"><span>我台 <b>${item.rating}</b></span><span>對手 <b>${Number.isFinite(rival)?rival:'—'}</b></span></div><div class="battle-bar-track"><div class="battle-bar-fill" style="width:${ourShare}%"></div></div></div><div class="broadcast-result-stats"><div><small>我台收視</small><strong>${item.rating}</strong></div><div><small>最強對手</small><strong>${Number.isFinite(rival)?rival:'—'}</strong></div><div><small>廣告收入</small><strong class="gold-text">${hourlyMoney(item.revenue??0)}</strong></div></div>${item.effect?`<p class="broadcast-result-effect">★ ${safe(item.effect)}</p>`:''}${item.eventMod&&item.eventTitle?`<p class="event-mod-note">${item.eventMod>0?'🔥':'⚡'} 突發效應【${safe(item.eventTitle)}】：收視 ${item.eventMod>0?`+${item.eventMod}`:item.eventMod} 點</p>`:''}</article>`}).join(''):'<p class="empty">當日冇節目播映，排檔後先有逐套成績。</p>'}</div></section>`;
 }
 
 function premiereView(){
@@ -416,13 +547,136 @@ function hourlyComparisonView() {
 }
 
 function audienceView() {
-  const letters=(state.mailbox??[]).slice(0,6),comments=(state.audienceFeed??[]).slice(0,6);
-  return `<div class="audience-grid"><section class="panel"><div class="section-heading"><h2>觀眾留言</h2><span>按每日播映收視生成嘅遊戲模擬評語</span></div>${comments.length?comments.map(item=>`<article class="audience-item ${item.tone}"><small>第 ${item.day} 日 · 《${safe(item.title)}》</small><p>${safe(item.text)}</p></article>`).join(''):'<p class="empty">播出第一日之後，觀眾先會留言。</p>'}</section><section class="panel"><div class="section-heading"><h2>觀眾信箱</h2><span>每隔一段時間會有來信</span></div>${letters.length?letters.map(item=>`<article class="audience-item"><small>第 ${item.day} 日 · ${item.type==='request'?'節目點播':item.type==='gift'?'觀眾禮物':'意見投訴'}</small><p>${safe(item.text)}</p>${item.resolved?'<span class="letter-done">已回覆</span>':`<button data-action="reply-letter" data-id="${safe(item.id)}">${item.type==='request'?'接納點播':item.type==='gift'?'收下禮物':'回覆及改善 · $50k'}</button>`}</article>`).join(''):'<p class="empty">信箱暫時冇信；繼續播映會收到觀眾回應。</p>'}</section></div>`;
+  const letters=(state.mailbox??[]).slice(0,8),comments=(state.audienceFeed??[]).slice(0,6);
+  return `<div class="audience-grid">
+    <section class="panel">
+      <div class="section-heading"><h2>觀眾留言</h2><span>按每日播映收視生成嘅遊戲模擬評語</span></div>
+      ${comments.length?comments.map(item=>`<article class="audience-item ${item.tone}"><small>第 ${item.day} 日 · 《${safe(item.title)}》</small><p>${safe(item.text)}</p></article>`).join(''):'<p class="empty">播出第一日之後，觀眾先會留言。</p>'}
+    </section>
+    <section class="panel">
+      <div class="section-heading"><h2>觀眾信箱與特別互動</h2><span>觀眾點播、狂熱粉絲與監管機構來信</span></div>
+      ${letters.length?letters.map(item=>{
+        const isSpecial=Boolean(item.options&&item.options.length);
+        const typeLabel=item.title?`【${item.title}】`:item.type==='request'?'節目點播':item.type==='gift'?'觀眾禮物':'意見投訴';
+        return `<article class="audience-item ${isSpecial?'is-special-audience':''}">
+          <div class="audience-item-head">
+            <small>第 ${item.day} 日 · ${safe(typeLabel)}</small>
+            ${item.resolved?'<span class="letter-done">✓ 已處理</span>':''}
+          </div>
+          <p>${safe(item.text)}</p>
+          ${item.resolved?`
+            <div class="resolved-note">${item.resolvedChoiceLabel?`已選擇：<strong>${safe(item.resolvedChoiceLabel)}</strong>`:'已回覆觀眾'}</div>
+          `:isSpecial?`
+            <div class="letter-choices-box">
+              ${item.options.map(opt=>`
+                <button class="letter-choice-btn" data-action="reply-letter-choice" data-id="${safe(item.id)}" data-choice="${safe(opt.id)}" ${opt.cost&&state.cash<opt.cost?'disabled':''}>
+                  <div class="choice-top"><strong>${safe(opt.label)}</strong>${opt.cost?`<b class="${state.cash<opt.cost?'danger':''}">${money(opt.cost)}</b>`:''}</div>
+                  <small>${safe(opt.desc)}</small>
+                </button>
+              `).join('')}
+            </div>
+          `:`
+            <button data-action="reply-letter" data-id="${safe(item.id)}">${item.type==='request'?'接納點播':item.type==='gift'?'收下禮物':'回覆及改善 · $50k'}</button>
+          `}
+        </article>`;
+      }).join(''):'<p class="empty">信箱暫時冇信；繼續播映會收到觀眾回應。</p>'}
+    </section>
+  </div>`;
 }
 
 function premiereHistoryView(){
   const items=(state.premiereHistory??[]).slice(0,5);
   return items.length?`<section class="panel premiere-history"><div class="section-heading"><h2>首播戰績</h2><span>最近 ${items.length} 套 · 決策已生效</span></div><div class="premiere-history-list">${items.map(item=>`<article><span class="history-symbol">${safe(premiereProfile(item.kind).symbol)}</span><div><strong>《${safe(item.title)}》</strong><small>第 ${item.day} 日 · ${safe(premiereProfile(item.kind).label)} · ${item.won?'勝出':'落後'} ${Math.abs(item.rating-item.rivalRating)} 分</small></div><b>${item.rating} : ${item.rivalRating}</b></article>`).join('')}</div></section>`:'';
+}
+
+function monthlyLeaderboardView() {
+  const leaderboards = state.monthlyLeaderboards ?? [];
+  if (!leaderboards.length) return '';
+  const current = leaderboards.find(l => l.month === selectedLeaderboardMonth) ?? leaderboards[0];
+  return `<section class="panel monthly-leaderboard-panel">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow gold">MONTHLY RATINGS ARCHIVE</div>
+        <h2>全港電視月度收視龍虎榜</h2>
+      </div>
+      <span class="report-meta-tag">第 ${current.month} 個月（第 ${current.day} 日結算）</span>
+    </div>
+    <div class="month-selector-tabs" role="group" aria-label="選擇查看月份">
+      ${leaderboards.map(l => `<button data-action="leaderboard-month" data-month="${l.month}" class="${l.month === current.month ? 'active' : ''}" aria-pressed="${l.month === current.month}">第 ${l.month} 個月${l.isOurWin ? ' 👑' : ''}</button>`).join('')}
+    </div>
+    <div class="month-champion-strip ${current.isOurWin ? 'our-win' : 'rival-win'}">
+      <div class="strip-main">
+        <span class="strip-crown">👑</span>
+        <div>
+          <span class="strip-sub">全港月度最高收視總冠軍</span>
+          <strong class="strip-title">《${safe(current.champion.title)}》</strong>
+          <span class="strip-station">${safe(current.champion.station)} · 最高收視 <b>${current.champion.peakRating}</b> 點 · 平均 ${current.champion.avgRating} 點</span>
+        </div>
+      </div>
+      ${current.isOurWin ? '<span class="strip-badge gold">我台奪冠 · 花紅 $600k 入帳</span>' : `<span class="strip-badge neutral">我台最高：《${safe(current.ourBest.title)}》（${current.ourBest.peakRating} 點 · 第 ${current.ourBest.rank} 名）</span>`}
+    </div>
+    <div class="month-top5-table-box">
+      <table class="month-top5-table">
+        <thead>
+          <tr>
+            <th>名次</th>
+            <th>節目名稱</th>
+            <th>電視台</th>
+            <th>最高收視</th>
+            <th>平均收視</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${current.top5.map(item => `
+            <tr class="${item.station === '你的電視台' ? 'is-ours' : ''}">
+              <td class="rank-cell"><span class="rank-badge rank-${item.rank}">${item.rank}</span></td>
+              <td class="title-cell"><strong>${safe(item.title)}</strong></td>
+              <td class="station-cell"><span class="station-tag ${item.station === '你的電視台' ? 'tag-ours' : ''}">${safe(item.station)}</span></td>
+              <td class="rating-cell"><strong>${item.peakRating}</strong></td>
+              <td class="avg-cell">${item.avgRating}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  </section>`;
+}
+
+function annualAwardsHistoryView() {
+  const ceremonies = state.awardCeremonies ?? [];
+  if (!ceremonies.length) return '';
+  return `<section class="panel ceremonies-history-panel">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow gold">HALL OF FAME</div>
+        <h2>歷屆全城電視大獎 · 榮譽殿堂</h2>
+      </div>
+      <span>每 360 日年度盛典</span>
+    </div>
+    <div class="ceremonies-list">
+      ${ceremonies.map(c => `
+        <article class="ceremony-history-card">
+          <div class="ceremony-history-header">
+            <h3>🏆 第 ${c.year} 屆 全城電視大獎</h3>
+            <span class="ceremony-wins-tag">我台勇奪 ${c.ourWins} / ${c.awards.length} 項大獎 · 獲頒台慶獎金 ${money(c.totalPrize)}</span>
+          </div>
+          <div class="ceremony-history-grid">
+            ${c.awards.map(a => `
+              <div class="ceremony-history-item ${a.isOurs ? 'is-ours' : ''}">
+                <div class="item-cat-line">
+                  <span class="item-icon">${a.icon}</span>
+                  <span class="item-cat">${safe(a.category)}</span>
+                  ${a.isOurs ? '<span class="item-badge-ours">我台得獎</span>' : ''}
+                </div>
+                <strong class="item-winner">${safe(a.winner)}</strong>
+                <small class="item-station">${safe(a.station)}</small>
+              </div>
+            `).join('')}
+          </div>
+        </article>
+      `).join('')}
+    </div>
+  </section>`;
 }
 
 function reportsView() {
@@ -431,6 +685,8 @@ function reportsView() {
   ${audienceView()}
   ${premiereHistoryView()}
   ${broadcastResultsView()}
+  ${monthlyLeaderboardView()}
+  ${annualAwardsHistoryView()}
   ${state.lastDayResult?hourlyComparisonView():''}
   <section class="panel history-panel"><div class="section-heading"><h2>季度帳目</h2><span>最近 12 季</span></div>${state.history.length?state.history.map(h=>`<div class="history-row"><strong>${h.label}</strong><span>收益 ${money(h.revenue)}</span><span>營運 ${money(h.overhead)}</span><b class="${h.net<0?'danger':''}">${money(h.net)}</b></div>`).join(''):'<p class="empty">第一份帳目等待結算。</p>'}</section>`;
 }
@@ -460,6 +716,10 @@ app.addEventListener('click',e=>{
     if(action==='produce'){const p=produce(state,selected);selected.actorIds=[];actorPickerOpen=false;actorSearch='';resetProgramPicker();editor={start:p.kind==='night'?22:20,duration:p.episodeHours,programId:p.id,days:initialDays(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`《${p.title}》拍好咗，揀時段播出。`);}
     if(action==='sell'||action==='sell-exclusive'){const deal=sellProduction(state,button.dataset.id,button.dataset.rival,action==='sell-exclusive');flash(`《${deal.title}》${deal.exclusive?'獨家賣斷':'聯播授權'}成交，進帳 ${preciseMoney(deal.amount)}。`);}
     if(action==='reply-letter'){const letter=replyToLetter(state,button.dataset.id);flash(letter.type==='request'?'已接納節目點播，去製作頁拍攝。':letter.type==='gift'?'已收下道具，下一套節目品質提升。':'已回覆觀眾意見，口碑提升。');}
+    if(action==='reply-letter-choice'){const letter=replyToLetter(state,button.dataset.id,button.dataset.choice);flash(`已處理觀眾特殊互動：${letter.resolvedChoiceLabel||'已落實決策'}`);}
+    if(action==='dismiss-month-result'){dismissMonthResult(state);render();return;}
+    if(action==='dismiss-ceremony'){dismissCeremony(state);render();return;}
+    if(action==='leaderboard-month'){selectedLeaderboardMonth=Number(button.dataset.month);render();return;}
     if(action==='schedule-new'){const p=state.library.find(item=>item.id===button.dataset.id);resetProgramPicker();editor={start:20,duration:p?.episodeHours??2,programId:button.dataset.id,days:initialDays(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;render();}
     if(action==='schedule-day'){scheduleDay=Number(button.dataset.day);render();}
     if(action==='schedule-period'){schedulePeriod=value;render();}
@@ -516,7 +776,7 @@ app.addEventListener('click',e=>{
     }
     if(action==='reset-prompt'){showReset=true;render();}
     if(action==='reset-cancel'){showReset=false;render();}
-    if(action==='reset-confirm'){state=newGame();selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none'};editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],allowRepeat:false};resetProgramPicker();scheduleDay=null;catalogFilter='all';catalogSort='featured';catalogAvailableOnly=false;catalogNetwork='ViuTV';catalogYear='all';catalogQuery='';licenseDays=180;reportFilter='all';actorFilter='viu';actorPickerOpen=false;actorSearch='';tab='schedule';editorOpen=false;runSummary=null;selectedBroadcastDay=null;resetScroll=true;showReset=false;notice='';render();}
+    if(action==='reset-confirm'){state=newGame();selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none'};editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],allowRepeat:false};resetProgramPicker();scheduleDay=null;catalogFilter='all';catalogSort='featured';catalogAvailableOnly=false;catalogNetwork='ViuTV';catalogYear='all';catalogQuery='';licenseDays=180;reportFilter='all';actorFilter='viu';actorPickerOpen=false;actorSearch='';tab='schedule';editorOpen=false;runSummary=null;selectedBroadcastDay=null;selectedLeaderboardMonth=null;resetScroll=true;showReset=false;notice='';render();}
   }catch(error){flash(error.message)}
 });
 app.addEventListener('input',e=>{if(e.target.dataset.action==='actor-search'){actorSearch=e.target.value;app.querySelectorAll('.actor-grid .actor').forEach(button=>{button.hidden=!button.textContent.includes(actorSearch.trim())});}if(e.target.dataset.action==='editor-program-search'&&!e.isComposing){const pos=e.target.selectionStart;editorProgramSearch=e.target.value;render();const input=app.querySelector('[data-action="editor-program-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}if(e.target.dataset.action==='catalog-search'&&!e.isComposing){const pos=e.target.selectionStart;catalogQuery=e.target.value;render();const input=app.querySelector('[data-action="catalog-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}});

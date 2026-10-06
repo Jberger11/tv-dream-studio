@@ -96,6 +96,14 @@ export class StationState {
     this.premiereHistory = [];
     this.broadcastReports = [];
     this.charityRaised = 0;
+    this.breakingEvent = null;
+    this.breakingEventsHistory = [];
+    this.monthBroadcastLog = [];
+    this.monthlyLeaderboards = [];
+    this.lastMonthResult = null;
+    this.pendingCeremony = null;
+    this.awardCeremonies = [];
+    this.viralShowBoost = null;
     this.log = [{ quarter:0, text:'電視台開台。片庫已有 12 套節目，24 小時時段全部排好。', type:'neutral' }];
   }
 }

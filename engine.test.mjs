@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -436,3 +436,70 @@ test('finishing all episodes of a catalog show leaves the slot blank and avoids 
   assert.equal(episodeForBlock(state,{start:14,duration:2,programId:series.id}),'第 21 / 20 集');
   assert.doesNotMatch(episodeForBlock(state,{start:14,duration:2,programId:series.id}),/手動重播/);
 });
+
+test('breaking sudden events (local or worldwide) alter program rating dynamically', () => {
+  const state = newGame();
+  const typhoon = BREAKING_EVENTS_POOL.find(e => e.id === 'typhoon');
+  assert.ok(typhoon);
+  assert.equal(typhoon.scope, 'local');
+  state.breakingEvent = { ...typhoon, daysLeft: 2, totalDays: 2, startDay: 1 };
+  
+  const newsProg = state.library.find(p => p.kind === 'news');
+  const dramaProg = state.library.find(p => p.kind === 'drama');
+  const newsMod = getBreakingRatingMod(state.breakingEvent, newsProg);
+  const dramaMod = getBreakingRatingMod(state.breakingEvent, dramaProg);
+  assert.equal(newsMod, 24); // all 12 + news 12
+  assert.equal(dramaMod, 12); // all 12
+
+  const day1 = advanceDay(state, () => .5);
+  assert.equal(state.breakingEvent.daysLeft, 1);
+  const newsDetail = day1.details.find(d => d.kind === 'news');
+  assert.ok(newsDetail);
+  assert.equal(newsDetail.eventMod, 24);
+
+  const day2 = advanceDay(state, () => .5);
+  assert.equal(state.breakingEvent, null);
+  assert.ok(state.breakingEventsHistory.length >= 1);
+});
+
+test('special audience events provide diverse interactive decisions and consequences', () => {
+  const state = newGame();
+  state.day = 6; // Day 6 triggers special audience events
+  advanceDay(state, () => .5);
+  const letter = state.mailbox[0];
+  assert.ok(letter);
+  assert.ok(letter.options && letter.options.length >= 2);
+  const beforeFans = state.fans;
+  replyToLetter(state, letter.id, letter.options[0].id);
+  assert.equal(letter.resolved, true);
+  assert.equal(letter.resolvedChoice, letter.options[0].id);
+  assert.ok(state.fans >= beforeFans);
+});
+
+test('month-end evaluations identify highest rating program, award bonuses and maintain leaderboards', () => {
+  const state = newGame();
+  state.day = 30; // 30th day triggers month end
+  const res = advanceDay(state, () => .5);
+  assert.ok(res.monthResult);
+  assert.equal(res.monthResult.month, 1);
+  assert.ok(res.monthResult.champion);
+  assert.ok(res.monthResult.top5.length >= 1);
+  assert.equal(state.monthlyLeaderboards.length, 1);
+  assert.equal(state.monthlyLeaderboards[0].month, 1);
+  dismissMonthResult(state);
+  assert.equal(state.lastMonthResult.isNew, false);
+});
+
+test('annual award ceremony takes place every year awarding trophies, talent boosts and gala prizes', () => {
+  const state = newGame();
+  state.day = 360; // 360th day triggers annual ceremony
+  const res = advanceDay(state, () => .5);
+  assert.ok(res.ceremony);
+  assert.equal(res.ceremony.year, 1);
+  assert.ok(res.ceremony.awards.length >= 6);
+  assert.ok(state.awardCeremonies.length >= 1);
+  assert.ok(state.pendingCeremony);
+  dismissCeremony(state);
+  assert.equal(state.pendingCeremony, null);
+});
+

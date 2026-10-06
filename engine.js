@@ -76,6 +76,116 @@ export const ACTORS = [
   new Actor('jeffrey_ngai','魏浚笙',80,600_000,'青春','viu')
 ];
 
+export const FEMALE_ACTOR_IDS = new Set([
+  'sheren','jessica','selena','samantha','venus','hera','elaine','joyce',
+  'kan_mo_wah','hanna_chan','stephy_tang','hedwig_tam'
+]);
+
+export const BREAKING_EVENTS_POOL = [
+  {
+    id: 'typhoon',
+    title: '全港十號風球強烈襲港',
+    scope: 'local',
+    icon: '🌀',
+    description: '全港停工停課市民留家避風，全台收視普遍上升，新聞時段備受全城關注！',
+    duration: 2,
+    ratingMods: { all: 12, kinds: { news: 12, social: 6 } }
+  },
+  {
+    id: 'hang-seng-drop',
+    title: '恆生指數單日急瀉過千點',
+    scope: 'local',
+    icon: '📉',
+    description: '金融市場劇烈震盪，全城股民瘋狂追看財經與時事動向，娛樂節目微跌。',
+    duration: 3,
+    ratingMods: { kinds: { finance: 25, news: 10, politics: 10, drama: -5, variety: -5 } }
+  },
+  {
+    id: 'internet-outage',
+    title: '全球網絡海底光纖大中斷',
+    scope: 'worldwide',
+    icon: '🌐',
+    description: '網絡串流平台全面癱瘓，數百萬網民重投傳統電視懷抱，電視收視全面逆襲！',
+    duration: 3,
+    ratingMods: { all: 16, kinds: { drama: 8, variety: 8 } }
+  },
+  {
+    id: 'world-summit',
+    title: '環球領袖緊急氣候峰會',
+    scope: 'worldwide',
+    icon: '🌍',
+    description: '各大國歷史性閉門高峰會議召開，國際形勢牽動人心，時事資訊節目大受注目。',
+    duration: 3,
+    ratingMods: { kinds: { news: 20, politics: 18, information: 8 } }
+  },
+  {
+    id: 'popstar-visit',
+    title: '國際流行巨星旋風訪港',
+    scope: 'local',
+    icon: '🎤',
+    description: '啟德體育園萬人空巷！娛樂話題席捲全港，綜藝與音樂時段成為熱話。',
+    duration: 4,
+    ratingMods: { kinds: { variety: 22, contest: 15 }, genres: { 青春: 10 } }
+  },
+  {
+    id: 'food-safety',
+    title: '全城關注連鎖食安風波',
+    scope: 'local',
+    icon: '🔍',
+    description: '熱門食肆爆出食安危機，市民極度重視生活健康真相與消費專題。',
+    duration: 3,
+    ratingMods: { kinds: { information: 22, social: 14 } }
+  },
+  {
+    id: 'oscar-win',
+    title: '香港電影人揚威國際影展',
+    scope: 'worldwide',
+    icon: '🏆',
+    description: '港產片再度名震國際，引爆全城重溫香港電影經典的狂熱！',
+    duration: 4,
+    ratingMods: { kinds: { catalog: 24 }, genres: { 歷史: 8 } }
+  },
+  {
+    id: 'urban-mystery',
+    title: '深夜獅子山驚現奇異天象',
+    scope: 'local',
+    icon: '🛸',
+    description: '市民拍得離奇光芒引發社交媒體瘋傳，深夜時段與都市怪談引爆收聽收視熱潮！',
+    duration: 3,
+    ratingMods: { kinds: { night: 26 }, genres: { 科幻: 15, 奇幻: 15 } }
+  },
+  {
+    id: 'retro-craze',
+    title: '全球掀起九十年代港風復古潮',
+    scope: 'worldwide',
+    icon: '📼',
+    description: '海外社媒廣泛傳播香港懷舊流行文化，經典港產劇集與武俠作品翻紅！',
+    duration: 4,
+    ratingMods: { kinds: { catalog: 15 }, genres: { 武俠: 20, 刑偵: 12, 歷史: 12 } }
+  },
+  {
+    id: 'policy-address',
+    title: '特區公佈重大民生新政藍圖',
+    scope: 'local',
+    icon: '📜',
+    description: '涵蓋全港房屋交通派糖措施，各區市民爭相了解切身政策細節。',
+    duration: 3,
+    ratingMods: { kinds: { politics: 22, social: 16, news: 10 } }
+  }
+];
+
+export function getBreakingRatingMod(event, program) {
+  if (!event || !program) return 0;
+  let mod = event.ratingMods?.all ?? 0;
+  if (event.ratingMods?.kinds?.[program.kind]) {
+    mod += event.ratingMods.kinds[program.kind];
+  }
+  if (program.kind === 'drama' && event.ratingMods?.genres?.[program.genre]) {
+    mod += event.ratingMods.genres[program.genre];
+  }
+  return mod;
+}
+
 const synergy = {
   '刑偵': { '懸疑':'double-o','喜劇':'x','愛情':'o','恐怖':'o','冒險':'o','家庭':'o' },
   '處境劇': { '懸疑':'x','喜劇':'o','愛情':'o','恐怖':'x','冒險':'x','家庭':'double-o' },
@@ -283,7 +393,13 @@ export function rivalAtHour(state,rival,hour,day=state.day) {
   const title=deal?.title??premiere?.title??block.rotation?.[state.quarter%block.rotation.length]??block.title;
   const wave=(day*11+hour*3+(rival.id==='city'?0:2))%7-3;
   const base=deal?.rating??premiere?.rating??block.rating;
-  return {title,rating:clamp(base+wave+Math.min(state.quarter%3,2),1,98),block};
+  let eventMod = 0;
+  if (state.breakingEvent) {
+    if (state.breakingEvent.ratingMods?.all) eventMod += Math.round(state.breakingEvent.ratingMods.all * 0.5);
+    if ((hour === 17 || hour === 18) && state.breakingEvent.ratingMods?.kinds?.news) eventMod += Math.round(state.breakingEvent.ratingMods.kinds.news * 0.5);
+    if (hour >= 9 && hour <= 10 && state.breakingEvent.ratingMods?.kinds?.finance) eventMod += Math.round(state.breakingEvent.ratingMods.kinds.finance * 0.5);
+  }
+  return {title,rating:clamp(base+wave+Math.min(state.quarter%3,2)+eventMod,1,98),block};
 }
 
 export function distributionQuote(program,exclusive=false) {
@@ -439,6 +555,14 @@ export function migrateLegacyLicenses(state) {
   state.premiereHistory??=[];
   state.broadcastReports??=[];
   state.charityRaised??=0;
+  state.breakingEvent??=null;
+  state.breakingEventsHistory??=[];
+  state.monthBroadcastLog??=[];
+  state.monthlyLeaderboards??=[];
+  state.lastMonthResult??=null;
+  state.pendingCeremony??=null;
+  state.awardCeremonies??=[];
+  state.viralShowBoost??=null;
   // Old saves had no term. Grant a fresh six-month window without changing cash or runs.
   for (const program of state.library) if (program.kind==='catalog') {
     if (!Number.isInteger(program.licenseExpiresDay)) {
@@ -498,9 +622,29 @@ export function resolvePremiere(state,choice){
   note(state,`《${program.title}》首播後選擇${choice==='spotlight'?'加碼宣傳':choice==='improve'?'改善內容':'維持節奏'}；預測收視現為 ${program.rating}。`,'good');
   return settled;
 }
-export function replyToLetter(state,id) {
+export function replyToLetter(state,id,choiceId=null) {
   const letter=(state.mailbox??[]).find(item=>item.id===id);
   if(!letter||letter.resolved) throw Error('呢封來信已處理。');
+  if(letter.options&&letter.options.length){
+    const choice=letter.options.find(opt=>opt.id===(choiceId??letter.options[0].id))??letter.options[0];
+    const cost=choice.cost??0;
+    if(cost>0&&state.cash<cost) throw Error(`需要 ${preciseMoney(cost)}，現金不足。`);
+    state.cash-=cost;
+    if(choice.effects){
+      if(choice.effects.cash) state.cash+=choice.effects.cash;
+      if(choice.effects.reputation) state.reputation=clamp(state.reputation+choice.effects.reputation,0,100);
+      if(choice.effects.fans) state.fans=clamp(state.fans+choice.effects.fans,0,100);
+      if(choice.effects.audienceBrief) state.audienceBrief=choice.effects.audienceBrief;
+      if(choice.effects.giftBoost) state.giftBoost=(state.giftBoost??0)+choice.effects.giftBoost;
+      if(choice.effects.actorId&&choice.effects.fame&&state.talent[choice.effects.actorId]){
+        state.talent[choice.effects.actorId].fame=clamp(state.talent[choice.effects.actorId].fame+choice.effects.fame,15,100);
+      }
+    }
+    letter.resolved=true;
+    letter.resolvedChoice=choice.id;
+    note(state,choice.feedback,choice.tone??'good');
+    return letter;
+  }
   if(letter.type==='request'){
     state.audienceBrief=letter.topic;
     note(state,`答應觀眾：下一套「${letter.topic}」節目會有收視加成。`,'good');
@@ -697,7 +841,266 @@ function oneOffBroadcastEffect(state,program,rating,won) {
   return '';
 }
 
+export function evaluateMonthlyRatings(state, monthIndex) {
+  state.monthBroadcastLog ??= [];
+  const monthNum = monthIndex + 1;
+  const showStats = new Map();
+  for (const entry of state.monthBroadcastLog) {
+    const key = `${entry.station}:${entry.title}`;
+    const cur = showStats.get(key) ?? {
+      title: entry.title,
+      station: entry.station,
+      kind: entry.kind,
+      category: entry.category,
+      peakRating: 0,
+      totalRating: 0,
+      count: 0
+    };
+    cur.peakRating = Math.max(cur.peakRating, entry.rating);
+    cur.totalRating += entry.rating;
+    cur.count++;
+    showStats.set(key, cur);
+  }
+  const ranked = [...showStats.values()]
+    .map(item => ({
+      ...item,
+      avgRating: Math.round(item.totalRating / item.count)
+    }))
+    .sort((a, b) => b.peakRating - a.peakRating || b.avgRating - a.avgRating);
+
+  const champion = ranked[0] ?? {
+    title: '暫無節目',
+    station: '你的電視台',
+    peakRating: 0,
+    avgRating: 0,
+    category: '節目'
+  };
+
+  const ourRanked = ranked.filter(item => item.station === '你的電視台');
+  const ourBest = ourRanked[0] ?? champion;
+  const ourBestRank = ranked.findIndex(item => item.station === '你的電視台' && item.title === ourBest.title) + 1;
+  ourBest.rank = ourBestRank > 0 ? ourBestRank : 1;
+
+  const top5 = ranked.slice(0, 5).map((item, idx) => ({ ...item, rank: idx + 1 }));
+  const isOurWin = champion.station === '你的電視台';
+
+  let bonusWon = false;
+  if (isOurWin) {
+    state.cash += 600_000;
+    state.reputation = clamp(state.reputation + 2, 0, 100);
+    state.fans = clamp(state.fans + 3, 0, 100);
+    bonusWon = true;
+    note(state, `【月結戰報】第 ${monthNum} 個月全港最高收視總冠軍：《${champion.title}》（收視 ${champion.peakRating} 分）！為我台勇奪月冠，獲廣告商花紅 $600k！`, 'good');
+  } else {
+    note(state, `【月結戰報】第 ${monthNum} 個月全港最高收視由${champion.station}《${champion.title}》（${champion.peakRating} 分）奪得；我台最高為《${ourBest.title}》（${ourBest.peakRating} 分，全月第 ${ourBest.rank} 名）。`, 'neutral');
+  }
+
+  const result = {
+    month: monthNum,
+    day: state.day,
+    champion,
+    top5,
+    ourBest,
+    isOurWin,
+    bonusWon,
+    isNew: true
+  };
+
+  state.lastMonthResult = result;
+  state.monthlyLeaderboards ??= [];
+  state.monthlyLeaderboards.unshift(result);
+  state.monthlyLeaderboards = state.monthlyLeaderboards.slice(0, 12);
+  state.monthBroadcastLog = [];
+  return result;
+}
+
+export function dismissMonthResult(state) {
+  if (state.lastMonthResult) {
+    state.lastMonthResult.isNew = false;
+  }
+}
+
+export function evaluateAnnualAwards(state, year, rng = Math.random) {
+  const awards = [];
+  let totalPrize = 0;
+  let ourWins = 0;
+
+  // 1. 年度最佳劇集
+  const dramas = state.library.filter(p => p.kind === 'drama' && p.runs > 0);
+  const bestOurDrama = [...dramas].sort((a, b) => (b.quality + b.review + b.rating) - (a.quality + a.review + a.rating))[0];
+  const cityDramaScore = 78 + Math.floor(rng() * 10);
+  const localDramaScore = 68 + Math.floor(rng() * 12);
+  const ourDramaScore = bestOurDrama ? Math.round((bestOurDrama.quality * 0.4 + bestOurDrama.review * 0.3 + bestOurDrama.rating * 0.3)) : 50;
+
+  let dramaWinner;
+  if (bestOurDrama && ourDramaScore >= cityDramaScore && ourDramaScore >= localDramaScore) {
+    dramaWinner = { title: `《${bestOurDrama.title}》`, station: '你的電視台', score: ourDramaScore, isOurs: true };
+    ourWins++;
+    totalPrize += 1_500_000;
+  } else if (cityDramaScore >= localDramaScore) {
+    dramaWinner = { title: '《深宮密令》', station: '全城電視', score: cityDramaScore, isOurs: false };
+  } else {
+    dramaWinner = { title: '《街市一家親》', station: '本地八台', score: localDramaScore, isOurs: false };
+  }
+  awards.push({
+    category: '年度最佳劇集',
+    icon: '🏆',
+    winner: dramaWinner.title,
+    station: dramaWinner.station,
+    isOurs: dramaWinner.isOurs,
+    description: '年度最具藝術價值、口碑與收視的大型劇集製作'
+  });
+
+  // 2. 最佳男主角（視帝）
+  const maleActorIds = ACTORS.filter(a => !FEMALE_ACTOR_IDS.has(a.id)).map(a => a.id);
+  const ourMaleCast = [...new Set(dramas.flatMap(d => d.castIds || []))].filter(id => maleActorIds.includes(id));
+  let bestActorWinner;
+  if (ourMaleCast.length && rng() < 0.70) {
+    const topActorId = [...ourMaleCast].sort((a, b) => (state.talent[b]?.fame ?? 50) - (state.talent[a]?.fame ?? 50))[0];
+    const actor = ACTORS.find(a => a.id === topActorId);
+    state.talent[topActorId].fame = clamp(state.talent[topActorId].fame + 10, 15, 100);
+    bestActorWinner = { name: actor.name, station: '你的電視台', isOurs: true };
+    ourWins++;
+    totalPrize += 1_000_000;
+  } else {
+    bestActorWinner = { name: rng() < 0.5 ? '陳豪（全城電視）' : '黃宗澤（全城電視）', station: '全城電視', isOurs: false };
+  }
+  awards.push({
+    category: '最佳男主角（視帝）',
+    icon: '👑',
+    winner: bestActorWinner.name,
+    station: bestActorWinner.station,
+    isOurs: bestActorWinner.isOurs,
+    description: '演技超群、全城熱話的年度最佳男演員'
+  });
+
+  // 3. 最佳女主角（視后）
+  const femaleActorIds = ACTORS.filter(a => FEMALE_ACTOR_IDS.has(a.id)).map(a => a.id);
+  const ourFemaleCast = [...new Set(dramas.flatMap(d => d.castIds || []))].filter(id => femaleActorIds.includes(id));
+  let bestActressWinner;
+  if (ourFemaleCast.length && rng() < 0.70) {
+    const topActressId = [...ourFemaleCast].sort((a, b) => (state.talent[b]?.fame ?? 50) - (state.talent[a]?.fame ?? 50))[0];
+    const actor = ACTORS.find(a => a.id === topActressId);
+    state.talent[topActressId].fame = clamp(state.talent[topActressId].fame + 10, 15, 100);
+    bestActressWinner = { name: actor.name, station: '你的電視台', isOurs: true };
+    ourWins++;
+    totalPrize += 1_000_000;
+  } else {
+    bestActressWinner = { name: rng() < 0.5 ? '佘詩曼（全城電視）' : '宣萱（全城電視）', station: '全城電視', isOurs: false };
+  }
+  awards.push({
+    category: '最佳女主角（視后）',
+    icon: '👑',
+    winner: bestActressWinner.name,
+    station: bestActressWinner.station,
+    isOurs: bestActressWinner.isOurs,
+    description: '風靡萬千觀眾、深入民心的年度最佳女演員'
+  });
+
+  // 4. 最佳綜藝資訊節目
+  const varieties = state.library.filter(p => (p.kind === 'variety' || p.kind === 'information' || p.kind === 'night' || p.kind === 'social' || isOneOffEvent(p.kind)) && p.runs > 0);
+  const bestOurVariety = [...varieties].sort((a, b) => (b.quality + b.buzz + b.rating) - (a.quality + a.buzz + a.rating))[0];
+  let varietyWinner;
+  if (bestOurVariety && (bestOurVariety.quality + bestOurVariety.rating > 120 || rng() < 0.60)) {
+    varietyWinner = { title: `《${bestOurVariety.title}》`, station: '你的電視台', isOurs: true };
+    ourWins++;
+    totalPrize += 1_000_000;
+  } else {
+    varietyWinner = { title: '《百萬挑戰》', station: '全城電視', isOurs: false };
+  }
+  awards.push({
+    category: '最佳綜藝資訊節目',
+    icon: '🌟',
+    winner: varietyWinner.title,
+    station: varietyWinner.station,
+    isOurs: varietyWinner.isOurs,
+    description: '引發全城歡笑與討論的高人氣非戲劇節目'
+  });
+
+  // 5. 年度全港最高收視大獎
+  const yearLeaderboards = (state.monthlyLeaderboards ?? []).filter(m => m.day > (year - 1) * 360 && m.day <= year * 360);
+  let highestProg = null;
+  for (const lb of yearLeaderboards) {
+    if (!highestProg || lb.champion.peakRating > highestProg.peakRating) {
+      highestProg = lb.champion;
+    }
+  }
+  const ratingWinner = highestProg ?? { title: '七點直播', station: '全城電視', peakRating: 84 };
+  const isRatingOurs = ratingWinner.station === '你的電視台';
+  if (isRatingOurs) {
+    ourWins++;
+    totalPrize += 1_000_000;
+  }
+  awards.push({
+    category: '年度全港最高收視大獎',
+    icon: '🥇',
+    winner: `《${ratingWinner.title}》（峰值 ${ratingWinner.peakRating} 分）`,
+    station: ratingWinner.station,
+    isOurs: isRatingOurs,
+    description: '全年度單一節目創下的全港最高瞬間收視紀錄'
+  });
+
+  // 6. 年度傑出電視台大獎
+  const isBroadcasterOurs = state.reputation >= 65 && ourWins >= 2;
+  if (isBroadcasterOurs) {
+    ourWins++;
+    totalPrize += 1_500_000;
+  }
+  awards.push({
+    category: '年度傑出電視台大獎',
+    icon: '🎖️',
+    winner: isBroadcasterOurs ? '你的電視台' : '全城電視',
+    station: isBroadcasterOurs ? '你的電視台' : '全城電視',
+    isOurs: isBroadcasterOurs,
+    description: '綜合全年度節目質素、社會口碑與商業影響力'
+  });
+
+  state.cash += totalPrize;
+  state.reputation = clamp(state.reputation + ourWins * 3, 0, 100);
+  state.fans = clamp(state.fans + ourWins * 4, 0, 100);
+
+  const ceremony = {
+    year,
+    day: state.day,
+    awards,
+    ourWins,
+    totalPrize,
+    isNew: true
+  };
+  state.pendingCeremony = ceremony;
+  state.awardCeremonies ??= [];
+  state.awardCeremonies.unshift(ceremony);
+  note(state, `【年度頒獎典禮】第 ${year} 屆全城電視大獎圓滿落幕！我台榮獲 ${ourWins} 項大獎，獲得台慶獎金 ${money(totalPrize)}，口碑 +${ourWins * 3}、熱度 +${ourWins * 4}！`, 'good');
+  return ceremony;
+}
+
+export function dismissCeremony(state) {
+  if (state.pendingCeremony) {
+    state.pendingCeremony = null;
+  }
+}
+
 export function advanceDay(state,rng=Math.random) {
+  // Handle breaking event lifecycle
+  if (state.breakingEvent) {
+    state.breakingEvent.daysLeft--;
+    if (state.breakingEvent.daysLeft <= 0) {
+      note(state, `突發事件【${state.breakingEvent.title}】影響已平息。`, 'neutral');
+      state.breakingEventsHistory ??= [];
+      state.breakingEventsHistory.unshift({ ...state.breakingEvent, endedDay: state.day });
+      state.breakingEvent = null;
+    }
+  } else if ((state.day % 11 === 0 || rng() < 0.08) && state.day > 1) {
+    const eventTemplate = BREAKING_EVENTS_POOL[state.day % BREAKING_EVENTS_POOL.length];
+    state.breakingEvent = {
+      ...eventTemplate,
+      daysLeft: eventTemplate.duration,
+      totalDays: eventTemplate.duration,
+      startDay: state.day
+    };
+    note(state, `【突發事件·${eventTemplate.scope === 'worldwide' ? '環球' : '本地'}】${eventTemplate.title}！${eventTemplate.description}`, 'good');
+  }
+
   // Expired rights must never air even if an older save still contains their slots.
   clearCompletedPrograms(state);
   const hours=Array(24).fill(null), details=[], firstAirings=[];
@@ -735,7 +1138,8 @@ export function advanceDay(state,rng=Math.random) {
       const rivals=state.rivals.map(rival=>rivalAtHour(state,rival,hour,gameDay));
       const strongest=Math.max(...rivals.map(item=>item.rating));
       const pressure=Math.round(Math.max(0,strongest-55)*.16-Math.max(0,55-strongest)*.07);
-      const rating=special?(prime?98:Math.round(76*factor)):clamp(Math.round(p.rating*decay*factor-pressure),1,100);
+      const eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
+      const rating=special?(prime?98:Math.round(76*factor)):clamp(Math.round(p.rating*decay*factor-pressure+eventMod),1,100);
       let ads;
       if (special) {
         specialHourIndex++;
@@ -748,7 +1152,7 @@ export function advanceDay(state,rng=Math.random) {
         const rightsFactor=p.id.startsWith('start-')?.2:1; // Free opening library is non-exclusive syndication.
         ads=Math.round(rate*rating*rating/70*rightsFactor*(p.outcome==='disaster'?.5:1));
       }
-      hours[hour]={hour,title:special?sports.name:p.title,episode,rating,revenue:ads,decay,special,rivals:rivals.map(item=>item.rating)};
+      hours[hour]={hour,title:special?sports.name:p.title,episode,rating,revenue:ads,decay,special,rivals:rivals.map(item=>item.rating),eventMod,eventTitle:state.breakingEvent?.title};
       blockRevenue+=ads; ratingTotal+=rating; revenue+=ads; audience+=rating;
       buzz+=special?90:Math.round(p.buzz*decay);
     }
@@ -757,7 +1161,20 @@ export function advanceDay(state,rng=Math.random) {
     const won=blockRating>rivalRating;
     const effect=p&&isOneOffEvent(p.kind)?oneOffBroadcastEffect(state,p,blockRating,won):'';
     if(effect)note(state,`《${p.title}》播映：收視 ${blockRating}，${effect}。`,won?'good':'neutral');
-    details.push({programId:p?.id??block.programId,kind:p?.kind??'sports',category:p?.category??'大型賽事',start:block.start,duration:block.duration,title:special?sports.name:p.title,episode,rating:blockRating,rivalRating,won,decay,revenue:blockRevenue,special,effect});
+    const eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
+    details.push({programId:p?.id??block.programId,kind:p?.kind??'sports',category:p?.category??'大型賽事',start:block.start,duration:block.duration,title:special?sports.name:p.title,episode,rating:blockRating,rivalRating,won,decay,revenue:blockRevenue,special,effect,eventMod,eventTitle:state.breakingEvent?.title});
+    state.monthBroadcastLog ??= [];
+    state.monthBroadcastLog.push({
+      programId: p ? p.id : block.programId,
+      title: special ? sports.name : (p ? p.title : '未排節目'),
+      station: '你的電視台',
+      kind: p ? p.kind : 'sports',
+      category: p ? p.category : '大型賽事',
+      rating: blockRating,
+      day: gameDay,
+      start: block.start,
+      duration: block.duration
+    });
     if (p) {
       if(!p.id.startsWith('start-') && p.runs===0 && !todayRuns.has(p.id)) {
         firstAirings.push({id:`premiere-${gameDay}-${p.id}`,programId:p.id,title:p.title,kind:p.kind,category:p.category,day:gameDay,start:block.start,rating:blockRating,rivalRating,won});
@@ -773,6 +1190,28 @@ export function advanceDay(state,rng=Math.random) {
     }
   }
   for (const [id,count] of todayRuns) state.library.find(p=>p.id===id).runs+=count;
+  for (const rival of state.rivals) {
+    const topRivalHour = hours.filter(Boolean).reduce((best, h) => {
+      const rivalIdx = rival.id === 'city' ? 0 : 1;
+      const score = h.rivals?.[rivalIdx] ?? 0;
+      return score > (best?.score ?? -1) ? { hour: h.hour, score } : best;
+    }, null);
+    if (topRivalHour) {
+      const rivalProg = rivalAtHour(state, rival, topRivalHour.hour, gameDay);
+      state.monthBroadcastLog ??= [];
+      state.monthBroadcastLog.push({
+        programId: `rival-${rival.id}-${topRivalHour.hour}`,
+        title: rivalProg.title,
+        station: rival.name,
+        kind: 'drama',
+        category: '對台節目',
+        rating: topRivalHour.score,
+        day: gameDay,
+        start: topRivalHour.hour,
+        duration: 1
+      });
+    }
+  }
   for(const premiere of firstAirings){
     const p=state.library.find(item=>item.id===premiere.programId),margin=premiere.rating-premiere.rivalRating;
     const ratingChange=margin>=10?2:margin<=-10?-2:0;
@@ -823,6 +1262,59 @@ export function advanceDay(state,rng=Math.random) {
     state.mailbox.unshift({id:`letter-${gameDay}`,day:gameDay,type,topic,text,resolved:false});
     state.mailbox=state.mailbox.slice(0,18);
     note(state,'觀眾信箱有新來信，請到戰報回覆。','neutral');
+  } else if (gameDay%6===0) {
+    const specialTypes=['meme','petition','ofca','sponsor','fan_billboard'];
+    const sType=specialTypes[Math.floor(gameDay/6)%specialTypes.length];
+    let letterData;
+    if (sType==='meme') {
+      letterData={
+        id:`letter-${gameDay}`,day:gameDay,type:'meme',title:'網絡爆紅迷因 Meme',
+        text:'網民將我台熱播節目的爆笑對白截圖惡搞，在社交網絡引爆轉發狂潮！',
+        options:[
+          {id:'humor',label:'官方幽默自嘲玩梗',desc:'不花錢 · 全台熱度 +4',cost:0,effects:{fans:4},feedback:'電視台小編玩梗親民幽默，網民紛紛讚好！熱度 +4。'},
+          {id:'serious',label:'發表嚴肅聲明澄清',desc:'花費 $20k · 維持正經口碑 +2',cost:20000,effects:{reputation:2},feedback:'認真澄清維護電視台嚴肅形象，口碑 +2。'}
+        ],resolved:false
+      };
+    } else if (sType==='petition') {
+      letterData={
+        id:`letter-${gameDay}`,day:gameDay,type:'petition',title:'萬人聯署支持添食',
+        text:'劇迷在網絡發起萬人聯署，甚至在電視台外送上花牌應援，強烈要求開拍續集！',
+        options:[
+          {id:'accept',label:'順應民意！公開承諾籌備續集',desc:'全台熱度 +5',cost:0,effects:{fans:5},feedback:'總監親自回應承諾籌備續集，粉絲歡聲雷動！熱度 +5。'},
+          {id:'souvenir',label:'送出特製明信片與周邊',desc:'花費 $30k · 口碑 +3、熱度 +2',cost:30000,effects:{reputation:3,fans:2},feedback:'派發周邊答謝觀眾，口碑與熱度雙收！'}
+        ],resolved:false
+      };
+    } else if (sType==='ofca') {
+      letterData={
+        id:`letter-${gameDay}`,day:gameDay,type:'ofca',title:'通訊事務管理局轉介投訴',
+        text:'保守觀眾投訴我台近期節目「內容過於大膽、對白衝擊」，通訊局發信查詢。',
+        options:[
+          {id:'defend',label:'堅守創作自由！強硬回應',desc:'罰款 $80k · 年青觀眾盛讚，熱度 +6',cost:80000,effects:{fans:6},tone:'good',feedback:'電視台霸氣捍衛創作自由，年青族群掌聲如雷！熱度 +6。'},
+          {id:'apologize',label:'公開致歉並調整時段提示',desc:'公關費 $30k · 口碑 +3，息事寧人',cost:30000,effects:{reputation:3},feedback:'圓滑處理公關危機，家庭觀眾感到安心。口碑 +3。'}
+        ],resolved:false
+      };
+    } else if (sType==='sponsor') {
+      letterData={
+        id:`letter-${gameDay}`,day:gameDay,type:'sponsor',title:'隱世富豪指名巨額贊助',
+        text:'超級富豪影迷來信提供百萬贊助，指定下套節目要有「商戰」元素！',
+        options:[
+          {id:'sign',label:'簽訂贊助意向書',desc:'即時入帳 $1,200,000 · 承諾商戰題材',cost:0,effects:{cash:1200000,audienceBrief:'商戰'},feedback:'贊助金 $1.2m 到帳！富豪期待下一套商戰大作。'},
+          {id:'decline',label:'客氣婉拒，保持創作獨立',desc:'不花錢 · 口碑 +3',cost:0,effects:{reputation:3},feedback:'堅持不接受特定私人干預，電視台公信力大增！口碑 +3。'}
+        ],resolved:false
+      };
+    } else {
+      letterData={
+        id:`letter-${gameDay}`,day:gameDay,type:'fan_billboard',title:'粉絲後援會包下大屏幕應援',
+        text:'人氣主演的粉絲俱樂部自資集資，在銅鑼灣鬧市買下戶外全屏廣告宣傳！',
+        options:[
+          {id:'flashmob',label:'安排主演驚喜現身打卡',desc:'宣傳費 $20k · 熱度 +5',cost:20000,effects:{fans:5},feedback:'現場引發過千人圍觀，各大媒體頭條報道！熱度 +5。'},
+          {id:'repost',label:'電視台官方專頁轉發感謝',desc:'免費 · 熱度 +2',cost:0,effects:{fans:2},feedback:'粉絲感到備受重視，紛紛留言支持電視台！熱度 +2。'}
+        ],resolved:false
+      };
+    }
+    state.mailbox.unshift(letterData);
+    state.mailbox=state.mailbox.slice(0,18);
+    note(state,`觀眾信箱收到特殊突發事件【${letterData.title}】！`,'good');
   }
   const daily={day:gameDay,quarter:state.quarter,label:`第 ${gameDay} 日`,hours,details,revenue,overhead,net:revenue-overhead,sportsRevenue,sportsPenalty,wins,talentChanges,completed};
   state.lastDayResult=daily;
@@ -833,6 +1325,15 @@ export function advanceDay(state,rng=Math.random) {
   ledger.revenue+=revenue;ledger.overhead+=overhead;ledger.audience+=audience;ledger.buzz+=buzz;ledger.days++;
   state.day++;
   state.liveMinute=0;
+  if(gameDay%DAYS_PER_MARKET_MONTH===0){
+    const monthResult=evaluateMonthlyRatings(state,marketMonthForDay(gameDay));
+    daily.monthResult=monthResult;
+  }
+  if(gameDay%(DAYS_PER_QUARTER*4)===0){
+    const yearNumber=Math.floor(gameDay/(DAYS_PER_QUARTER*4));
+    const ceremony=evaluateAnnualAwards(state,yearNumber,rng);
+    daily.ceremony=ceremony;
+  }
   const marketRefresh=marketMonthForDay(state.day)!==marketMonthForDay(gameDay);
   if(marketRefresh) note(state,`外購市場第 ${marketMonthForDay(state.day)+1} 個月新片單上架；原有播映權照常有效。`,'good');
   const expired=clearCompletedPrograms(state).filter(p=>licenseExpired(p,state.day)).map(p=>p.title);
@@ -861,7 +1362,7 @@ export function advanceQuarter(state,rng=Math.random) {
   let daily;
   while (state.quarter===current) {
     daily=advanceDay(state,rng);
-    if (daily.completed.length || daily.expired.length || daily.marketRefresh || state.pendingPremieres?.length) break;
+    if (daily.completed.length || daily.expired.length || daily.marketRefresh || state.pendingPremieres?.length || state.pendingCeremony || state.lastMonthResult?.isNew) break;
   }
   return daily;
 }
