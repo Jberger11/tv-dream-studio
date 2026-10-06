@@ -1118,4 +1118,106 @@ html,body,#app{height:100%;overflow:hidden}
   .champion-rating-box { text-align: left; }
 }
 
+/* Freshness (新鮮度) UI components */
+.freshness-badge,
+.choice-fresh-tag,
+.sel-freshness-tag,
+.freshness-result-pill,
+.freshness-spec,
+.match-freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.high, .freshness-badge.high, .choice-fresh-tag.high, .sel-freshness-tag.high, .freshness-result-pill.high, .freshness-spec.high, .match-freshness.high {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+.good, .freshness-badge.good, .choice-fresh-tag.good, .sel-freshness-tag.good, .freshness-result-pill.good, .freshness-spec.good, .match-freshness.good {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.42);
+}
+
+.medium, .freshness-badge.medium, .choice-fresh-tag.medium, .sel-freshness-tag.medium, .freshness-result-pill.medium, .freshness-spec.medium, .match-freshness.medium {
+  background: rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.low, .freshness-badge.low, .choice-fresh-tag.low, .sel-freshness-tag.low, .freshness-result-pill.low, .freshness-spec.low, .match-freshness.low {
+  background: rgba(165, 180, 252, 0.18);
+  color: #c7d2fe;
+  border: 1px solid rgba(165, 180, 252, 0.45);
+}
+
+.replay-grid {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.replay-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #141c2a;
+  border: 1px solid #23344a;
+  transition: all 0.15s ease;
+}
+.replay-card.is-cooling {
+  border-color: #312e81;
+  background: linear-gradient(145deg, #13172c, #0c101e);
+}
+.replay-card.is-ready {
+  border-color: #1e3a5f;
+  background: linear-gradient(145deg, #152438, #0e1724);
+}
+.replay-card-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.replay-card-main strong {
+  font-size: 0.9rem;
+  color: #f8fafc;
+}
+.replay-card-main small {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+.replay-fresh-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+.freshness-note {
+  font-size: 0.68rem;
+  color: #a5b4fc;
+}
+.replay-card.is-ready .freshness-note {
+  color: #38bdf8;
+}
+
+@media(max-width: 600px) {
+  .replay-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 

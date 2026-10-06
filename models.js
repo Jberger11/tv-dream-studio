@@ -8,8 +8,8 @@ export class Actor {
 }
 
 export class Program {
-  constructor({ id, title, kind, quality, review = quality, rating, buzz, cost = 0, genre = '', themes = [], cast = [], castIds = [], topic = '', tier = 'o', outcome = 'standard', category = '', runs = 0, episodes = 0, episodeHours = null, episodeCost = 0, style = '', licenseDays = null, licenseStartDay = null, licenseExpiresDay = null, licenseBaseCost = null, network = '', releaseYear = null, replayStartRuns = 0, replayEndRuns = null, replayCount = 0 }) {
-    Object.assign(this, { id, title, kind, quality, review, rating, buzz, cost, genre, themes, cast, castIds, topic, tier, outcome, category, runs, episodes, episodeHours, episodeCost, style, licenseDays, licenseStartDay, licenseExpiresDay, licenseBaseCost, network, releaseYear, replayStartRuns, replayEndRuns, replayCount });
+  constructor({ id, title, kind, quality, review = quality, rating, buzz, cost = 0, genre = '', themes = [], cast = [], castIds = [], topic = '', tier = 'o', outcome = 'standard', category = '', runs = 0, episodes = 0, episodeHours = null, episodeCost = 0, style = '', licenseDays = null, licenseStartDay = null, licenseExpiresDay = null, licenseBaseCost = null, network = '', releaseYear = null, replayStartRuns = 0, replayEndRuns = null, replayCount = 0, freshness = 100, maxFreshness = 100, lastAiredDay = null, completedRuns = 0 }) {
+    Object.assign(this, { id, title, kind, quality, review, rating, buzz, cost, genre, themes, cast, castIds, topic, tier, outcome, category, runs, episodes, episodeHours, episodeCost, style, licenseDays, licenseStartDay, licenseExpiresDay, licenseBaseCost, network, releaseYear, replayStartRuns, replayEndRuns, replayCount, freshness, maxFreshness, lastAiredDay, completedRuns });
   }
 }
 

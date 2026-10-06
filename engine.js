@@ -523,7 +523,37 @@ export const licensePrice = (baseCost,days) => {
   return Math.round(baseCost*term.factor/1_000)*1_000;
 };
 export const licenseExpired = (program,day) => program?.kind==='catalog' && Number.isInteger(program.licenseExpiresDay) && day>=program.licenseExpiresDay;
-export const isExhausted = program => Boolean(program?.kind!=='catalog' && program?.episodes && program.runs>=program.episodes);
+export const isExhausted = program => {
+  if (!program || program.kind === 'catalog' || !program.episodes) return false;
+  const limit = (Number.isInteger(program.replayCount) && program.replayCount > 0 && Number.isInteger(program.replayEndRuns))
+    ? program.replayEndRuns
+    : program.episodes;
+  return program.runs >= limit;
+};
+
+export function canReplayProgram(program, day) {
+  if (!program || !program.episodes) return false;
+  if (program.kind === 'catalog') {
+    return isCatalogCycleComplete(program) && !licenseExpired(program, day);
+  }
+  return isExhausted(program);
+}
+
+export function getFreshnessFactor(program) {
+  if (!program) return 1;
+  const f = Number.isInteger(program.freshness) ? program.freshness : 100;
+  return Math.round((0.45 + (f / 100) * 0.55) * 100) / 100;
+}
+
+export function freshnessLabel(freshness, maxFreshness = 100) {
+  const f = Math.round(Number.isInteger(freshness) ? freshness : 100);
+  const max = Math.round(Number.isInteger(maxFreshness) ? maxFreshness : 100);
+  if (f >= 90) return { percent: f, max, text: '極具新鮮感', icon: '🔥', tier: 'high', desc: '首播熱門 · 收視全開' };
+  if (f >= 75) return { percent: f, max, text: '回溫良好', icon: '✨', tier: 'good', desc: '經典重溫 · 觀眾期待' };
+  if (f >= 50) return { percent: f, max, text: '平穩普通', icon: '☕', tier: 'medium', desc: '尚有口碑 · 收視正常' };
+  return { percent: f, max, text: '冷卻沉澱中', icon: '❄️', tier: 'low', desc: '剛播畢不久 · 建議冷卻回溫' };
+}
+
 export const isCatalogCycleComplete = program => {
   if (!program || program.kind !== 'catalog' || !program.episodes) return false;
   const limit = (Number.isInteger(program.replayCount) && program.replayCount > 0 && Number.isInteger(program.replayEndRuns))
@@ -579,6 +609,14 @@ export function migrateLegacyLicenses(state) {
         state.schedule = state.schedule.filter(block => block.programId !== program.id);
       }
     }
+  }
+  for (const program of state.library) {
+    program.completedRuns ??= Number.isInteger(program.replayCount) && program.replayCount > 0 ? program.replayCount : (program.runs && program.episodes ? Math.floor(program.runs / program.episodes) : 0);
+    program.maxFreshness ??= Math.max(50, Math.round(100 * Math.pow(0.80, program.completedRuns)));
+    program.freshness ??= program.runs > 0 && (isExhausted(program) || isCatalogCycleComplete(program))
+      ? Math.max(15, Math.round(program.maxFreshness * 0.28))
+      : program.maxFreshness;
+    program.lastAiredDay ??= null;
   }
   clearCompletedPrograms(state);
   return state;
@@ -684,17 +722,21 @@ export function renewLicense(state,programId,days=180) {
   return program;
 }
 
-export function startCatalogReplay(state,programId) {
-  const program=state.library.find(item=>item.id===programId && item.kind==='catalog');
-  if (!program || !program.episodes) throw Error('片庫搵唔到可重播嘅外購節目。');
-  if (licenseExpired(program,state.day)) throw Error('播映權已到期，請先續購。');
-  if (!isCatalogCycleComplete(program)) throw Error('本輪未播完，毋須開始新一輪。');
+export function startProgramReplay(state,programId) {
+  const program=state.library.find(item=>item.id===programId);
+  if (!program || !program.episodes) throw Error('片庫搵唔到可重播嘅節目。');
+  if (program.kind==='catalog' && licenseExpired(program,state.day)) throw Error('播映權已到期，請先續購。');
+  if (program.kind==='catalog' && !isCatalogCycleComplete(program)) throw Error('本輪未播完，毋須開始新一輪。');
+  if (program.kind!=='catalog' && !isExhausted(program)) throw Error('本輪未播完，毋須開始新一輪。');
   program.replayCount=(Number.isInteger(program.replayCount)&&program.replayCount>0?program.replayCount:Math.floor(Math.max(0,program.runs-1)/program.episodes))+1;
   program.replayStartRuns=program.runs;
   program.replayEndRuns=program.runs+program.episodes;
-  note(state,`已同意《${program.title}》重播第 ${program.replayCount} 輪。請自行安排播映時段；系統唔會自動重排。`);
+  const f = freshnessLabel(program.freshness, program.maxFreshness);
+  const label = program.kind==='catalog' ? '外購節目' : '自製經典';
+  note(state,`已同意${label}《${program.title}》重播第 ${program.replayCount} 輪（當前新鮮度 ${f.percent}%，上限 ${f.max}%）。請自行安排播映時段；系統唔會自動重排。`);
   return program;
 }
+export const startCatalogReplay = (state,programId) => startProgramReplay(state,programId);
 
 export const hourLabel = hour => `${String(hour%24).padStart(2,'0')}:00`;
 export const hoursInBlock = block => Array.from({length:block.duration},(_,i)=>(block.start+i)%24);
@@ -714,15 +756,15 @@ export function episodeForBlock(state,block,day=state.day) {
   if (!program.episodes) return '每日新一期';
   const weekday=weekdayForDay(day);
   const earlier=state.schedule.filter(item=>item!==block && item.programId===block.programId && item.start<block.start && runsOnWeekday(item,weekday)).length;
+  const run=program.runs+earlier;
+  const current=run-(program.replayStartRuns??0)+1;
+  const replay=Number.isInteger(program.replayCount)&&program.replayCount>0?program.replayCount:0;
   if(program.kind==='catalog') {
-    const run=program.runs+earlier;
-    const current=run-(program.replayStartRuns??0)+1;
-    const replay=Number.isInteger(program.replayCount)&&program.replayCount>0?program.replayCount:0;
     if(program.category==='香港電影') return `電影 · 第 ${run+1} 次播映${replay?` · 重映第 ${replay} 輪`:''}`;
     return `第 ${current} / ${program.episodes} 集${replay?` · 重播第 ${replay} 輪`:''}`;
   }
   if(isOneOffEvent(program.kind)) return '一晚限定直播';
-  return `第 ${program.runs+earlier+1} / ${program.episodes} 集`;
+  return `第 ${current} / ${program.episodes} 集${replay?` · 重溫第 ${replay} 輪`:''}`;
 }
 
 export function advanceBroadcastClock(state,minutes=1) {
@@ -1126,7 +1168,8 @@ export function advanceDay(state,rng=Math.random) {
     const p=special?null:state.library.find(item=>item.id===block.programId);
     if (!special&&!p) continue;
     const run=p?p.runs+(todayRuns.get(p.id)??0):0;
-    if (!special && (isUnavailable(p,gameDay) || (p.kind==='catalog' ? p.episodes && run>=(p.replayCount>0&&p.replayEndRuns?p.replayEndRuns:p.episodes) : p.episodes && run>=p.episodes))) continue;
+    const runLimit = (p && Number.isInteger(p.replayCount) && p.replayCount > 0 && Number.isInteger(p.replayEndRuns)) ? p.replayEndRuns : p?.episodes;
+    if (!special && (isUnavailable(p,gameDay) || (p.episodes && run>=runLimit))) continue;
     const episode=p?episodeForBlock(state,block,gameDay):'';
     // Each complete pass makes a licensed programme less fresh; cap the decline.
     const decay=p?.kind==='catalog' ? Math.max(.72,Math.pow(p.episodes===1?.96:.90,Number.isInteger(p.replayCount)&&p.replayCount>0?p.replayCount:Math.floor(run/Math.max(1,p.episodes)))) : 1;
@@ -1139,7 +1182,8 @@ export function advanceDay(state,rng=Math.random) {
       const strongest=Math.max(...rivals.map(item=>item.rating));
       const pressure=Math.round(Math.max(0,strongest-55)*.16-Math.max(0,55-strongest)*.07);
       const eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
-      const rating=special?(prime?98:Math.round(76*factor)):clamp(Math.round(p.rating*decay*factor-pressure+eventMod),1,100);
+      const freshFactor = p ? getFreshnessFactor(p) : 1;
+      const rating=special?(prime?98:Math.round(76*factor)):clamp(Math.round(p.rating*decay*factor*freshFactor-pressure+eventMod),1,100);
       let ads;
       if (special) {
         specialHourIndex++;
@@ -1152,9 +1196,9 @@ export function advanceDay(state,rng=Math.random) {
         const rightsFactor=p.id.startsWith('start-')?.2:1; // Free opening library is non-exclusive syndication.
         ads=Math.round(rate*rating*rating/70*rightsFactor*(p.outcome==='disaster'?.5:1));
       }
-      hours[hour]={hour,title:special?sports.name:p.title,episode,rating,revenue:ads,decay,special,rivals:rivals.map(item=>item.rating),eventMod,eventTitle:state.breakingEvent?.title};
+      hours[hour]={hour,title:special?sports.name:p.title,episode,rating,revenue:ads,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,special,rivals:rivals.map(item=>item.rating),eventMod,eventTitle:state.breakingEvent?.title};
       blockRevenue+=ads; ratingTotal+=rating; revenue+=ads; audience+=rating;
-      buzz+=special?90:Math.round(p.buzz*decay);
+      buzz+=special?90:Math.round(p.buzz*decay*freshFactor);
     }
     const blockRating=Math.round(ratingTotal/times.length);
     const rivalRating=Math.round(times.reduce((sum,hour)=>sum+Math.max(...hours[hour].rivals),0)/times.length);
@@ -1162,7 +1206,7 @@ export function advanceDay(state,rng=Math.random) {
     const effect=p&&isOneOffEvent(p.kind)?oneOffBroadcastEffect(state,p,blockRating,won):'';
     if(effect)note(state,`《${p.title}》播映：收視 ${blockRating}，${effect}。`,won?'good':'neutral');
     const eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
-    details.push({programId:p?.id??block.programId,kind:p?.kind??'sports',category:p?.category??'大型賽事',start:block.start,duration:block.duration,title:special?sports.name:p.title,episode,rating:blockRating,rivalRating,won,decay,revenue:blockRevenue,special,effect,eventMod,eventTitle:state.breakingEvent?.title});
+    details.push({programId:p?.id??block.programId,kind:p?.kind??'sports',category:p?.category??'大型賽事',start:block.start,duration:block.duration,title:special?sports.name:p.title,episode,rating:blockRating,rivalRating,won,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,revenue:blockRevenue,special,effect,eventMod,eventTitle:state.breakingEvent?.title});
     state.monthBroadcastLog ??= [];
     state.monthBroadcastLog.push({
       programId: p ? p.id : block.programId,
@@ -1222,8 +1266,30 @@ export function advanceDay(state,rng=Math.random) {
   }
   state.pendingPremieres??=[];
   state.pendingPremieres.push(...firstAirings);
-  const completed=clearCompletedPrograms(state).filter(p=>todayRuns.has(p.id) && (isExhausted(p)||isCatalogCycleComplete(p))).map(p=>p.title);
-  if (completed.length) note(state,`${completed.map(title=>`《${title}》`).join('、')}一輪已播完，時段已騰空；外購節目如要重播，請到片庫手動開新一輪。`,'neutral');
+  const finishedPrograms=clearCompletedPrograms(state).filter(p=>todayRuns.has(p.id) && (isExhausted(p)||isCatalogCycleComplete(p)));
+  for (const p of finishedPrograms) {
+    p.completedRuns = (Number.isInteger(p.completedRuns) ? p.completedRuns : (Number.isInteger(p.replayCount) && p.replayCount > 0 ? p.replayCount : 0)) + 1;
+    p.maxFreshness = Math.max(50, Math.round(100 * Math.pow(0.80, p.completedRuns)));
+    p.freshness = Math.max(15, Math.round(p.maxFreshness * 0.28));
+  }
+  for (const p of state.library) {
+    p.freshness ??= 100;
+    p.maxFreshness ??= 100;
+    if (finishedPrograms.includes(p)) continue;
+    if (todayRuns.has(p.id)) {
+      p.lastAiredDay = gameDay;
+      if (p.episodes > 0) {
+        const progress = Math.min(1, p.runs / p.episodes);
+        p.freshness = Math.max(35, Math.round(p.maxFreshness * (1 - progress * 0.25)));
+      } else if (isDailyFormat(p.kind)) {
+        p.freshness = Math.max(70, p.freshness - 1);
+      }
+    } else {
+      p.freshness = Math.min(p.maxFreshness, p.freshness + 2);
+    }
+  }
+  const completed=finishedPrograms.map(p=>p.title);
+  if (completed.length) note(state,`${completed.map(title=>`《${title}》`).join('、')}一輪播畢（大結局後新鮮度降至冷卻期，隨時間將回溫）；時段已騰空。如要重播重溫，請到片庫手動開新一輪。`,'neutral');
   for (let hour=0;hour<24;hour++) if (!hours[hour]) {
     hours[hour]={hour,title:'未排節目',episode:'',rating:0,revenue:0,decay:1,empty:true,rivals:state.rivals.map(rival=>rivalAtHour(state,rival,hour,gameDay).rating)};
   }
@@ -1253,7 +1319,13 @@ export function advanceDay(state,rng=Math.random) {
     const positive=standout.rating>=55,chosen=positive?standout:low;
     const praise=[`「《${chosen.title}》今集好睇，聽日都想追！」`,`「《${chosen.title}》啲橋段令我同屋企人一路傾到廣告時間。」`,`「終於有套《${chosen.title}》值得準時開電視。」`,`「《${chosen.title}》個時段安排得啱，睇完成晚都記得。」`];
     const complaints=[`「《${chosen.title}》呢個時段有啲悶，可唔可以轉吓口味？」`,`「《${chosen.title}》節奏太慢，下次想睇更有新意嘅內容。」`,`「呢集《${chosen.title}》唔夠吸引，廣告一到我就轉台。」`,`「《${chosen.title}》嘅內容同前幾日太似，希望下次改進。」`];
-    state.audienceFeed.unshift({day:gameDay,title:chosen.title,tone:positive?'good':'bad',text:(positive?praise:complaints)[gameDay%4]});
+    const chosenProg=state.library.find(p=>p.id===chosen.programId);
+    if (!positive && chosenProg && (chosenProg.freshness ?? 100) < 45) {
+      complaints.unshift(`「《${chosen.title}》播完冇耐又重播？新鮮度得返 ${chosenProg.freshness}%，睇到背得出啦！」`);
+    } else if (positive && chosenProg && (chosenProg.freshness ?? 100) >= 75 && (chosenProg.completedRuns ?? 0) > 0) {
+      praise.unshift(`「隔咗咁耐再重溫《${chosen.title}》，新鮮感同情懷都返晒嚟！」`);
+    }
+    state.audienceFeed.unshift({day:gameDay,title:chosen.title,tone:positive?'good':'bad',text:(positive?praise:complaints)[gameDay%praise.length]});
     state.audienceFeed=state.audienceFeed.slice(0,24);
   }
   if(gameDay%9===0){

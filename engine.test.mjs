@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -501,5 +501,58 @@ test('annual award ceremony takes place every year awarding trophies, talent boo
   assert.ok(state.pendingCeremony);
   dismissCeremony(state);
   assert.equal(state.pendingCeremony, null);
+});
+
+test('programme freshness drops upon completing drama, recovers over time off-air, but cannot exceed degraded maxFreshness ceiling', () => {
+  const state = newGame();
+  const drama = produce(state, { kind: 'drama', genre: '刑偵', themes: ['懸疑'], actorIds: [ACTORS[0].id, ACTORS[1].id], budgetId: 'lean', episodeCount: 4 }, () => .5);
+  assert.equal(drama.freshness, 100);
+  assert.equal(drama.maxFreshness, 100);
+  
+  // Schedule drama at hour 20 for 2 hours
+  scheduleProgram(state, 20, drama.id, 2);
+  
+  // Air 3 episodes
+  for (let i = 0; i < 3; i++) {
+    advanceDay(state, () => .5);
+    assert.ok(drama.freshness >= 70); // stays fresh while actively airing first run
+  }
+  
+  // 4th day is the finale!
+  const finaleDay = advanceDay(state, () => .5);
+  assert.ok(finaleDay.completed.includes(drama.title));
+  assert.equal(drama.runs, 4);
+  assert.equal(drama.completedRuns, 1);
+  assert.equal(drama.maxFreshness, 80); // degraded ceiling: cannot recover to 100!
+  assert.ok(drama.freshness <= 30); // sharp drop down upon finale!
+  const droppedFreshness = drama.freshness;
+  
+  // Day after finale: off-air resting in vault
+  advanceDay(state, () => .5);
+  assert.equal(drama.freshness, droppedFreshness + 2); // recovers +2%
+  
+  // Advance 45 days while off-air
+  for (let i = 0; i < 45; i++) {
+    advanceDay(state, () => .5);
+  }
+  // Freshness has recovered, but CANNOT exceed maxFreshness (80%)!
+  assert.equal(drama.freshness, 80);
+  assert.notEqual(drama.freshness, 100); // cannot recover to original 100%!
+  
+  // Can start a rerun cycle
+  assert.ok(canReplayProgram(drama, state.day));
+  startProgramReplay(state, drama.id);
+  assert.equal(drama.replayCount, 1);
+  assert.equal(drama.replayEndRuns, 8);
+  
+  // Schedule and air 4 more episodes (replay cycle)
+  scheduleProgram(state, 20, drama.id, 2);
+  for (let i = 0; i < 4; i++) {
+    advanceDay(state, () => .5);
+  }
+  assert.equal(drama.runs, 8);
+  assert.equal(drama.completedRuns, 2);
+  assert.equal(drama.maxFreshness, 64); // degraded further: 80 * 0.8 = 64
+  assert.ok(drama.freshness <= 25); // drops down again!
 });
 
