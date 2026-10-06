@@ -25,13 +25,18 @@ let editorProgramSearch='';
 function resetProgramPicker(){editorProgramGroup='all';editorProgramSearch='';}
 let scheduleDay=null;
 let schedulePeriod='early';
+let catalogSubTab='market';
 let catalogFilter='all';
 let catalogSort='featured';
 let catalogAvailableOnly=false;
-let catalogNetwork='ViuTV';
+let catalogNetwork='all';
 let catalogYear='all';
 let catalogQuery='';
 let licenseDays=180;
+let replayFilter='all';
+let replaySearch='';
+let dismissedAlerts={completed:false,replay:false,expired:false};
+let expandedCompleted=false;
 let actorFilter='viu';
 let actorPickerOpen=false;
 let actorSearch='';
@@ -293,7 +298,42 @@ function scheduleHome(){
   const completed=runSummary?.completed??state.lastDayResult?.completed??[];
   const expired=runSummary?.expired??state.lastDayResult?.expired??[];
   const replayReady=state.library.filter(p=>canReplayProgram(p,state.day));
-  return `<div class="schedule-home">${result?`<div class="day-result-strip" role="status"><span>最近 ${result.days} 日營運</span><strong class="${result.net<0?'danger':''}">${result.net>=0?'+':''}${money(result.net)}</strong><span>對台勝出 ${result.wins} / ${24*result.days} 小時</span><button data-action="tab" data-tab="reports">逐套節目成績 →</button></div>`:''}${completed.length?`<div class="completion-alert" role="status"><strong>${completed.map(name=>`《${safe(name)}》`).join('、')}已播完</strong><span>原有時段已騰空。請即刻補上新節目，空檔冇廣告收入。</span></div>`:''}${replayReady.length?`<div class="completion-alert replay-alert" role="status"><strong>${replayReady.length} 套節目可安排重播</strong><span>包含自製劇與外購節目；隨時間沉澱，新鮮度正逐步回溫。</span><button data-action="tab" data-tab="catalog">去片庫重溫 →</button></div>`:''}${expired.length?`<div class="completion-alert" role="status"><strong>${expired.map(name=>`《${safe(name)}》`).join('、')}播映權到期</strong><span>時段已騰空。可去片庫續購，或換其他節目。</span><button data-action="tab" data-tab="catalog">去片庫 →</button></div>`:''}${scheduleView()}</div>`;
+  const completedSummary = completed.length <= 3
+    ? completed.map(name => `《${safe(name)}》`).join('、')
+    : `《${safe(completed[0])}》、《${safe(completed[1])}》等共 ${completed.length} 套節目`;
+
+  return `<div class="schedule-home">
+    ${result?`<div class="day-result-strip" role="status"><span>最近 ${result.days} 日營運</span><strong class="${result.net<0?'danger':''}">${result.net>=0?'+':''}${money(result.net)}</strong><span>對台勝出 ${result.wins} / ${24*result.days} 小時</span><button data-action="tab" data-tab="reports">逐套節目成績 →</button></div>`:''}
+    ${completed.length && !dismissedAlerts.completed?`
+      <div class="completion-alert has-dismiss" role="status">
+        <div class="alert-content">
+          <strong>${completedSummary}已播完</strong>
+          <span>原有時段已騰空。請即刻補上新節目，空檔冇廣告收入。</span>
+          ${completed.length > 3 ? `<button class="inline-link-btn" data-action="toggle-completed-expand">${expandedCompleted ? '收起名單 ▴' : `展開全部 ${completed.length} 套名單 ▾`}</button>` : ''}
+          ${expandedCompleted && completed.length > 3 ? `<div class="alert-expanded-list">${completed.map(name => `<span>《${safe(name)}》</span>`).join('')}</div>` : ''}
+        </div>
+        <button class="alert-dismiss-btn" data-action="dismiss-alert" data-alert="completed" title="關閉提示" aria-label="關閉提示">✕</button>
+      </div>`:''}
+    ${replayReady.length && !dismissedAlerts.replay?`
+      <div class="completion-alert replay-alert has-dismiss" role="status">
+        <div class="alert-content">
+          <strong>${replayReady.length} 套節目可安排重播</strong>
+          <span>包含自製劇與外購節目；隨時間沉澱，新鮮度正逐步回溫。</span>
+          <button data-action="open-replay-tab">去重播庫 (${replayReady.length}) →</button>
+        </div>
+        <button class="alert-dismiss-btn" data-action="dismiss-alert" data-alert="replay" title="關閉提示" aria-label="關閉提示">✕</button>
+      </div>`:''}
+    ${expired.length && !dismissedAlerts.expired?`
+      <div class="completion-alert has-dismiss" role="status">
+        <div class="alert-content">
+          <strong>${expired.map(name=>`《${safe(name)}》`).join('、')}播映權到期</strong>
+          <span>時段已騰空。可去片庫續購，或換其他節目。</span>
+          <button data-action="open-renew-tab">去續約 →</button>
+        </div>
+        <button class="alert-dismiss-btn" data-action="dismiss-alert" data-alert="expired" title="關閉提示" aria-label="關閉提示">✕</button>
+      </div>`:''}
+    ${scheduleView()}
+  </div>`;
 }
 
 function broadcastResultsView(){
@@ -481,54 +521,245 @@ function scheduleView() {
 
 function rivalsView() {
   const live=broadcastNow(state);
-  return `<div class="page-head"><div><div class="eyebrow cyan">CHANNEL INTELLIGENCE</div><h1>兩間對手台嘅每日節目表</h1><p>對手每個遊戲月推出新節目，19:00–21:00 會直接搶走我台觀眾。收購我台作品後亦會喺 21:00–23:00 播出。</p></div><div class="legend">最近一日勝出 <strong>${state.lastDayResult?`${state.lastDayResult.wins} / 24 小時`:'等待第一日結算'}</strong></div></div>
-    <div class="rival-cards">${state.rivals.map(rival=>{const now=rivalAtHour(state,rival,live.hour),prime=rivalAtHour(state,rival,19),premiere=rivalPremiere(rival,state.day),next=rivalPremiere(rival,state.day+DAYS_PER_MARKET_MONTH),deal=(state.distributionDeals??[]).find(d=>d.rivalId===rival.id&&d.startDay<=state.day&&state.day<d.expiresDay);return `<article class="panel"><div class="eyebrow cyan">COMPETITOR CHANNEL · 第 ${premiere.month+1} 個月</div><h2>${safe(rival.name)}</h2><p>${safe(rival.profile)}</p><div><small>本月首播</small><strong>《${safe(premiere.title)}》· ${safe(premiere.genre)} · ${premiere.slot}</strong></div><div><small>下月預告</small><strong>《${safe(next.title)}》· ${safe(next.genre)}</strong></div>${deal?`<div><small>買入我台作品</small><strong>《${safe(deal.title)}》· 至第 ${deal.expiresDay-1} 日</strong></div>`:''}<div><small>此刻</small><strong>${safe(now.title)} · 預測 ${now.rating}</strong></div><div><small>19:00 對台</small><strong>${safe(prime.title)} · 預測 ${prime.rating}</strong></div></article>`}).join('')}</div>
+  return `<div class="page-head"><div><div class="eyebrow cyan">CHANNEL INTELLIGENCE</div><h1>兩間對手台嘅每日節目表</h1><p>對手每個遊戲月推出新節目，19:00–21:00 會直接搶走我台觀眾。外購市場搶購作品或收購我台作品後亦會喺 21:00–23:00 播出。</p></div><div class="legend">最近一日勝出 <strong>${state.lastDayResult?`${state.lastDayResult.wins} / 24 小時`:'等待第一日結算'}</strong></div></div>
+    <div class="rival-cards">${state.rivals.map(rival=>{
+      const now=rivalAtHour(state,rival,live.hour);
+      const prime=rivalAtHour(state,rival,19);
+      const premiere=rivalPremiere(rival,state.day);
+      const next=rivalPremiere(rival,state.day+DAYS_PER_MARKET_MONTH);
+      const deal=(state.distributionDeals??[]).find(d=>d.rivalId===rival.id&&d.startDay<=state.day&&state.day<d.expiresDay);
+      const rivalBuy=(state.rivalPurchases??[]).find(r=>r.rivalId===rival.id&&r.startDay<=state.day&&state.day<r.expiresDay);
+      return `<article class="panel"><div class="eyebrow cyan">COMPETITOR CHANNEL · 第 ${premiere.month+1} 個月</div><h2>${safe(rival.name)}</h2><p>${safe(rival.profile)}</p><div><small>本月首播</small><strong>《${safe(premiere.title)}》· ${safe(premiere.genre)} · ${premiere.slot}</strong></div><div><small>下月預告</small><strong>《${safe(next.title)}》· ${safe(next.genre)}</strong></div>${deal?`<div><small>買入我台作品</small><strong>《${safe(deal.title)}》· 至第 ${deal.expiresDay-1} 日 (21:00–23:00)</strong></div>`:''}${rivalBuy?`<div><small>外購市場搶購作品</small><strong>《${safe(rivalBuy.title)}》(${safe(rivalBuy.origin||'外購')} · 預測 ${rivalBuy.rating+2} 點) · 21:00–23:00</strong></div>`:''}<div><small>此刻</small><strong>${safe(now.title)} · 預測 ${now.rating}</strong></div><div><small>19:00 對台</small><strong>${safe(prime.title)} · 預測 ${prime.rating}</strong></div></article>`}).join('')}</div>
     <section class="panel matchup-panel"><div class="section-heading"><h2>逐小時對台</h2><span>我台與兩間對手，各 24 小時</span></div><div class="matchup-scroll"><div class="matchup-table"><div class="matchup-head"><span>時段</span><span>我台節目</span><span>全城電視 · 預測</span><span>本地八台 · 預測</span></div>${Array.from({length:24},(_,hour)=>{const block=programAtHour(state,hour);const program=block&&state.library.find(item=>item.id===block.programId);const event=block?.programId.startsWith('event:')&&state.events.find(e=>`event:${e.id}`===block.programId);const title=program?.title??event?.name??'未排節目';const episode=episodeForBlock(state,block);return `<div class="matchup-row ${hour>=18&&hour<=22?'prime':''}" data-hour="${hour}"><strong>${hourLabel(hour)}</strong><span>${safe(title)}${episode?`<small>${safe(episode)}</small>`:''}</span>${state.rivals.map(rival=>{const show=rivalAtHour(state,rival,hour);return `<span>${safe(show.title)}<b>${show.rating}</b></span>`}).join('')}</div>`}).join('')}</div></div><p class="footnote">對手收視係遊戲預測；按「結算今日」後，實際我台收視同藝人人氣會更新。</p></section>`;
 }
 
 function replayQueueView() {
-  const ready=state.library.filter(p=>canReplayProgram(p,state.day));
-  return ready.length?`<section class="renewal-list replay-list"><h2>重播待機 · 經典回味再開一輪</h2><p>作品播完一輪後，進入片庫冷卻期。未排播期間每日回溫 +2% 新鮮度（最高回升至該輪上限）。沉澱回溫充足後，隨時可開新一輪重播！</p><div class="replay-grid">${ready.map(p=>{
-    const f=freshnessLabel(p.freshness,p.maxFreshness);
-    const rightsInfo=p.kind==='catalog'?` · 播映權至第 ${p.licenseExpiresDay-1} 日`:' · 自製永久版權';
-    const isCooling=f.percent<50;
-    return `<article class="replay-card ${isCooling?'is-cooling':'is-ready'}">
-      <div class="replay-card-main">
-        <strong>${safe(p.title)}</strong>
-        <small>${catalogProgressLabel(p)}${rightsInfo}</small>
-        <div class="replay-fresh-row">
-          <span class="freshness-badge ${f.tier}">${f.icon} 新鮮度 ${f.percent}% (上限 ${f.max}%)</span>
-          <span class="freshness-note">${isCooling?'❄️ 剛播畢沉澱中（+2%/日），建議等待回溫後再重播以保收視':'✨ 回溫良好，隨時適合安排重溫！'}</span>
+  const ready = state.library.filter(p => canReplayProgram(p, state.day));
+  const query = replaySearch.trim().toLocaleLowerCase('zh-HK');
+  const filtered = ready.filter(p => {
+    if (replayFilter === 'drama' && p.kind === 'catalog') return false;
+    if (replayFilter === 'catalog' && p.kind !== 'catalog') return false;
+    if (query && !`${p.title} ${p.category} ${p.origin||''}`.toLocaleLowerCase('zh-HK').includes(query)) return false;
+    return true;
+  });
+
+  return `<section class="renewal-list replay-list">
+    <div class="subview-header">
+      <div>
+        <h2>🔄 經典重播庫 (${ready.length} 套待機)</h2>
+        <p>播畢一輪後進入片庫冷卻。未排播每日回溫 +2% 新鮮度（上限為該輪上限）。可隨時在此開新一輪重播！</p>
+      </div>
+      <div class="replay-filter-bar">
+        <div class="btn-group" role="group">
+          <button class="filter-chip ${replayFilter==='all'?'active':''}" data-action="replay-filter" data-value="all">全部 ${ready.length}</button>
+          <button class="filter-chip ${replayFilter==='drama'?'active':''}" data-action="replay-filter" data-value="drama">自製經典 ${ready.filter(p=>p.kind!=='catalog').length}</button>
+          <button class="filter-chip ${replayFilter==='catalog'?'active':''}" data-action="replay-filter" data-value="catalog">外購節目 ${ready.filter(p=>p.kind==='catalog').length}</button>
         </div>
       </div>
-      <button class="catalog-button" data-action="start-replay" data-id="${safe(p.id)}">開新一輪重播 ↳</button>
-    </article>`;
-  }).join('')}</div></section>`:'';
+    </div>
+    ${filtered.length ? `
+      <div class="replay-grid">
+        ${filtered.map(p => {
+          const f = freshnessLabel(p.freshness, p.maxFreshness);
+          const rightsInfo = p.kind === 'catalog' ? ` · 播映權至第 ${p.licenseExpiresDay-1} 日` : ' · 自製永久版權';
+          const isCooling = f.percent < 50;
+          return `<article class="replay-card ${isCooling ? 'is-cooling' : 'is-ready'}">
+            <div class="replay-card-main">
+              <div class="replay-title-row">
+                <strong>${safe(p.title)}</strong>
+                <span class="replay-type-tag">${p.kind==='catalog'?'外購':'自製'} · ${safe(p.category||'劇集')}</span>
+              </div>
+              <small>${catalogProgressLabel(p)}${rightsInfo}</small>
+              <div class="replay-fresh-row">
+                <span class="freshness-badge ${f.tier}">${f.icon} 新鮮度 ${f.percent}% (上限 ${f.max}%)</span>
+                <span class="freshness-note">${isCooling ? '❄️ 剛播畢沉澱中（+2%/日），建議等待回溫後再排' : '✨ 回溫良好，隨時適合安排重溫！'}</span>
+              </div>
+            </div>
+            <button class="catalog-button" data-action="start-replay" data-id="${safe(p.id)}">開新一輪重播 ↳</button>
+          </article>`;
+        }).join('')}
+      </div>
+    ` : `<p class="empty">${ready.length ? '搵唔到符合篩選嘅重播節目。' : '片庫暫時未有播畢一輪嘅節目。已播完嘅節目會自動喺呢度待機。'}</p>`}
+  </section>`;
 }
 
 function catalogView() {
-  const listings=catalogForMonth(state.day);
-  const month=marketMonthForDay(state.day)+1;
-  const nextRefresh=month*DAYS_PER_MARKET_MONTH+1;
-  const ownedIds=new Set(state.library.map(p=>p.id));
-  const expiredLicenses=state.library.filter(p=>licenseExpired(p,state.day));
-  const query=catalogQuery.trim().toLocaleLowerCase('zh-HK');
-  const shown=listings.filter(p=>(catalogFilter==='all'||p.group===catalogFilter)
-    &&(catalogNetwork==='all'||p.network===catalogNetwork)
-    &&(catalogYear==='all'||p.releaseYear===Number(catalogYear))
-    &&(!query||`${p.title} ${p.subcategory} ${p.network}`.toLocaleLowerCase('zh-HK').includes(query))
-    &&(!catalogAvailableOnly||!ownedIds.has(p.id)));
-  if(catalogSort==='price') shown.sort((a,b)=>a.cost-b.cost||b.rating-a.rating);
-  if(catalogSort==='rating') shown.sort((a,b)=>b.rating-a.rating||a.cost-b.cost);
-  if(catalogSort==='episodes') shown.sort((a,b)=>b.episodes-a.episodes||a.cost-b.cost);
-  return `<div class="page-head"><div><div class="eyebrow gold">ACQUISITIONS · 第 ${month} 個月</div><h1>外購節目市場</h1><p>每 30 個遊戲日換新片單，下次第 ${nextRefresh} 日上架（仲有 ${nextRefresh-state.day} 日）。ViuTV 原創劇 ${VIU_ORIGINALS.length} 套長期可揀；其他節目每月輪換。已購入播映權不受換月影響。價錢、供應、集數同收視均係遊戲模擬。</p></div><div class="legend">本月片單 <strong>第 ${month} 個月</strong></div></div>
-    <div class="license-picker" role="group" aria-label="選擇外購播映權期限"><strong>播映權期限</strong>${LICENSE_TERMS.map(term=>`<button data-action="license-term" data-value="${term.days}" class="${licenseDays===term.days?'active':''}" aria-pressed="${licenseDays===term.days}">${term.label}${term.days===360?' · 1.7 倍價':''}</button>`).join('')}<small>6 個月＝180 遊戲日；1 年＝360 遊戲日。價格按所選期限顯示。</small></div>
-    ${replayQueueView()}
-    ${expiredLicenses.length?`<section class="renewal-list"><h2>到期版權 · 可續購</h2><div>${expiredLicenses.map(p=>`<article><span><strong>${safe(p.title)}</strong><small>${catalogProgressLabel(p)} · 續購後保留原有播映紀錄</small></span><button data-action="renew" data-id="${safe(p.id)}" ${state.cash<licensePrice(p.licenseBaseCost??p.cost,licenseDays)?'disabled':''}>續購 ${licenseDays===180?'6 個月':'1 年'} · ${catalogPrice(licensePrice(p.licenseBaseCost??p.cost,licenseDays))}</button></article>`).join('')}</div></section>`:''}
-    <div class="catalog-network" role="group" aria-label="選擇電視台作品">${[['ViuTV','ViuTV 原創'],['all','全部作品'],['TVB','TVB'],['其他','電影／其他']].map(([id,label])=>`<button data-action="catalog-network" data-value="${id}" class="${catalogNetwork===id?'active':''}" aria-pressed="${catalogNetwork===id}">${label} <span>${id==='all'?listings.length:listings.filter(p=>p.network===id).length}</span></button>`).join('')}</div>
-    <div class="catalog-filters" role="group" aria-label="外購節目分類"><button data-action="catalog-filter" data-value="all" class="${catalogFilter==='all'?'active':''}" aria-pressed="${catalogFilter==='all'}">全部 ${listings.length}</button>${ACQUISITION_GROUPS.map(g=>`<button data-action="catalog-filter" data-value="${g.id}" class="${catalogFilter===g.id?'active':''}" aria-pressed="${catalogFilter===g.id}">${g.label} ${listings.filter(p=>p.group===g.id).length}</button>`).join('')}</div>
-    <div class="catalog-tools"><span aria-live="polite">顯示 ${shown.length} / ${listings.length} 套</span><label>搜尋片名 <input data-action="catalog-search" type="search" value="${safe(catalogQuery)}" placeholder="例如 IT狗、男排女將" aria-label="搜尋外購節目" /></label><label>年份 <select data-action="catalog-year"><option value="all">全部年份</option>${[2020,2021,2022,2023,2024,2025,2026].map(year=>`<option value="${year}" ${catalogYear===String(year)?'selected':''}>${year}</option>`).join('')}</select></label><button data-action="catalog-available" aria-pressed="${catalogAvailableOnly}" class="${catalogAvailableOnly?'active':''}">只睇未購</button><label>排序 <select data-action="catalog-sort"><option value="featured" ${catalogSort==='featured'?'selected':''}>本月片單</option><option value="price" ${catalogSort==='price'?'selected':''}>價錢低至高</option><option value="rating" ${catalogSort==='rating'?'selected':''}>收視高至低</option><option value="episodes" ${catalogSort==='episodes'?'selected':''}>集數多至少</option></select></label></div>
-    <div class="catalog-grid">${shown.length?shown.map((p,i)=>{const owned=state.library.find(item=>item.id===p.id),cost=licensePrice(p.cost,licenseDays),f=owned?freshnessLabel(owned.freshness,owned.maxFreshness):null;return `<article class="program-card ${p.network==='ViuTV'?'viu-card':''}"><div class="program-art art-${(i+ACQUISITION_GROUPS.findIndex(g=>g.id===p.group))%4}"><span>${safe(p.network||p.category)}${p.releaseYear?` · ${p.releaseYear}`:''}</span><strong>${String(listings.indexOf(p)+1).padStart(2,'0')}</strong><div class="art-lines"></div></div><div class="program-body"><div class="program-heading"><h2>${safe(p.title)}</h2><b>${catalogPrice(cost)}</b></div><div class="program-spec"><span>${safe(p.subcategory)}</span><span>${p.episodes===1?'電影':`節目包 ${p.episodes} 集`}</span><span>收視 ${p.rating}</span><span>話題 ${p.buzz}</span>${owned?`<span class="freshness-spec ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} 新鮮度 ${f.percent}%</span>`:''}</div>${owned?`<p class="license-status">${licenseExpired(owned,state.day)?`播映權已到期 · ${catalogProgressLabel(owned)}`:isCatalogCycleComplete(owned)?`${catalogProgressLabel(owned)} · 可在上方手動重播`:`有權播映至第 ${owned.licenseExpiresDay-1} 日 · ${catalogProgressLabel(owned)}`}</p>`:''}<button class="catalog-button" data-action="${owned&&licenseExpired(owned,state.day)?'renew':'buy'}" data-id="${p.id}" ${owned&&!licenseExpired(owned,state.day)||state.cash<cost?'disabled':''}>${owned&&!licenseExpired(owned,state.day)?'已購入':state.cash<cost?'資金不足':owned?'續購版權 →':'購買版權 →'}</button></div></article>`}).join(''):'<p class="empty">搵唔到相符節目。試吓改年份、片名或電視台篩選。</p>'}</div><div class="footnote">外購節目一輪播完即騰空時段。播映權仍有效時，可在上方手動開新一輪並自行排檔；每輪重播收視同話題會下降。</div>`;
+  const listings = catalogForMonth(state.day);
+  const month = marketMonthForDay(state.day) + 1;
+  const nextRefresh = month * DAYS_PER_MARKET_MONTH + 1;
+  const ownedIds = new Set(state.library.map(p => p.id));
+  const expiredLicenses = state.library.filter(p => licenseExpired(p, state.day));
+  const readyToReplay = state.library.filter(p => canReplayProgram(p, state.day));
+  const rivalBuys = (state.rivalPurchases ?? []).filter(r => r.expiresDay > state.day);
+  const rivalBuysMap = new Map(rivalBuys.map(r => [r.marketItemId, r]));
+
+  const categoryFilters = [
+    { id: 'all', label: '全部作品', count: listings.length },
+    { id: 'korean', label: '🇰🇷 韓劇', count: listings.filter(p => p.group === 'korean').length },
+    { id: 'japanese', label: '🇯🇵 日劇', count: listings.filter(p => p.group === 'japanese').length },
+    { id: 'taiwan', label: '🇹🇼 台劇', count: listings.filter(p => p.group === 'taiwan').length },
+    { id: 'western', label: '🇺🇸 歐美劇', count: listings.filter(p => p.group === 'western').length },
+    { id: 'chinese', label: '🇨🇳 陸劇', count: listings.filter(p => p.group === 'chinese').length },
+    { id: 'series', label: '🇭🇰 港劇', count: listings.filter(p => p.group === 'series' && p.network !== 'ViuTV').length },
+    { id: 'film', label: '🎬 香港電影', count: listings.filter(p => p.group === 'film').length },
+    { id: 'viu', label: '📺 ViuTV 原創', count: listings.filter(p => p.network === 'ViuTV').length },
+    { id: 'other', label: '🎪 綜藝／資訊', count: listings.filter(p => ['variety', 'documentary', 'information', 'politics'].includes(p.group)).length }
+  ];
+
+  const query = catalogQuery.trim().toLocaleLowerCase('zh-HK');
+  const shown = listings.filter(p => {
+    if (catalogFilter === 'viu') {
+      if (p.network !== 'ViuTV') return false;
+    } else if (catalogFilter === 'other') {
+      if (!['variety', 'documentary', 'information', 'politics'].includes(p.group)) return false;
+    } else if (catalogFilter === 'series') {
+      if (p.group !== 'series' || p.network === 'ViuTV') return false;
+    } else if (catalogFilter !== 'all') {
+      if (p.group !== catalogFilter) return false;
+    }
+    if (catalogNetwork !== 'all' && p.network !== catalogNetwork) return false;
+    if (catalogYear !== 'all' && p.releaseYear !== Number(catalogYear)) return false;
+    if (query && !`${p.title} ${p.subcategory} ${p.network||''} ${p.origin||''}`.toLocaleLowerCase('zh-HK').includes(query)) return false;
+    if (catalogAvailableOnly && (ownedIds.has(p.id) || rivalBuysMap.has(p.id))) return false;
+    return true;
+  });
+
+  if (catalogSort === 'price') shown.sort((a, b) => a.cost - b.cost || b.rating - a.rating);
+  if (catalogSort === 'rating') shown.sort((a, b) => b.rating - a.rating || a.cost - b.cost);
+  if (catalogSort === 'buzz') shown.sort((a, b) => b.buzz - a.buzz || b.rating - a.rating);
+  if (catalogSort === 'episodes') shown.sort((a, b) => b.episodes - a.episodes || a.cost - b.cost);
+
+  return `<div class="page-head">
+    <div>
+      <div class="eyebrow gold">ACQUISITIONS · 第 ${month} 個月</div>
+      <h1>外購節目市場與片庫管理</h1>
+      <p>每 30 個遊戲日更換新片單，對手電視台亦會搶購熱門外購作品！已購入節目在合約期內享有播映權。價錢、供應與收視均為遊戲模擬。</p>
+    </div>
+    <div class="legend">本月片單 <strong>第 ${month} 個月 · 尚餘 ${nextRefresh - state.day} 日換月</strong></div>
+  </div>
+
+  <div class="catalog-subnav" role="tablist" aria-label="片庫分頁">
+    <button class="subnav-tab ${catalogSubTab==='market'?'active':''}" data-action="catalog-subtab" data-value="market" role="tab" aria-selected="${catalogSubTab==='market'}">
+      🛒 外購節目市場 <span class="subnav-count">${listings.length}</span>
+    </button>
+    <button class="subnav-tab ${catalogSubTab==='replay'?'active':''}" data-action="catalog-subtab" data-value="replay" role="tab" aria-selected="${catalogSubTab==='replay'}">
+      🔄 經典重播庫 ${readyToReplay.length ? `<span class="badge-count">${readyToReplay.length}</span>` : ''}
+    </button>
+    ${expiredLicenses.length ? `
+      <button class="subnav-tab ${catalogSubTab==='renew'?'active':''}" data-action="catalog-subtab" data-value="renew" role="tab" aria-selected="${catalogSubTab==='renew'}">
+        ⏰ 到期續約 <span class="badge-count danger">${expiredLicenses.length}</span>
+      </button>
+    ` : ''}
+  </div>
+
+  ${catalogSubTab === 'replay' ? replayQueueView() : catalogSubTab === 'renew' ? `
+    <section class="renewal-list">
+      <div class="subview-header">
+        <div>
+          <h2>⏰ 到期外購播映權 · 續約續期</h2>
+          <p>以下外購節目播映期已滿，續約後保留原有播映紀錄與輪次。</p>
+        </div>
+      </div>
+      <div class="license-picker" role="group" aria-label="選擇續購播映權期限">
+        <strong>續約期限</strong>
+        ${LICENSE_TERMS.map(term => `<button data-action="license-term" data-value="${term.days}" class="${licenseDays===term.days?'active':''}" aria-pressed="${licenseDays===term.days}">${term.label}${term.days===360?' · 1.7 倍價':''}</button>`).join('')}
+      </div>
+      <div>
+        ${expiredLicenses.map(p => {
+          const cost = licensePrice(p.licenseBaseCost ?? p.cost, licenseDays);
+          const canAfford = state.cash >= cost;
+          return `<article class="renewal-item">
+            <div>
+              <strong>《${safe(p.title)}》</strong>
+              <small>${catalogProgressLabel(p)} · 原有成本 ${money(p.licenseBaseCost ?? p.cost)}</small>
+            </div>
+            <button class="catalog-button" data-action="renew" data-id="${safe(p.id)}" ${!canAfford?'disabled':''}>
+              ${canAfford ? `續購 ${licenseDays===180?'6 個月':'1 年'} · ${catalogPrice(cost)}` : '資金不足'}
+            </button>
+          </article>`;
+        }).join('')}
+      </div>
+    </section>
+  ` : `
+    <div class="license-picker" role="group" aria-label="選擇外購播映權期限">
+      <strong>播映權期限</strong>
+      ${LICENSE_TERMS.map(term=>`<button data-action="license-term" data-value="${term.days}" class="${licenseDays===term.days?'active':''}" aria-pressed="${licenseDays===term.days}">${term.label}${term.days===360?' · 1.7 倍價':''}</button>`).join('')}
+      <small>6 個月＝180 遊戲日；1 年＝360 遊戲日。價格按所選期限即時換算。</small>
+    </div>
+
+    <div class="catalog-filters country-filters" role="group" aria-label="外購節目地區與分類">
+      ${categoryFilters.map(g => `<button data-action="catalog-filter" data-value="${g.id}" class="${catalogFilter===g.id?'active':''}" aria-pressed="${catalogFilter===g.id}">${g.label} <small>${g.count}</small></button>`).join('')}
+    </div>
+
+    <div class="catalog-tools">
+      <span aria-live="polite">顯示 ${shown.length} / ${listings.length} 套</span>
+      <label>搜尋片名／地區 <input data-action="catalog-search" type="search" value="${safe(catalogQuery)}" placeholder="例如 黑暗榮耀、半澤直樹、IT狗" aria-label="搜尋外購節目" /></label>
+      ${catalogFilter === 'viu' ? `
+        <label>年份 <select data-action="catalog-year"><option value="all">全部年份</option>${[2020,2021,2022,2023,2024,2025,2026].map(year=>`<option value="${year}" ${catalogYear===String(year)?'selected':''}>${year}</option>`).join('')}</select></label>
+      ` : ''}
+      <button data-action="catalog-available" aria-pressed="${catalogAvailableOnly}" class="${catalogAvailableOnly?'active':''}">只睇未購</button>
+      <label>排序 <select data-action="catalog-sort">
+        <option value="featured" ${catalogSort==='featured'?'selected':''}>本月推薦</option>
+        <option value="rating" ${catalogSort==='rating'?'selected':''}>收視高至低</option>
+        <option value="buzz" ${catalogSort==='buzz'?'selected':''}>話題高至低</option>
+        <option value="price" ${catalogSort==='price'?'selected':''}>價錢低至高</option>
+        <option value="episodes" ${catalogSort==='episodes'?'selected':''}>集數多至少</option>
+      </select></label>
+    </div>
+
+    <div class="catalog-grid">
+      ${shown.length ? shown.map((p, i) => {
+        const owned = state.library.find(item => item.id === p.id);
+        const cost = licensePrice(p.cost, licenseDays);
+        const f = owned ? freshnessLabel(owned.freshness, owned.maxFreshness) : null;
+        const rivalBuy = rivalBuysMap.get(p.id);
+        const isRival = Boolean(rivalBuy);
+        const originFlag = p.origin === '韓國' ? '🇰🇷' : p.origin === '日本' ? '🇯🇵' : p.origin === '台灣' ? '🇹🇼' : p.origin === '歐美' ? '🇺🇸' : p.origin === '內地' ? '🇨🇳' : '🇭🇰';
+
+        return `<article class="program-card ${p.network==='ViuTV'?'viu-card':''} ${isRival?'rival-card':''}">
+          <div class="program-art art-${(i + ACQUISITION_GROUPS.findIndex(g=>g.id===p.group))%4}">
+            <span>${originFlag} ${safe(p.origin||'香港')} · ${safe(p.network || p.category)}${p.releaseYear?` · ${p.releaseYear}`:''}</span>
+            <strong>${String(listings.indexOf(p)+1).padStart(2,'0')}</strong>
+            <div class="art-lines"></div>
+          </div>
+          <div class="program-body">
+            <div class="program-heading">
+              <h2>${safe(p.title)}</h2>
+              <b>${catalogPrice(cost)}</b>
+            </div>
+            <div class="program-spec">
+              <span class="spec-tag">${safe(p.subcategory)}</span>
+              <span>${p.episodes===1?'電影':`全劇 ${p.episodes} 集`}</span>
+              <span class="rating-tag">預測收視 ${p.rating}</span>
+              <span>話題 ${p.buzz}</span>
+              ${owned ? `<span class="freshness-spec ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>` : ''}
+            </div>
+            ${isRival ? `
+              <div class="rival-bought-notice ${rivalBuy.rivalId}">
+                <span>⚔️ ${safe(rivalBuy.rivalName)} 獨家搶購（至第 ${rivalBuy.expiresDay-1} 日）</span>
+              </div>
+            ` : owned ? `
+              <p class="license-status">
+                ${licenseExpired(owned, state.day)
+                  ? `播映權已到期 · ${catalogProgressLabel(owned)}`
+                  : isCatalogCycleComplete(owned)
+                  ? `${catalogProgressLabel(owned)} · 可到重播庫安排重溫`
+                  : `播映權有效至第 ${owned.licenseExpiresDay-1} 日 · ${catalogProgressLabel(owned)}`}
+              </p>
+            ` : ''}
+            <button class="catalog-button ${isRival?'is-rival-btn':''}"
+              data-action="${isRival ? '' : owned && licenseExpired(owned, state.day) ? 'renew' : 'buy'}"
+              data-id="${p.id}"
+              ${isRival || (owned && !licenseExpired(owned, state.day)) || state.cash < cost ? 'disabled' : ''}>
+              ${isRival ? '對手已買入' : owned && !licenseExpired(owned, state.day) ? '已在片庫' : state.cash < cost ? '資金不足' : owned ? '續購版權 →' : '購買播映權 →'}
+            </button>
+          </div>
+        </article>`;
+      }).join('') : '<p class="empty">搵唔到相符節目。試吓更換篩選條件或搜尋關鍵字。</p>'}
+    </div>
+    <div class="footnote">外購節目一輪播完即騰空時段。播映權仍有效時，可在「經典重播庫」手動開新一輪並自行排檔；對手亦會在黃金時段播出其搶購作品。</div>
+  `}
+  `;
 }
 
 function sportsView() {
@@ -736,6 +967,12 @@ app.addEventListener('click',e=>{
     if(action==='dismiss-ceremony'){dismissCeremony(state);render();return;}
     if(action==='leaderboard-month'){selectedLeaderboardMonth=Number(button.dataset.month);render();return;}
     if(action==='schedule-new'){const p=state.library.find(item=>item.id===button.dataset.id);resetProgramPicker();editor={start:20,duration:p?.episodeHours??2,programId:button.dataset.id,days:initialDays(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;render();}
+    if(action==='dismiss-alert'){dismissedAlerts[button.dataset.alert]=true;render();return;}
+    if(action==='toggle-completed-expand'){expandedCompleted=!expandedCompleted;render();return;}
+    if(action==='catalog-subtab'){catalogSubTab=value;resetScroll=true;render();return;}
+    if(action==='open-replay-tab'){tab='catalog';catalogSubTab='replay';resetScroll=true;render();return;}
+    if(action==='open-renew-tab'){tab='catalog';catalogSubTab='renew';resetScroll=true;render();return;}
+    if(action==='replay-filter'){replayFilter=value;render();return;}
     if(action==='schedule-day'){scheduleDay=Number(button.dataset.day);render();}
     if(action==='schedule-period'){schedulePeriod=value;render();}
     if(action==='editor-program-group'){editorProgramGroup=value;render();}
@@ -754,9 +991,9 @@ app.addEventListener('click',e=>{
     if(action==='select-hour'){const hour=Number(button.dataset.hour),day=state.day+((scheduleDay??weekdayForDay(state.day))-weekdayForDay(state.day)+7)%7,block=programAtHour(state,hour,day);resetProgramPicker();editor=block?{start:block.start,duration:block.duration,programId:block.programId,days:[...daysForBlock(block)],allowRepeat:false}:{start:hour,duration:state.library.find(p=>p.id===editor.programId)?.episodeHours??1,programId:editor.programId,days:[scheduleDay??weekdayForDay(state.day)],allowRepeat:false};editorOpen=true;render();}
     if(action==='place'){const removed=scheduleProgram(state,editor.start,editor.programId,editor.duration,{days:editor.days,allowRepeat:editor.allowRepeat});editorOpen=false;flash(`已安排 ${dayPattern(editor.days)} ${timeRange(editor.start,editor.duration)}${removed.length?`，替換 ${removed.length} 個原有時段`:''}。`);}
     if(action==='remove'){const day=scheduleDay??weekdayForDay(state.day),block=programAtHour(state,editor.start,state.day+(day-weekdayForDay(state.day)+7)%7);if(!block)throw Error('所選時間冇節目。');removeScheduledProgram(state,block.start,{weekday:day});editorOpen=false;flash(`已移除${WEEKDAYS[day]}呢個時段。`);}
-    if(action==='advance-day'){const result=advanceDay(state);scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days:1,net:result.net,wins:result.wins,completed:result.completed,expired:result.expired};render();}
-    if(action==='advance-week'){let net=0,wins=0,days=0,completed=[],expired=[],marketRefresh=false;for(let i=0;i<7;i++){const result=advanceDay(state);net+=result.net;wins+=result.wins;days++;completed=result.completed;expired=result.expired;marketRefresh=result.marketRefresh;if(completed.length||expired.length||marketRefresh||state.pendingPremieres?.length)break;}scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days,net,wins,completed,expired};if(marketRefresh)flash('外購市場已經換月，新片單上架。');else render();}
-    if(action==='advance'){const result=advanceQuarter(state);runSummary=result.completed.length||result.expired.length?{days:1,net:result.net,wins:result.wins,completed:result.completed,expired:result.expired}:null;tab=result.marketRefresh?'catalog':result.completed.length||result.expired.length?'schedule':'reports';scheduleDay=null;selectedBroadcastDay=null;resetScroll=true;if(result.marketRefresh)flash('外購市場已經換月，新片單上架。');else render();}
+    if(action==='advance-day'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;const result=advanceDay(state);scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days:1,net:result.net,wins:result.wins,completed:result.completed,expired:result.expired};render();}
+    if(action==='advance-week'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;let net=0,wins=0,days=0,completed=[],expired=[],marketRefresh=false;for(let i=0;i<7;i++){const result=advanceDay(state);net+=result.net;wins+=result.wins;days++;completed=result.completed;expired=result.expired;marketRefresh=result.marketRefresh;if(completed.length||expired.length||marketRefresh||state.pendingPremieres?.length)break;}scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days,net,wins,completed,expired};if(marketRefresh)flash('外購市場已經換月，新片單上架。');else render();}
+    if(action==='advance'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;const result=advanceQuarter(state);runSummary=result.completed.length||result.expired.length?{days:1,net:result.net,wins:result.wins,completed:result.completed,expired:result.expired}:null;tab=result.marketRefresh?'catalog':result.completed.length||result.expired.length?'schedule':'reports';scheduleDay=null;selectedBroadcastDay=null;resetScroll=true;if(result.marketRefresh)flash('外購市場已經換月，新片單上架。');else render();}
     if(action==='open-transfer'){showTransfer=true;render();return;}
     if(action==='close-transfer'){showTransfer=false;render();return;}
     if(action==='copy-save'){

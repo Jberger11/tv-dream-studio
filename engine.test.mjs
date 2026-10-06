@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -555,4 +555,63 @@ test('programme freshness drops upon completing drama, recovers over time off-ai
   assert.equal(drama.maxFreshness, 64); // degraded further: 80 * 0.8 = 64
   assert.ok(drama.freshness <= 25); // drops down again!
 });
+
+test('acquisition market contains diverse foreign dramas and competitors actively acquire titles', () => {
+  const listings = catalogForMonth(1);
+  const korean = listings.filter(p => p.group === 'korean');
+  const japanese = listings.filter(p => p.group === 'japanese');
+  const taiwan = listings.filter(p => p.group === 'taiwan');
+  const western = listings.filter(p => p.group === 'western');
+  const chinese = listings.filter(p => p.group === 'chinese');
+
+  assert.ok(korean.length >= 4);
+  assert.ok(japanese.length >= 4);
+  assert.ok(taiwan.length >= 3);
+  assert.ok(western.length >= 3);
+  assert.ok(chinese.length >= 3);
+
+  assert.equal(korean[0].origin, '韓國');
+  assert.equal(japanese[0].origin, '日本');
+  assert.equal(taiwan[0].origin, '台灣');
+  assert.equal(western[0].origin, '歐美');
+  assert.equal(chinese[0].origin, '內地');
+
+  // Competitor purchases
+  const state = newGame();
+  assert.ok(state.rivalPurchases.length >= 2);
+  const cityBuy = state.rivalPurchases.find(r => r.rivalId === 'city');
+  assert.ok(cityBuy);
+  assert.ok(cityBuy.title);
+
+  // Player cannot buy title acquired by competitor
+  assert.throws(() => buyProgram(state, cityBuy.marketItemId), /已\S*買入/);
+
+  // Competitor airs acquired hit in prime slot (21:00-23:00)
+  const cityShow = rivalAtHour(state, state.rivals[0], 21, 1);
+  assert.equal(cityShow.title, cityBuy.title);
+  assert.ok(cityShow.rating >= cityBuy.rating);
+});
+
+test('license expiration does not repeatedly halt advanceQuarter on subsequent days', () => {
+  const state = newGame();
+  const film = state.library.find(p => p.id === 'start-film');
+  // Expires at day 181
+  state.day = 180;
+  const day180 = advanceDay(state, () => .5);
+  // On day 180 (moving to 181), film newly expires
+  assert.ok(day180.expired.includes(film.title));
+
+  // Next day (day 181 moving to 182)
+  const day181 = advanceDay(state, () => .5);
+  // Must NOT report as expired again!
+  assert.equal(day181.expired.length, 0);
+
+  // Fast forward should proceed through quarter without stopping every day on expired license
+  dismissMonthResult(state);
+  dismissCeremony(state);
+  advanceQuarter(state, () => .5);
+  // It advanced multiple days rather than halting immediately on 182!
+  assert.ok(state.day > 183);
+});
+
 

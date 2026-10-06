@@ -249,7 +249,7 @@ const viuDramaByYear = {
   ]
 };
 export const VIU_ORIGINALS = Object.entries(viuDramaByYear).flatMap(([year,shows])=>shows.map(([title,subcategory],index)=>({
-  id:`viu-original-${year}-${index}`,title,category:'電視劇',subcategory,group:'series',network:'ViuTV',releaseYear:Number(year),
+  id:`viu-original-${year}-${index}`,title,category:'電視劇',subcategory,group:'series',network:'ViuTV',releaseYear:Number(year),origin:'香港',
   cost:Math.round((580_000+(Number(year)-2020)*35_000+(index%5)*65_000)/1_000)*1_000,
   quality:73+(index*3+Number(year))%15,rating:53+(index*4+Number(year))%16,buzz:51+(index*5+Number(year))%22,
   episodes:[8,12,15,20][(index+Number(year))%4]
@@ -276,13 +276,64 @@ const politicsPool = [
   ['時事摘錄','時事整理',420_000,73,49,43,12],['頭條新聞','時事評論',630_000,79,57,65,12],
   ['城市論壇','公共討論',520_000,74,51,53,12]
 ];
+const koreanDramaPool = [
+  ['黑暗榮耀','復仇神劇',1_380_000,90,78,82,16,'韓國'],
+  ['愛的迫降','浪漫愛情',1_250_000,88,75,78,16,'韓國'],
+  ['魷魚遊戲','生存懸疑',1_450_000,91,80,88,10,'韓國'],
+  ['請回答1988','懷舊溫情',1_180_000,89,74,70,20,'韓國'],
+  ['太陽的後裔','軍旅浪漫',1_120_000,85,71,72,16,'韓國'],
+  ['非常律師禹英禑','律政療癒',1_200_000,87,73,75,16,'韓國'],
+  ['信號 Signal','跨時空刑偵',1_320_000,89,76,74,16,'韓國'],
+  ['黑道律師文森佐','犯罪喜劇',1_160_000,84,70,69,20,'韓國'],
+  ['機智醫生生活','醫療溫情',1_220_000,88,74,73,12,'韓國'],
+  ['孤單又燦爛的神－鬼怪','奇幻愛情',1_280_000,88,75,76,16,'韓國']
+];
+const japaneseDramaPool = [
+  ['半澤直樹','商戰復仇',1_350_000,90,78,80,10,'日本'],
+  ['First Love 初戀','純愛經典',1_150_000,88,73,76,10,'日本'],
+  ['逃避雖可恥但有用','契約喜劇',1_080_000,86,71,72,11,'日本'],
+  ['孤獨的美食家','美食療癒',780_000,82,65,60,12,'日本'],
+  ['重啟人生','奇幻人生',1_120_000,89,72,75,10,'日本'],
+  ['地面師','犯罪懸疑',1_280_000,87,74,77,8,'日本'],
+  ['法醫女王 Unnatural','法醫懸疑',1_220_000,89,75,74,10,'日本'],
+  ['Grand Maison 東京','熱血料理',1_180_000,86,72,71,11,'日本']
+];
+const taiwanDramaPool = [
+  ['想見你','穿越懸疑',1_180_000,89,74,76,13,'台灣'],
+  ['華燈初上','條通懸疑',1_220_000,87,73,75,24,'台灣'],
+  ['我們與惡的距離','社會寫實',1_260_000,91,76,74,10,'台灣'],
+  ['不良執念清除師','奇幻溫馨',980_000,85,69,68,12,'台灣'],
+  ['茶金','年代商戰',1_050_000,86,70,67,12,'台灣'],
+  ['俗女養成記','溫馨家庭',860_000,84,67,64,10,'台灣']
+];
+const westernDramaPool = [
+  ['后翼棄兵','天才傳記',1_320_000,90,77,82,8,'歐美'],
+  ['新福爾摩斯','現代推理',1_380_000,91,79,84,12,'歐美'],
+  ['怪奇物語','科幻冒險',1_420_000,89,78,85,10,'歐美'],
+  ['黑鏡','科技驚悚',1_250_000,88,75,78,12,'歐美'],
+  ['最後生還者','末日歷險',1_360_000,90,77,80,9,'歐美'],
+  ['切爾諾貝爾','歷史災難',1_290_000,92,78,79,5,'歐美']
+];
+const chineseDramaPool = [
+  ['繁花','年代商戰',1_400_000,91,80,84,30,'內地'],
+  ['瑯琊榜','權謀古裝',1_320_000,90,77,78,30,'內地'],
+  ['延禧攻略','宮廷爽劇',1_280_000,87,75,80,30,'內地'],
+  ['三體','硬核科幻',1_260_000,88,74,75,30,'內地'],
+  ['慶餘年','架空權謀',1_300_000,88,76,79,30,'內地'],
+  ['狂飆','掃黑刑偵',1_350_000,89,78,81,30,'內地']
+];
 export const ACQUISITION_GROUPS = [
-  {id:'film',label:'香港電影',pool:filmPool,count:5,legacyCount:2,legacyPoolLength:12},
-  {id:'series',label:'電視劇',pool:dramaPool,count:5,legacyCount:2,legacyPoolLength:7},
-  {id:'variety',label:'綜藝',pool:varietyPool,count:3,legacyCount:1,legacyPoolLength:3},
-  {id:'documentary',label:'紀錄片',pool:documentaryPool,count:3,legacyCount:1,legacyPoolLength:4},
-  {id:'information',label:'資訊',pool:informationPool,count:2,legacyCount:1,legacyPoolLength:2},
-  {id:'politics',label:'政治／時事',pool:politicsPool,count:2,legacyCount:1,legacyPoolLength:1}
+  {id:'film',label:'香港電影',origin:'香港',pool:filmPool,count:5,legacyCount:2,legacyPoolLength:12},
+  {id:'series',label:'電視劇',origin:'香港',pool:dramaPool,count:5,legacyCount:2,legacyPoolLength:7},
+  {id:'variety',label:'綜藝',origin:'香港',pool:varietyPool,count:3,legacyCount:1,legacyPoolLength:3},
+  {id:'documentary',label:'紀錄片',origin:'香港',pool:documentaryPool,count:3,legacyCount:1,legacyPoolLength:4},
+  {id:'information',label:'資訊',origin:'香港',pool:informationPool,count:2,legacyCount:1,legacyPoolLength:2},
+  {id:'politics',label:'政治／時事',origin:'香港',pool:politicsPool,count:2,legacyCount:1,legacyPoolLength:1},
+  {id:'korean',label:'韓劇',origin:'韓國',pool:koreanDramaPool,count:4,legacyCount:0,legacyPoolLength:0},
+  {id:'japanese',label:'日劇',origin:'日本',pool:japaneseDramaPool,count:4,legacyCount:0,legacyPoolLength:0},
+  {id:'taiwan',label:'台劇',origin:'台灣',pool:taiwanDramaPool,count:3,legacyCount:0,legacyPoolLength:0},
+  {id:'western',label:'歐美劇',origin:'歐美',pool:westernDramaPool,count:3,legacyCount:0,legacyPoolLength:0},
+  {id:'chinese',label:'內地劇',origin:'內地',pool:chineseDramaPool,count:3,legacyCount:0,legacyPoolLength:0}
 ];
 const clamp = (n,min,max) => Math.min(max,Math.max(min,n));
 const randomInt = (min,max,rng=Math.random) => min + Math.floor(rng() * (max-min+1));
@@ -302,13 +353,19 @@ export function catalogForQuarter(quarter) {
   const rotation=ACQUISITION_GROUPS.flatMap(group=>{
     const offers=[],used=new Set();
     const add=(n,id)=>{
-      const [title,subcategory,cost,quality,rating,buzz,packageEpisodes]=group.pool[n];
+      const [title,subcategory,cost,quality,rating,buzz,packageEpisodes,poolOrigin]=group.pool[n];
       // Package lengths are game rules, not claims about the original release.
-      const episodes=packageEpisodes??{film:1,series:20,variety:12,documentary:6,information:12,politics:12}[group.id];
+      const episodes=packageEpisodes??{film:1,series:20,variety:12,documentary:6,information:12,politics:12,korean:16,japanese:10,taiwan:12,western:10,chinese:30}[group.id]??12;
+      const origin=poolOrigin??group.origin??'香港';
       const network=group.id==='series'?(title.startsWith('瑪嘉烈與大衛')?'ViuTV':'TVB'):
+        group.id==='korean'?'外購韓劇':
+        group.id==='japanese'?'外購日劇':
+        group.id==='taiwan'?'外購台劇':
+        group.id==='western'?'外購歐美劇':
+        group.id==='chinese'?'外購內地劇':
         group.id==='variety'?(['全民造星','全民造星IV','囝囝女女730'].includes(title)?'ViuTV':'TVB'):
         group.id==='information'&&['東張西望','南美潮什麼 2'].includes(title)?'TVB':'其他';
-      offers.push({id,title,category:group.label,subcategory,group:group.id,cost,quality,rating,buzz,episodes,network});
+      offers.push({id,title,category:group.label,subcategory,group:group.id,cost,quality,rating,buzz,episodes,network,origin});
       used.add(n);
     };
     // Preserve the old eight offer IDs and titles in existing saves.
@@ -367,10 +424,87 @@ function ensureEvents(state) {
   }
 }
 
+export function refreshMarketRivalBuys(state, rng = Math.random) {
+  state.rivalPurchases ??= [];
+  state.rivalPurchases = state.rivalPurchases.filter(r => r.expiresDay > state.day);
+  const currentMonth = marketMonthForDay(state.day);
+  const activeThisMonth = state.rivalPurchases.filter(r => r.marketMonth === currentMonth);
+  if (activeThisMonth.length >= 2) return state.rivalPurchases;
+
+  const currentListings = catalogForMonth(state.day);
+  const ownedTitles = new Set(state.library.map(p => p.title));
+  const rivalOwnedTitles = new Set(state.rivalPurchases.map(r => r.title));
+
+  const candidates = currentListings.filter(item =>
+    !item.id.startsWith('viu-original-') &&
+    ['korean', 'japanese', 'taiwan', 'western', 'chinese'].includes(item.group) &&
+    !ownedTitles.has(item.title) &&
+    !rivalOwnedTitles.has(item.title)
+  );
+
+  if (!candidates.length) return state.rivalPurchases;
+
+  // City TV buys 1 blockbuster
+  const cityExisting = state.rivalPurchases.find(r => r.rivalId === 'city' && r.marketMonth === currentMonth);
+  if (!cityExisting) {
+    const cityCandidates = [...candidates].sort((a, b) => (b.rating + b.buzz) - (a.rating + a.buzz));
+    const cityPick = cityCandidates[0];
+    if (cityPick) {
+      const buyRecord = {
+        id: `rival-buy-${state.day}-${cityPick.id}`,
+        marketItemId: cityPick.id,
+        marketMonth: currentMonth,
+        title: cityPick.title,
+        rivalId: 'city',
+        rivalName: '全城電視',
+        origin: cityPick.origin || '外購',
+        category: cityPick.category,
+        rating: cityPick.rating,
+        cost: cityPick.cost,
+        startDay: state.day,
+        expiresDay: (currentMonth + 1) * DAYS_PER_MARKET_MONTH + 1
+      };
+      state.rivalPurchases.push(buyRecord);
+      rivalOwnedTitles.add(cityPick.title);
+      note(state, `【對手動向】全城電視豪擲 ${money(cityPick.cost)} 搶購${cityPick.origin}話題作《${cityPick.title}》獨家播映權！`, 'neutral');
+    }
+  }
+
+  // Local 8 buys 1 distinctive/charming title
+  const localExisting = state.rivalPurchases.find(r => r.rivalId === 'local' && r.marketMonth === currentMonth);
+  if (!localExisting) {
+    const localCandidates = candidates.filter(c => !rivalOwnedTitles.has(c.title));
+    const preferred = localCandidates.filter(c => ['日本', '台灣'].includes(c.origin));
+    const pool = preferred.length ? preferred : localCandidates;
+    const localPick = pool[Math.floor(rng() * pool.length)];
+    if (localPick) {
+      const buyRecord = {
+        id: `rival-buy-${state.day}-${localPick.id}`,
+        marketItemId: localPick.id,
+        marketMonth: currentMonth,
+        title: localPick.title,
+        rivalId: 'local',
+        rivalName: '本地八台',
+        origin: localPick.origin || '外購',
+        category: localPick.category,
+        rating: localPick.rating,
+        cost: localPick.cost,
+        startDay: state.day,
+        expiresDay: (currentMonth + 1) * DAYS_PER_MARKET_MONTH + 1
+      };
+      state.rivalPurchases.push(buyRecord);
+      note(state, `【對手動向】本地八台以 ${money(localPick.cost)} 買入${localPick.origin}口碑作《${localPick.title}》播映權！`, 'neutral');
+    }
+  }
+
+  return state.rivalPurchases;
+}
+
 export function newGame() {
   const state = new StationState();
   for (const actor of ACTORS) state.talent[actor.id]={fame:actor.skill-10,fee:actor.fee};
   ensureEvents(state);
+  refreshMarketRivalBuys(state, () => 0.5);
   return state;
 }
 
@@ -390,16 +524,17 @@ export function rivalAtHour(state,rival,hour,day=state.day) {
   if (!block) return null;
   const premiere=hour>=19&&hour<21?rivalPremiere(rival,day):null;
   const deal=hour>=21&&hour<23?(state.distributionDeals??[]).find(item=>item.rivalId===rival.id&&item.startDay<=day&&day<item.expiresDay):null;
-  const title=deal?.title??premiere?.title??block.rotation?.[state.quarter%block.rotation.length]??block.title;
+  const rivalMarketBuy=hour>=21&&hour<23&&!deal?(state.rivalPurchases??[]).find(item=>item.rivalId===rival.id&&item.startDay<=day&&day<item.expiresDay):null;
+  const title=deal?.title??rivalMarketBuy?.title??premiere?.title??block.rotation?.[state.quarter%block.rotation.length]??block.title;
   const wave=(day*11+hour*3+(rival.id==='city'?0:2))%7-3;
-  const base=deal?.rating??premiere?.rating??block.rating;
+  const base=deal?.rating??(rivalMarketBuy?rivalMarketBuy.rating+2:null)??premiere?.rating??block.rating;
   let eventMod = 0;
   if (state.breakingEvent) {
     if (state.breakingEvent.ratingMods?.all) eventMod += Math.round(state.breakingEvent.ratingMods.all * 0.5);
     if ((hour === 17 || hour === 18) && state.breakingEvent.ratingMods?.kinds?.news) eventMod += Math.round(state.breakingEvent.ratingMods.kinds.news * 0.5);
     if (hour >= 9 && hour <= 10 && state.breakingEvent.ratingMods?.kinds?.finance) eventMod += Math.round(state.breakingEvent.ratingMods.kinds.finance * 0.5);
   }
-  return {title,rating:clamp(base+wave+Math.min(state.quarter%3,2)+eventMod,1,98),block};
+  return {title,rating:clamp(base+wave+Math.min(state.quarter%3,2)+eventMod,1,98),block,rivalMarketBuy};
 }
 
 export function distributionQuote(program,exclusive=false) {
@@ -593,6 +728,7 @@ export function migrateLegacyLicenses(state) {
   state.pendingCeremony??=null;
   state.awardCeremonies??=[];
   state.viralShowBoost??=null;
+  state.rivalPurchases??=[];
   // Old saves had no term. Grant a fresh six-month window without changing cash or runs.
   for (const program of state.library) if (program.kind==='catalog') {
     if (!Number.isInteger(program.licenseExpiresDay)) {
@@ -600,6 +736,9 @@ export function migrateLegacyLicenses(state) {
       program.licenseStartDay=state.day;
       program.licenseExpiresDay=state.day+180;
       program.licenseBaseCost=program.id==='start-film'?1_150_000:(program.cost??0);
+    }
+    if (state.day >= program.licenseExpiresDay) {
+      program.licenseExpiredHandled = true;
     }
     if(program.id==='start-film' && !program.licenseBaseCost) program.licenseBaseCost=1_150_000;
     if (program.episodes > 0) {
@@ -702,10 +841,12 @@ export function buyProgram(state,item,days=180) {
   const listing=catalogForMonth(state.day).find(i=>i.id===item);
   if (!listing) throw Error('本月片單已經更新，請重新揀節目。');
   if (state.library.some(p=>p.id===item)) throw Error('呢套節目已經入庫。');
+  const rivalBuy = (state.rivalPurchases ?? []).find(r => r.marketItemId === item && r.expiresDay > state.day);
+  if (rivalBuy) throw Error(`《${listing.title}》已被${rivalBuy.rivalName}搶先獨家買入，本月無法購買！`);
   const cost=licensePrice(listing.cost,days);
   if (state.cash<cost) throw Error('現金不足，未能購入版權。');
   state.cash-=cost;
-  const program=new Program({...listing,kind:'catalog',cost,licenseBaseCost:listing.cost,licenseDays:days,licenseStartDay:state.day,licenseExpiresDay:state.day+days});
+  const program=new Program({...listing,kind:'catalog',cost,licenseBaseCost:listing.cost,licenseDays:days,licenseStartDay:state.day,licenseExpiresDay:state.day+days,licenseExpiredHandled:false});
   state.library.push(program);
   note(state,`購入《${listing.title}》${days===180?'6 個月':'1 年'}播映權，花費 ${money(cost)}。`);
   return program;
@@ -718,6 +859,7 @@ export function renewLicense(state,programId,days=180) {
   if(state.cash<cost) throw Error('現金不足，未能續購版權。');
   state.cash-=cost;
   program.licenseDays=days;program.licenseStartDay=state.day;program.licenseExpiresDay=state.day+days;
+  program.licenseExpiredHandled=false;
   note(state,`續購《${program.title}》${days===180?'6 個月':'1 年'}播映權，花費 ${money(cost)}。`);
   return program;
 }
@@ -1407,10 +1549,22 @@ export function advanceDay(state,rng=Math.random) {
     daily.ceremony=ceremony;
   }
   const marketRefresh=marketMonthForDay(state.day)!==marketMonthForDay(gameDay);
-  if(marketRefresh) note(state,`外購市場第 ${marketMonthForDay(state.day)+1} 個月新片單上架；原有播映權照常有效。`,'good');
-  const expired=clearCompletedPrograms(state).filter(p=>licenseExpired(p,state.day)).map(p=>p.title);
-  if(expired.length) note(state,`${expired.map(title=>`《${title}》`).join('、')}播映權到期，相關時段已騰空。`,'neutral');
-  daily.expired=expired;
+  if(marketRefresh) {
+    note(state,`外購市場第 ${marketMonthForDay(state.day)+1} 個月新片單上架；原有播映權照常有效。`,'good');
+    refreshMarketRivalBuys(state, rng);
+  }
+  const newlyExpired = [];
+  for (const p of state.library) {
+    if (p.kind === 'catalog' && Number.isInteger(p.licenseExpiresDay)) {
+      if (state.day >= p.licenseExpiresDay && !p.licenseExpiredHandled) {
+        p.licenseExpiredHandled = true;
+        newlyExpired.push(p.title);
+      }
+    }
+  }
+  clearCompletedPrograms(state);
+  if(newlyExpired.length) note(state,`${newlyExpired.map(title=>`《${title}》`).join('、')}播映權到期，相關時段已騰空。`,'neutral');
+  daily.expired=newlyExpired;
   daily.marketRefresh=marketRefresh;
   if (dayOfQuarter===DAYS_PER_QUARTER) {
     state.reputation=clamp(state.reputation+Math.round((ledger.audience/(24*ledger.days)-40)/14),0,100);
