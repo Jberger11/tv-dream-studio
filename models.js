@@ -1,5 +1,5 @@
 /** @typedef {'double-o'|'o'|'x'} Compatibility */
-/** @typedef {'drama'|'variety'|'night'|'news'|'finance'|'information'|'politics'|'social'|'catalog'} ProgramKind */
+/** @typedef {'drama'|'variety'|'night'|'children'|'news'|'finance'|'information'|'politics'|'social'|'charity'|'contest'|'pageant'|'catalog'} ProgramKind */
 
 export class Actor {
   constructor(id, name, skill, fee, specialty, source = 'tvb') {

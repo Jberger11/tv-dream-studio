@@ -614,4 +614,52 @@ test('license expiration does not repeatedly halt advanceQuarter on subsequent d
   assert.ok(state.day > 183);
 });
 
+test('children programme production generates correct titles, premiere profiles, and afternoon slot performance', () => {
+  const state = newGame();
+  const quote = productionQuote(state, { kind: 'children', topic: '益智遊戲', budgetId: 'standard', episodeHours: 1, episodeCount: 8 });
+  assert.ok(quote.total > 0);
+  const show = produce(state, { kind: 'children', topic: '益智遊戲', budgetId: 'standard', episodeHours: 1, episodeCount: 8 }, () => 0.5);
+  assert.equal(show.kind, 'children');
+  assert.ok(show.title.includes('益智遊戲小天地'));
+  assert.equal(show.category, '兒童節目');
+
+  // Schedule in afternoon slot (16:00) vs night slot (22:00)
+  scheduleProgram(state, 16, show.id, 1, { days: [0] });
+  assert.equal(state.schedule.find(b => b.programId === show.id).start, 16);
+
+  // Air on Monday (day 1, weekday 0)
+  state.day = 1;
+  const dayResult = advanceDay(state, () => 0.5);
+  const hour16 = dayResult.hours[16];
+  assert.ok(hour16);
+  assert.equal(hour16.title, show.title);
+  assert.ok(hour16.rating > 0);
+});
+
+test('one-off events and movies scheduled with once: true air once then automatically vacate their slot', () => {
+  const state = newGame();
+  const contest = produce(state, { kind: 'contest', topic: '全城歌唱賽', budgetId: 'standard', episodeHours: 2, styleId: 'mainstream' }, () => 0.5);
+  assert.equal(contest.episodes, 1);
+
+  // Schedule on Tuesday (weekday 1) with once: true
+  scheduleProgram(state, 20, contest.id, 2, { days: [1], once: true });
+  const block = state.schedule.find(b => b.programId === contest.id);
+  assert.ok(block);
+  assert.equal(block.once, true);
+
+  // Day 1 (Monday, weekday 0): does not air yet, block remains
+  state.day = 1;
+  advanceDay(state, () => 0.5);
+  assert.ok(state.schedule.some(b => b.programId === contest.id));
+
+  // Day 2 (Tuesday, weekday 1): airs once!
+  state.day = 2;
+  const day2 = advanceDay(state, () => 0.5);
+  assert.ok(day2.hours[20].title.includes('全城歌唱賽'));
+
+  // After airing, the block is automatically removed from schedule!
+  assert.equal(state.schedule.some(b => b.programId === contest.id), false);
+  assert.equal(programAtHour(state, 20, 9), undefined); // On next Tuesday (day 9), slot is clear
+});
+
 

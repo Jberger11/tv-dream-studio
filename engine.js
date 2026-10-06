@@ -28,6 +28,7 @@ export const CONTENT_TYPES = [
   {id:'drama',label:'劇集'},
   {id:'variety',label:'綜藝',topics:['遊戲競賽','歌唱選秀','真人秀','訪談','飲食'],factor:.92,appeal:5},
   {id:'night',label:'深夜節目',topics:['深夜清談','午夜音樂','都市怪談','情感熱線','午夜喜劇'],factor:.55,appeal:6},
+  {id:'children',label:'兒童節目',topics:['益智遊戲','卡通動畫','兒歌唱跳','科學實驗','品格故事','放學天地'],factor:.60,appeal:4},
   {id:'news',label:'新聞',topics:['晨間','午間','晚間','國際'],factor:.04,appeal:8},
   {id:'finance',label:'財經',topics:['開市','收市','市場分析','個人理財'],factor:.04,appeal:2},
   {id:'information',label:'資訊',topics:['旅遊','科技','健康','教育','消費'],factor:.68,appeal:2},
@@ -89,7 +90,7 @@ export const BREAKING_EVENTS_POOL = [
     icon: '🌀',
     description: '全港停工停課市民留家避風，全台收視普遍上升，新聞時段備受全城關注！',
     duration: 2,
-    ratingMods: { all: 12, kinds: { news: 12, social: 6 } }
+    ratingMods: { all: 12, kinds: { news: 12, social: 6, children: 10 } }
   },
   {
     id: 'hang-seng-drop',
@@ -642,7 +643,7 @@ export function produce(state,{kind='drama',genre,themes=[],actorIds=[],topic=''
   state.productionCount++;
   const id=`${kind}-${state.quarter}-${state.library.length}`;
   const dramaTitles={'刑偵':'疑案檔案','處境劇':'街坊日常','宮鬥':'深宮往事','科幻':'明日之城','歷史':'舊日風雲','青春':'我們的夏天','律政':'法庭內外','醫療':'急症線','家庭':'屋企有人','商戰':'交易遊戲','武俠':'江湖路','奇幻':'平行之門','社會寫實':'城市邊緣'};
-  const typeTitles={variety:`${topic}大舞台`,night:`${topic}夜線`,news:`${topic}新聞`,finance:`${topic}財經`,information:`${topic}生活誌`,politics:`${topic}對話`,social:`${topic}觀察`,charity:topic,contest:topic,pageant:topic};
+  const typeTitles={variety:`${topic}大舞台`,night:`${topic}夜線`,children:`${topic}小天地`,news:`${topic}新聞`,finance:`${topic}財經`,information:`${topic}生活誌`,politics:`${topic}對話`,social:`${topic}觀察`,charity:topic,contest:topic,pageant:topic};
   const title=kind==='drama'?(outcome==='cult'?'奇妙的錯配':outcome==='disaster'?'意外現場':dramaTitles[genre]):typeTitles[kind];
   const program=new Program({id,title:`${title} ${state.library.length}`,kind,quality,review,rating,buzz,cost,genre:kind==='drama'?genre:'',themes:kind==='drama'?themes:[],cast:cast.map(actor=>actor.name),castIds:cast.map(actor=>actor.id),topic:kind==='drama'?'':topic,category:format.label,tier,outcome,episodes:quote.episodes,episodeHours,episodeCost:quote.perEpisode,style:style.label});
   program.filmingStory=filmingStory;
@@ -764,6 +765,7 @@ const premiereProfiles={
   drama:{label:'劇集首播',symbol:'★',spotlight:'加拍預告片',improve:'重剪下一集',hook:'劇情懸念成為街坊話題'},
   variety:{label:'綜藝開台',symbol:'✦',spotlight:'安排街頭宣傳',improve:'調整遊戲環節',hook:'現場笑聲帶動社交討論'},
   night:{label:'深夜首播',symbol:'☾',spotlight:'邀請深夜嘉賓',improve:'重整訪談節奏',hook:'夜貓觀眾開始口耳相傳'},
+  children:{label:'少兒節目開播',symbol:'🎈',spotlight:'派發限量公仔',improve:'增設互動環節',hook:'大小朋友齊齊準時放學睇電視'},
   news:{label:'新聞首播',symbol:'◆',spotlight:'加強突發採訪',improve:'增設事實核查',hook:'觀眾開始留意我台新聞'},
   finance:{label:'財經開市',symbol:'↗',spotlight:'邀請市場專家',improve:'改善數據圖表',hook:'投資觀眾分享開市分析'},
   catalog:{label:'外購節目登場',symbol:'▣',spotlight:'買黃金時段廣告',improve:'製作本地導賞',hook:'觀眾重新發現呢套作品'},
@@ -784,13 +786,13 @@ export function resolvePremiere(state,choice){
   if(choice==='spotlight') {
     program.rating=clamp(program.rating+3+(program.kind==='night'&&premiere.start>=22?2:0),1,100);
     program.buzz=clamp(program.buzz+8,0,100);
-    state.fans=clamp(state.fans+(program.kind==='variety'?3:1),0,100);
+    state.fans=clamp(state.fans+(program.kind==='variety'||program.kind==='children'?3:1),0,100);
   }
   else if(choice==='improve') {
     program.quality=clamp(program.quality+3,1,100);
     program.review=clamp(program.review+4+(program.kind==='drama'?2:0),1,100);
     program.rating=clamp(program.rating+2,1,100);
-    state.reputation=clamp(state.reputation+(program.kind==='news'||program.kind==='finance'?3:1),0,100);
+    state.reputation=clamp(state.reputation+(program.kind==='news'||program.kind==='finance'||program.kind==='children'?3:1),0,100);
   }
   else {state.reputation=clamp(state.reputation+1,0,100);if(premiere.won)state.fans=clamp(state.fans+1,0,100);}
   const settled={...premiere,choice,cost,resolvedDay:state.day};
@@ -930,7 +932,7 @@ export function duplicateBooking(state,start,programId,duration,days=EVERY_DAY) 
   return state.schedule.find(block=>block.programId===programId && block.start!==start && daysForBlock(block).some(day=>days.includes(day)))??null;
 }
 
-export function scheduleProgram(state,start,programId,duration,{days=EVERY_DAY,allowRepeat=false}={}) {
+export function scheduleProgram(state,start,programId,duration,{days=EVERY_DAY,allowRepeat=false,once=false}={}) {
   if (!Number.isInteger(start) || start<0 || start>23 || !Number.isInteger(duration) || duration<1) throw Error('請選擇有效時間同長度。');
   if (!Array.isArray(days)||!days.length||new Set(days).size!==days.length||days.some(day=>!Number.isInteger(day)||day<0||day>6)) throw Error('請選擇有效嘅播出日子。');
   days=[...days].sort((a,b)=>a-b);
@@ -949,7 +951,10 @@ export function scheduleProgram(state,start,programId,duration,{days=EVERY_DAY,a
     if (program.episodeHours && duration!==program.episodeHours) throw Error(`呢套節目每集固定 ${program.episodeHours} 小時，請調整播映長度。`);
   }
   if (!allowRepeat && duplicateBooking(state,start,programId,duration,days)) throw Error('呢套節目已喺相同日子另一時段排播；如要同日重播，請明確選擇。');
-  const next={start,duration,programId,days}, claimed=new Set(hoursInBlock(next));
+  const prog=special?null:state.library.find(p=>p.id===programId);
+  const isOneOffItem=prog?(isOneOffEvent(prog.kind)||prog.episodes===1):false;
+  const isSingleRun=Boolean(once || (isOneOffItem && days.length===1));
+  const next={start,duration,programId,days,once:isSingleRun}, claimed=new Set(hoursInBlock(next));
   const removed=state.schedule.filter(block=>daysForBlock(block).some(day=>days.includes(day)) && hoursInBlock(block).some(hour=>claimed.has(hour)));
   state.schedule=state.schedule.flatMap(block=>{
     if(!removed.includes(block)) return [block];
@@ -1182,7 +1187,7 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
   });
 
   // 4. 最佳綜藝資訊節目
-  const varieties = state.library.filter(p => (p.kind === 'variety' || p.kind === 'information' || p.kind === 'night' || p.kind === 'social' || isOneOffEvent(p.kind)) && p.runs > 0);
+  const varieties = state.library.filter(p => (p.kind === 'variety' || p.kind === 'children' || p.kind === 'information' || p.kind === 'night' || p.kind === 'social' || isOneOffEvent(p.kind)) && p.runs > 0);
   const bestOurVariety = [...varieties].sort((a, b) => (b.quality + b.buzz + b.rating) - (a.quality + a.buzz + a.rating))[0];
   let varietyWinner;
   if (bestOurVariety && (bestOurVariety.quality + bestOurVariety.rating > 120 || rng() < 0.60)) {
@@ -1304,8 +1309,10 @@ export function advanceDay(state,rng=Math.random) {
   const specialHourCount=sportsBlocks.reduce((sum,b)=>sum+b.duration,0);
   let specialHourIndex=0, allocatedSpecial=0;
   const todayRuns=new Map();
+  const onceBlocksAired=[];
   for (const block of state.schedule) {
     if(!runsOnWeekday(block,weekday)) continue;
+    if(block.once) onceBlocksAired.push(block);
     const times=hoursInBlock(block), special=block.programId.startsWith('event:');
     const p=special?null:state.library.find(item=>item.id===block.programId);
     if (!special&&!p) continue;
@@ -1319,7 +1326,8 @@ export function advanceDay(state,rng=Math.random) {
     let blockRevenue=0, ratingTotal=0;
     for (const hour of times) {
       const prime=hour>=18&&hour<=22;
-      const factor=p?.kind==='night'?(hour>=22||hour<=2?1.25:.62):p&&isOneOffEvent(p.kind)?(prime?(weekday>=5?1.52:1.42):hour>=7&&hour<=17?.85:.65):(prime?1.3:hour>=7&&hour<=17?1:hour===23?.76:.58);
+      const isChildrenSlot=(hour>=16 && hour<18) || (weekday>=5 && hour>=9 && hour<12);
+      const factor=p?.kind==='night'?(hour>=22||hour<=2?1.25:.62):p?.kind==='children'?(isChildrenSlot?1.30:(hour>=21||hour<7?0.40:0.90)):p&&isOneOffEvent(p.kind)?(prime?(weekday>=5?1.52:1.42):hour>=7&&hour<=17?.85:.65):(prime?1.3:hour>=7&&hour<=17?1:hour===23?.76:.58);
       const rivals=state.rivals.map(rival=>rivalAtHour(state,rival,hour,gameDay));
       const strongest=Math.max(...rivals.map(item=>item.rating));
       const pressure=Math.round(Math.max(0,strongest-55)*.16-Math.max(0,55-strongest)*.07);
@@ -1334,7 +1342,7 @@ export function advanceDay(state,rng=Math.random) {
       } else {
         // A completed series earns its ad package over its finite run. Daily
         // evergreen shows pay a much smaller rate because they never expire.
-        const rate=p.episodes?({drama:2_700,variety:2_200,night:1_200,charity:5_000,contest:8_000,pageant:9_500,catalog:p.category==='香港電影'?8_000:1_500}[p.kind]??2_000):(p.kind==='finance'?180:p.kind==='news'?130:60);
+        const rate=p.episodes?({drama:2_700,variety:2_200,children:1_800,night:1_200,charity:5_000,contest:8_000,pageant:9_500,catalog:p.category==='香港電影'?8_000:1_500}[p.kind]??2_000):(p.kind==='finance'?180:p.kind==='news'?130:60);
         const rightsFactor=p.id.startsWith('start-')?.2:1; // Free opening library is non-exclusive syndication.
         ads=Math.round(rate*rating*rating/70*rightsFactor*(p.outcome==='disaster'?.5:1));
       }
@@ -1376,6 +1384,9 @@ export function advanceDay(state,rng=Math.random) {
     }
   }
   for (const [id,count] of todayRuns) state.library.find(p=>p.id===id).runs+=count;
+  if (onceBlocksAired.length) {
+    state.schedule = state.schedule.filter(block => !onceBlocksAired.includes(block));
+  }
   for (const rival of state.rivals) {
     const topRivalHour = hours.filter(Boolean).reduce((best, h) => {
       const rivalIdx = rival.id === 'city' ? 0 : 1;
@@ -1471,7 +1482,7 @@ export function advanceDay(state,rng=Math.random) {
     state.audienceFeed=state.audienceFeed.slice(0,24);
   }
   if(gameDay%9===0){
-    const type=['request','gift','complaint'][Math.floor(gameDay/9)%3],topic=['旅遊','科技','深夜清談','飲食'][Math.floor(gameDay/9)%4];
+    const type=['request','gift','complaint'][Math.floor(gameDay/9)%3],topic=['旅遊','科技','深夜清談','飲食','益智遊戲','兒歌唱跳'][Math.floor(gameDay/9)%6];
     const text=type==='request'?`希望你哋拍一套「${topic}」節目，我會叫朋友一齊睇！`:type==='gift'?'我寄咗一件舊電視道具畀片場，拍下一套節目或許啱用。':'最近有幾個時段嘅節目太重複，希望電視台聽吓觀眾意見。';
     state.mailbox.unshift({id:`letter-${gameDay}`,day:gameDay,type,topic,text,resolved:false});
     state.mailbox=state.mailbox.slice(0,18);

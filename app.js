@@ -19,7 +19,7 @@ let runSummary=null;
 let selectedBroadcastDay=null;
 let reportFilter='all';
 let selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none'};
-let editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],allowRepeat:false};
+let editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],recurrence:'daily',allowRepeat:false};
 let editorProgramGroup='all';
 let editorProgramSearch='';
 function resetProgramPicker(){editorProgramGroup='all';editorProgramSearch='';}
@@ -51,7 +51,8 @@ const catalogPrice=n=>n>=1_000_000?`$${(n/1_000_000).toFixed(2)}m`:`$${Math.roun
 const icon={schedule:'▦',studio:'◈',rivals:'♟',catalog:'▤',sports:'◆',reports:'▥'};
 const timeRange=(start,duration)=>`${hourLabel(start)}–${hourLabel(start+duration)}${start+duration>=24?'（翌日）':''}`;
 const dayPattern=days=>days.length===7?'每日':days.length===5&&days.every((d,i)=>d===i)?'週一至五':days.length===2&&days[0]===5&&days[1]===6?'週六日':days.length===1?`每週${WEEKDAYS[days[0]].slice(1)}`:days.map(day=>WEEKDAYS[day]).join('、');
-const initialDays=p=>p?.category==='香港電影'||p?.kind==='variety'||p?.kind==='night'||isOneOffEvent(p?.kind)?[weekdayForDay(state.day)]:p?.kind==='drama'||isDailyFormat(p?.kind)?[0,1,2,3,4]:[...EVERY_DAY];
+const initialDays=p=>p?.category==='香港電影'||p?.kind==='variety'||p?.kind==='night'||p?.kind==='children'||isOneOffEvent(p?.kind)?[weekdayForDay(state.day)]:p?.kind==='drama'||isDailyFormat(p?.kind)?[0,1,2,3,4]:[...EVERY_DAY];
+const initialRecurrence=p=>(isOneOffEvent(p?.kind)||p?.episodes===1||p?.category==='香港電影')?'once':(p?.kind==='drama'||isDailyFormat(p?.kind))?'weekday':(p?.kind==='variety'||p?.kind==='night'||p?.kind==='children')?'weekly':'daily';
 const catalogProgressLabel=p=>p.episodes===1?`已放映 ${catalogCompletedAirings(p)} 次`:`已完整播出 ${catalogCompletedAirings(p)} 次`;
 
 function transferModalView() {
@@ -277,7 +278,7 @@ function studioView() {
         <div class="field"><div class="field-label"><span>02 / 劇種</span></div><div class="choice-grid">${GENRES.map(g=>`<button class="choice ${selected.genre===g?'chosen':''}" data-action="genre" data-value="${g}" aria-pressed="${selected.genre===g}">${g}</button>`).join('')}</div></div>
         <div class="field"><div class="field-label"><span>03 / 題材</span><small>選 1 至 2 個</small></div><div class="choice-grid">${THEMES.map(t=>`<button class="choice ${selected.themes.includes(t)?'chosen':''}" data-action="theme" data-value="${t}" aria-pressed="${selected.themes.includes(t)}">${t}</button>`).join('')}</div></div>
         <div class="field"><div class="field-label"><span>04 / 主演</span><small>已選 ${cast.length} / 4 位，最少 2 位</small></div><div class="cast-summary">已選：${cast.length?cast.map(a=>safe(a.name)).join('、'):'未揀主演'}</div><button class="actor-toggle" data-action="actor-toggle" aria-expanded="${actorPickerOpen}">${actorPickerOpen?'收起演員名單':'選擇／更換主演'} <span>${ACTORS.length} 位 ▾</span></button>${actorPickerOpen?`<div class="actor-picker"><p class="actor-note">分類按參演劇集；能力同片酬均屬遊戲設定。</p><div class="actor-filters" aria-label="篩選演員">${[['viu','ViuTV 劇集'],['all','全部'],['tvb','TVB 劇集']].map(([id,label])=>`<button data-action="actor-filter" data-value="${id}" class="${actorFilter===id?'active':''}" aria-pressed="${actorFilter===id}">${label} <span>${id==='all'?ACTORS.length:ACTORS.filter(a=>a.source===id).length}</span></button>`).join('')}</div><input class="actor-search" data-action="actor-search" type="search" placeholder="搜尋演員姓名" aria-label="搜尋演員姓名" value="${safe(actorSearch)}" /><div class="actor-grid">${availableActors.map(a=>`<button class="actor ${selected.actorIds.includes(a.id)?'chosen':''}" data-action="actor" data-value="${a.id}" aria-pressed="${selected.actorIds.includes(a.id)}"><span class="avatar">${a.name.slice(0,1)}</span><span><strong>${a.name}</strong><small>${a.specialty} · 知名度 ${state.talent[a.id].fame.toFixed(1)} · 能力 ${a.skill}</small></span><b>${preciseMoney(state.talent[a.id].fee)}</b></button>`).join('')}</div></div>`:''}</div>
-      `:`<div class="field"><div class="field-label"><span>02 / 內容方向</span></div><div class="topic-grid">${format.topics.map(topic=>`<button class="choice ${selected.topic===topic?'chosen':''}" data-action="topic" data-value="${topic}" aria-pressed="${selected.topic===topic}">${topic}</button>`).join('')}</div><p class="actor-note">${selected.kind==='night'?'深夜節目喺 22:00–02:00 有收視加成；日間播映會明顯失利。':oneOff?'大型活動只播一晚，黃金檔尤其週末有收視優勢；播後會影響台口碑或熱度。':`${format.label}節目由製作團隊完成，毋須揀劇集主演。`}</p></div>`}
+      `:`<div class="field"><div class="field-label"><span>02 / 內容方向</span></div><div class="topic-grid">${format.topics.map(topic=>`<button class="choice ${selected.topic===topic?'chosen':''}" data-action="topic" data-value="${topic}" aria-pressed="${selected.topic===topic}">${topic}</button>`).join('')}</div><p class="actor-note">${selected.kind==='night'?'深夜節目喺 22:00–02:00 有收視加成；日間播映會明顯失利。':selected.kind==='children'?'兒童節目喺放學時段（16:00–18:00）及週末早晨特別受歡迎；深夜時段收視低迷。':oneOff?'大型活動只播一晚，黃金檔尤其週末有收視優勢；播後會影響台口碑或熱度。':`${format.label}節目由製作團隊完成，毋須揀劇集主演。`}</p></div>`}
       <div class="field"><div class="field-label"><span>${isDrama?'05':'03'} / ${oneOff?'活動':'每集'}基礎預算</span><small>時長與方向會改變實際成本</small></div><div class="budget-grid">${BUDGETS.map(b=>`<button class="budget ${selected.budgetId===b.id?'chosen':''}" data-action="budget" data-value="${b.id}" aria-pressed="${selected.budgetId===b.id}"><strong>${b.label}</strong><small>${preciseMoney(Math.round(b.cost*(isDrama?1:format.factor)/1_000)*1_000)}</small></button>`).join('')}</div></div>
       <div class="field"><div class="field-label"><span>${isDrama?'06':'04'} / ${oneOff?'直播':'每集'}時長</span><small>拍完後排播長度固定</small></div><div class="production-choices">${[1,2,3,4].map(hours=>`<button class="choice ${selected.episodeHours===hours?'chosen':''}" data-action="episode-hours" data-value="${hours}" aria-pressed="${selected.episodeHours===hours}">${hours} 小時</button>`).join('')}</div></div>
       ${dailyFormat?`<p class="actor-note">${format.label}每日製作新一期，毋須設定總集數；首期預算即時支付，其後每播一期再支付一集成本。</p>`:oneOff?`<p class="event-note">一晚限定，只製作一次。首播後即落畫；慈善籌款不計入電視台現金。</p>`:`<div class="field"><div class="field-label"><span>${isDrama?'07':'05'} / 總集數</span><small>集數越多，總投資越大</small></div><div class="production-choices">${EPISODE_COUNTS.map(episodes=>`<button class="choice ${selected.episodeCount===episodes?'chosen':''}" data-action="episode-count" data-value="${episodes}" aria-pressed="${selected.episodeCount===episodes}">${episodes} 集</button>`).join('')}</div></div>`}
@@ -313,15 +314,6 @@ function scheduleHome(){
           ${expandedCompleted && completed.length > 3 ? `<div class="alert-expanded-list">${completed.map(name => `<span>《${safe(name)}》</span>`).join('')}</div>` : ''}
         </div>
         <button class="alert-dismiss-btn" data-action="dismiss-alert" data-alert="completed" title="關閉提示" aria-label="關閉提示">✕</button>
-      </div>`:''}
-    ${replayReady.length && !dismissedAlerts.replay?`
-      <div class="completion-alert replay-alert has-dismiss" role="status">
-        <div class="alert-content">
-          <strong>${replayReady.length} 套節目可安排重播</strong>
-          <span>包含自製劇與外購節目；隨時間沉澱，新鮮度正逐步回溫。</span>
-          <button data-action="open-replay-tab">去重播庫 (${replayReady.length}) →</button>
-        </div>
-        <button class="alert-dismiss-btn" data-action="dismiss-alert" data-alert="replay" title="關閉提示" aria-label="關閉提示">✕</button>
       </div>`:''}
     ${expired.length && !dismissedAlerts.expired?`
       <div class="completion-alert has-dismiss" role="status">
@@ -387,6 +379,9 @@ function scheduleView() {
   const query=editorProgramSearch.trim().toLocaleLowerCase('zh-HK');
   const visibleOptions=options.filter(option=>{const p=state.library.find(item=>item.id===option.id),group=groupFor(p),booked=state.schedule.some(block=>block.programId===option.id);return (editorProgramGroup==='all'||editorProgramGroup==='unbooked'&&!booked||editorProgramGroup===group)&&(!query||`${option.title} ${p?.category??''} ${p?.genre??''} ${p?.topic??''}`.toLocaleLowerCase('zh-HK').includes(query))});
   const selectedProgram=options.find(option=>option.id===editor.programId);
+  const selectedItem=state.library.find(p=>p.id===editor.programId);
+  const isOneOffItem=isOneOffEvent(selectedItem?.kind) || selectedItem?.episodes === 1 || selectedItem?.category === '香港電影';
+  editor.recurrence ??= isOneOffItem ? 'once' : (editor.days.length === 1 ? 'weekly' : editor.days.length === 5 ? 'weekday' : editor.days.length === 2 ? 'weekend' : 'daily');
   const primeHours=[18,19,20,21,22];
   const primeOccupied=primeHours.filter(h=>occupied.has(h)).length;
   const DAYPARTS=[
@@ -412,8 +407,22 @@ function scheduleView() {
     <div class="schedule-editor ${editorOpen?'open':''}" ${editorOpen?'role="dialog" aria-modal="true" aria-label="安排播映時段"':'hidden'}><div class="schedule-editor-heading">安排 ${timeRange(editor.start,editor.duration)} <button class="editor-dismiss" data-action="close-editor" aria-label="關閉時段編輯">✕</button></div>
       <div class="schedule-fields"><label>開始時間<select data-action="editor-start">${Array.from({length:24},(_,i)=>`<option value="${i}" ${editor.start===i?'selected':''}>${hourLabel(i)}</option>`).join('')}</select></label><label>播映長度<select data-action="editor-duration" ${fixed?'disabled':''}>${(fixed?[fixed]:Array.from({length:max},(_,i)=>i+1)).map(n=>`<option value="${n}" ${editor.duration===n?'selected':''}>${n} 小時</option>`).join('')}</select></label></div>
       <div class="program-picker"><div class="picker-heading"><strong>選擇節目</strong><span>已揀：${safe(selectedProgram?.title??'未選')}${(()=>{const sp=options.find(o=>o.id===editor.programId);const it=sp?state.library.find(p=>p.id===sp.id):null;if(!it)return '';const sf=freshnessLabel(it.freshness,it.maxFreshness);return ` · <b class="sel-freshness-tag ${sf.tier}">${sf.icon} 新鮮度 ${sf.percent}%</b>`;})()}</span></div><input type="search" data-action="editor-program-search" value="${safe(editorProgramSearch)}" placeholder="搜尋節目名、類型或題材" aria-label="搜尋排播節目" autocomplete="off"><div class="picker-filters" aria-label="節目分類">${[['all','全部'],['unbooked','未排'],['original','自製'],['catalog','外購'],['daily','每日'],['starter','開台片庫']].map(([id,label])=>`<button data-action="editor-program-group" data-value="${id}" aria-pressed="${editorProgramGroup===id}" class="${editorProgramGroup===id?'active':''}">${label}</button>`).join('')}</div><div class="program-choices" aria-label="可排播節目">${visibleOptions.length?visibleOptions.map(option=>{const item=state.library.find(p=>p.id===option.id),bookings=state.schedule.filter(block=>block.programId===option.id),booked=bookings.map(block=>`${dayPattern(daysForBlock(block))} ${hourLabel(block.start)}`).join('、');const subtitle=booked?`已排 ${booked}`:'未排';const episodes=item?.episodes?`${item.kind==='catalog'?catalogCycleProgress(item).remaining:Math.max(0,item.episodes-item.runs)} 集可播`:isDailyFormat(item?.kind)?'每日新一期':'大型賽事';const f=freshnessLabel(item?.freshness,item?.maxFreshness);return `<button data-action="editor-program-card" data-id="${safe(option.id)}" class="program-choice ${editor.programId===option.id?'chosen':''}" aria-pressed="${editor.programId===option.id}"><span class="program-choice-icon">${safe(premiereProfile(item?.kind).symbol)}</span><span class="program-choice-text"><strong>${safe(option.title)}</strong><small>${safe(item?.category??'體育')} · ${safe(episodes)}</small></span><span class="program-choice-status"><span class="choice-fresh-tag ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span><span>${safe(subtitle)}</span></span></button>`}).join(''):'<p class="picker-empty">搵唔到節目。試吓清除搜尋或轉分類。</p>'}</div></div>
-      <div class="recurrence"><strong>播出日子</strong><div class="recurrence-choices">${[['daily','每日',EVERY_DAY],['weekday','週一至五',[0,1,2,3,4]],['weekend','週六日',[5,6]],['weekly','每週一次',[selectedDay]]].map(([id,label,days])=>`<button data-action="recurrence" data-value="${id}" class="${JSON.stringify(editor.days)===JSON.stringify(days)?'chosen':''}" aria-pressed="${JSON.stringify(editor.days)===JSON.stringify(days)}">${label}</button>`).join('')}</div>${editor.days.length===1?`<label>指定日子 <select data-action="editor-weekday">${WEEKDAYS.map((name,day)=>`<option value="${day}" ${editor.days[0]===day?'selected':''}>${name}</option>`).join('')}</select></label>`:''}</div>
-      <div class="schedule-preview">${dayPattern(editor.days)} ${timeRange(editor.start,editor.duration)}${conflicts.length?` · 會替換 ${conflicts.length} 個原有排播設定`:''}</div>
+      <div class="recurrence">
+        <div class="recurrence-head-row">
+          <strong>播出日子</strong>
+          ${isOneOffItem ? '<span class="one-off-pill">⭐ 一晚限定／單集節目</span>' : ''}
+        </div>
+        <div class="recurrence-choices">${[
+          ['once','⭐ 單次播映（只播一次）',[selectedDay]],
+          ['weekly','每週一次',[selectedDay]],
+          ['weekend','週六日',[5,6]],
+          ['weekday','週一至五',[0,1,2,3,4]],
+          ['daily','每日',EVERY_DAY]
+        ].map(([id,label,days])=>`<button data-action="recurrence" data-value="${id}" class="${editor.recurrence===id?'chosen':''} ${id==='once'?'once-btn':''}" aria-pressed="${editor.recurrence===id}">${label}</button>`).join('')}</div>
+        ${editor.recurrence==='once'?`<p class="recurrence-note once-note">⭐ 單次播映：只在 ${WEEKDAYS[editor.days[0]]} 播出 1 次，播畢後自動騰空時段。</p>`:isOneOffItem?`<p class="recurrence-note warn-note">💡 自製大型活動／電影為單次播映作品，強烈建議選擇「⭐ 單次播映（只播一次）」。</p>`:''}
+        ${(editor.recurrence==='once'||editor.days.length===1)?`<label class="weekday-select-label">指定播出星期幾 <select data-action="editor-weekday">${WEEKDAYS.map((name,day)=>`<option value="${day}" ${editor.days[0]===day?'selected':''}>${name}${day===viewing?'（今日）':''}</option>`).join('')}</select></label>`:''}
+      </div>
+      <div class="schedule-preview">${editor.recurrence==='once'?`⭐ 單次播映（只在 ${WEEKDAYS[editor.days[0]]} 播 1 次，播畢自動騰空）`:dayPattern(editor.days)} ${timeRange(editor.start,editor.duration)}${conflicts.length?` · 會替換 ${conflicts.length} 個原有排播設定`:''}</div>
       ${duplicate?`<div class="booking-warning" role="status">《${safe(options.find(p=>p.id===editor.programId)?.title??'節目')}》已排喺 ${safe(duplicateDetails)}。如想同日重播，請明確開啟。</div><label class="repeat-opt"><input type="checkbox" data-action="editor-repeat" ${editor.allowRepeat?'checked':''}/> 容許同日重播呢套節目</label>`:''}
       <div class="schedule-actions"><button class="catalog-button" data-action="place" ${!editor.programId||duplicate&&!editor.allowRepeat?'disabled':''}>${conflicts.length?'替換時段':'加入節目表'} →</button><button class="remove-button" data-action="remove" ${!programAtHour(state,editor.start,previewDay)?'disabled':''}>移除${WEEKDAYS[selectedDay]}時段</button></div>
     </div>
@@ -452,10 +461,11 @@ function scheduleView() {
                   </button>`;
                 }
                 if(isStart){
-                  return `<button class="hour-row filled is-start ${prime?'prime':''} ${block?.programId.startsWith('event:')?'event-row':''} ${isFocused?'focused':''}" data-action="select-hour" data-hour="${hour}" aria-label="${hourLabel(hour)}至${hourLabel(hour+1)}：${safe(title)} ${safe(episode)}">
+                  return `<button class="hour-row filled is-start ${prime?'prime':''} ${block?.programId.startsWith('event:')?'event-row':''} ${block?.once?'once-row':''} ${isFocused?'focused':''}" data-action="select-hour" data-hour="${hour}" aria-label="${hourLabel(hour)}至${hourLabel(hour+1)}：${safe(title)} ${safe(episode)}">
                     <div class="hour-row-top">
                       <span class="hour-clock">${hourLabel(hour)}</span>
                       <span class="hour-duration-badge">${block.duration}h 全長</span>
+                      ${block?.once?'<span class="hour-once-badge">⭐ 單次</span>':''}
                       <span class="hour-indicator">●</span>
                     </div>
                     <span class="hour-content">
@@ -959,14 +969,14 @@ app.addEventListener('click',e=>{
     if(action==='episode-count'){selected.episodeCount=Number(value);render();}
     if(action==='style'){selected.styleId=value;render();}
     if(action==='hook'){selected.hookId=value;render();}
-    if(action==='produce'){const p=produce(state,selected);selected.actorIds=[];actorPickerOpen=false;actorSearch='';resetProgramPicker();editor={start:p.kind==='night'?22:20,duration:p.episodeHours,programId:p.id,days:initialDays(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`《${p.title}》拍好咗，揀時段播出。`);}
+    if(action==='produce'){const p=produce(state,selected);selected.actorIds=[];actorPickerOpen=false;actorSearch='';resetProgramPicker();editor={start:p.kind==='night'?22:p.kind==='children'?16:20,duration:p.episodeHours,programId:p.id,days:initialDays(p),recurrence:initialRecurrence(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`《${p.title}》拍好咗，揀時段播出。`);}
     if(action==='sell'||action==='sell-exclusive'){const deal=sellProduction(state,button.dataset.id,button.dataset.rival,action==='sell-exclusive');flash(`《${deal.title}》${deal.exclusive?'獨家賣斷':'聯播授權'}成交，進帳 ${preciseMoney(deal.amount)}。`);}
     if(action==='reply-letter'){const letter=replyToLetter(state,button.dataset.id);flash(letter.type==='request'?'已接納節目點播，去製作頁拍攝。':letter.type==='gift'?'已收下道具，下一套節目品質提升。':'已回覆觀眾意見，口碑提升。');}
     if(action==='reply-letter-choice'){const letter=replyToLetter(state,button.dataset.id,button.dataset.choice);flash(`已處理觀眾特殊互動：${letter.resolvedChoiceLabel||'已落實決策'}`);}
     if(action==='dismiss-month-result'){dismissMonthResult(state);render();return;}
     if(action==='dismiss-ceremony'){dismissCeremony(state);render();return;}
     if(action==='leaderboard-month'){selectedLeaderboardMonth=Number(button.dataset.month);render();return;}
-    if(action==='schedule-new'){const p=state.library.find(item=>item.id===button.dataset.id);resetProgramPicker();editor={start:20,duration:p?.episodeHours??2,programId:button.dataset.id,days:initialDays(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;render();}
+    if(action==='schedule-new'){const p=state.library.find(item=>item.id===button.dataset.id);resetProgramPicker();editor={start:p?.kind==='night'?22:p?.kind==='children'?16:20,duration:p?.episodeHours??2,programId:button.dataset.id,days:initialDays(p),recurrence:initialRecurrence(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;render();}
     if(action==='dismiss-alert'){dismissedAlerts[button.dataset.alert]=true;render();return;}
     if(action==='toggle-completed-expand'){expandedCompleted=!expandedCompleted;render();return;}
     if(action==='catalog-subtab'){catalogSubTab=value;resetScroll=true;render();return;}
@@ -976,20 +986,20 @@ app.addEventListener('click',e=>{
     if(action==='schedule-day'){scheduleDay=Number(button.dataset.day);render();}
     if(action==='schedule-period'){schedulePeriod=value;render();}
     if(action==='editor-program-group'){editorProgramGroup=value;render();}
-    if(action==='editor-program-card'){editor.programId=button.dataset.id;const p=state.library.find(item=>item.id===editor.programId);editor.duration=p?.episodeHours??Math.min(editor.duration,editor.programId.startsWith('event:')?24:4);editor.days=initialDays(p);editor.allowRepeat=false;render();}
-    if(action==='recurrence'){editor.days=value==='daily'?[...EVERY_DAY]:value==='weekday'?[0,1,2,3,4]:value==='weekend'?[5,6]:[scheduleDay??weekdayForDay(state.day)];editor.allowRepeat=false;render();}
+    if(action==='editor-program-card'){editor.programId=button.dataset.id;const p=state.library.find(item=>item.id===editor.programId);editor.duration=p?.episodeHours??Math.min(editor.duration,editor.programId.startsWith('event:')?24:4);editor.recurrence=initialRecurrence(p);editor.days=initialDays(p);editor.allowRepeat=false;render();}
+    if(action==='recurrence'){editor.recurrence=value;editor.days=(value==='once'||value==='weekly')?[scheduleDay??weekdayForDay(state.day)]:value==='weekday'?[0,1,2,3,4]:value==='weekend'?[5,6]:[...EVERY_DAY];editor.allowRepeat=false;render();}
     if(action==='catalog-filter'){catalogFilter=value;if(!['all','series','variety'].includes(value))catalogNetwork='all';resetScroll=true;render();}
     if(action==='catalog-network'){catalogNetwork=value;catalogFilter='all';catalogYear='all';resetScroll=true;render();}
     if(action==='catalog-available'){catalogAvailableOnly=!catalogAvailableOnly;resetScroll=true;render();}
     if(action==='report-filter'){reportFilter=value;render();}
     if(action==='license-term'){licenseDays=Number(value);render();}
-    if(action==='buy'){const p=buyProgram(state,button.dataset.id,licenseDays);resetProgramPicker();editor={start:20,duration:p.episodeHours??2,programId:p.id,days:initialDays(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`已購入${licenseDays===180?'6 個月':'1 年'}播映權，可喺有效期內重播。`);}
+    if(action==='buy'){const p=buyProgram(state,button.dataset.id,licenseDays);resetProgramPicker();editor={start:p.category==='香港電影'?21:20,duration:p.episodeHours??2,programId:p.id,days:initialDays(p),recurrence:initialRecurrence(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`已購入${licenseDays===180?'6 個月':'1 年'}播映權，可喺有效期內重播。`);}
     if(action==='renew'){const p=renewLicense(state,button.dataset.id,licenseDays);flash(`《${p.title}》已續購；如本輪已播完，請先揀「重播一輪」。`);}
-    if(action==='start-replay'){const p=startCatalogReplay(state,button.dataset.id);resetProgramPicker();editor={start:p.category==='香港電影'?20:19,duration:p.episodeHours??2,programId:p.id,days:initialDays(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`《${p.title}》重播已準備好，請你自行揀時段。`);}
+    if(action==='start-replay'){const p=startCatalogReplay(state,button.dataset.id);resetProgramPicker();editor={start:p.category==='香港電影'?21:19,duration:p.episodeHours??2,programId:p.id,days:initialDays(p),recurrence:initialRecurrence(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`《${p.title}》重播已準備好，請你自行揀時段。`);}
     if(action==='open-editor'){resetProgramPicker();editorOpen=true;render();}
     if(action==='close-editor'){editorOpen=false;render();}
-    if(action==='select-hour'){const hour=Number(button.dataset.hour),day=state.day+((scheduleDay??weekdayForDay(state.day))-weekdayForDay(state.day)+7)%7,block=programAtHour(state,hour,day);resetProgramPicker();editor=block?{start:block.start,duration:block.duration,programId:block.programId,days:[...daysForBlock(block)],allowRepeat:false}:{start:hour,duration:state.library.find(p=>p.id===editor.programId)?.episodeHours??1,programId:editor.programId,days:[scheduleDay??weekdayForDay(state.day)],allowRepeat:false};editorOpen=true;render();}
-    if(action==='place'){const removed=scheduleProgram(state,editor.start,editor.programId,editor.duration,{days:editor.days,allowRepeat:editor.allowRepeat});editorOpen=false;flash(`已安排 ${dayPattern(editor.days)} ${timeRange(editor.start,editor.duration)}${removed.length?`，替換 ${removed.length} 個原有時段`:''}。`);}
+    if(action==='select-hour'){const hour=Number(button.dataset.hour),day=state.day+((scheduleDay??weekdayForDay(state.day))-weekdayForDay(state.day)+7)%7,block=programAtHour(state,hour,day);resetProgramPicker();if(block){editor={start:block.start,duration:block.duration,programId:block.programId,days:[...daysForBlock(block)],recurrence:block.once?'once':(daysForBlock(block).length===7?'daily':daysForBlock(block).length===5?'weekday':daysForBlock(block).length===2?'weekend':'weekly'),allowRepeat:false};}else{const curProg=state.library.find(p=>p.id===editor.programId);editor={start:hour,duration:curProg?.episodeHours??1,programId:editor.programId,days:[scheduleDay??weekdayForDay(state.day)],recurrence:initialRecurrence(curProg),allowRepeat:false};}editorOpen=true;render();}
+    if(action==='place'){const removed=scheduleProgram(state,editor.start,editor.programId,editor.duration,{days:editor.days,allowRepeat:editor.allowRepeat,once:editor.recurrence==='once'});editorOpen=false;flash(`已安排 ${editor.recurrence==='once'?'單次播映 ':''}${dayPattern(editor.days)} ${timeRange(editor.start,editor.duration)}${removed.length?`，替換 ${removed.length} 個原有時段`:''}。`);}
     if(action==='remove'){const day=scheduleDay??weekdayForDay(state.day),block=programAtHour(state,editor.start,state.day+(day-weekdayForDay(state.day)+7)%7);if(!block)throw Error('所選時間冇節目。');removeScheduledProgram(state,block.start,{weekday:day});editorOpen=false;flash(`已移除${WEEKDAYS[day]}呢個時段。`);}
     if(action==='advance-day'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;const result=advanceDay(state);scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days:1,net:result.net,wins:result.wins,completed:result.completed,expired:result.expired};render();}
     if(action==='advance-week'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;let net=0,wins=0,days=0,completed=[],expired=[],marketRefresh=false;for(let i=0;i<7;i++){const result=advanceDay(state);net+=result.net;wins+=result.wins;days++;completed=result.completed;expired=result.expired;marketRefresh=result.marketRefresh;if(completed.length||expired.length||marketRefresh||state.pendingPremieres?.length)break;}scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days,net,wins,completed,expired};if(marketRefresh)flash('外購市場已經換月，新片單上架。');else render();}
@@ -1033,7 +1043,7 @@ app.addEventListener('click',e=>{
 });
 app.addEventListener('input',e=>{if(e.target.dataset.action==='actor-search'){actorSearch=e.target.value;app.querySelectorAll('.actor-grid .actor').forEach(button=>{button.hidden=!button.textContent.includes(actorSearch.trim())});}if(e.target.dataset.action==='editor-program-search'&&!e.isComposing){const pos=e.target.selectionStart;editorProgramSearch=e.target.value;render();const input=app.querySelector('[data-action="editor-program-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}if(e.target.dataset.action==='catalog-search'&&!e.isComposing){const pos=e.target.selectionStart;catalogQuery=e.target.value;render();const input=app.querySelector('[data-action="catalog-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}});
 app.addEventListener('compositionend',e=>{if(e.target.dataset.action==='editor-program-search'){editorProgramSearch=e.target.value;render();app.querySelector('[data-action="editor-program-search"]')?.focus({preventScroll:true});}if(e.target.dataset.action==='catalog-search'){catalogQuery=e.target.value;render();app.querySelector('[data-action="catalog-search"]')?.focus({preventScroll:true});}});
-app.addEventListener('change',e=>{const action=e.target.dataset.action;if(action==='catalog-sort'){catalogSort=e.target.value;resetScroll=true;render()}if(action==='catalog-year'){catalogYear=e.target.value;resetScroll=true;render()}if(action==='editor-start'){editor.start=Number(e.target.value);editor.allowRepeat=false;render()}if(action==='editor-duration'){editor.duration=Number(e.target.value);render()}if(action==='editor-program'){editor.programId=e.target.value;const p=state.library.find(p=>p.id===editor.programId);editor.duration=p?.episodeHours??Math.min(editor.duration,editor.programId.startsWith('event:')?24:4);editor.days=initialDays(p);editor.allowRepeat=false;render()}if(action==='editor-weekday'){editor.days=[Number(e.target.value)];render()}if(action==='editor-repeat'){editor.allowRepeat=e.target.checked;render()}});
+app.addEventListener('change',e=>{const action=e.target.dataset.action;if(action==='catalog-sort'){catalogSort=e.target.value;resetScroll=true;render()}if(action==='catalog-year'){catalogYear=e.target.value;resetScroll=true;render()}if(action==='editor-start'){editor.start=Number(e.target.value);editor.allowRepeat=false;render()}if(action==='editor-duration'){editor.duration=Number(e.target.value);render()}if(action==='editor-program'){editor.programId=e.target.value;const p=state.library.find(p=>p.id===editor.programId);editor.duration=p?.episodeHours??Math.min(editor.duration,editor.programId.startsWith('event:')?24:4);editor.days=initialDays(p);editor.recurrence=initialRecurrence(p);editor.allowRepeat=false;render()}if(action==='editor-weekday'){editor.days=[Number(e.target.value)];render()}if(action==='editor-repeat'){editor.allowRepeat=e.target.checked;render()}});
 app.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&editorOpen){e.preventDefault();editorOpen=false;render();app.querySelector('[data-action="open-editor"]')?.focus({preventScroll:true});}
   if(e.key==='Tab'&&editorOpen){
