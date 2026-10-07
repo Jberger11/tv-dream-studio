@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -660,6 +660,147 @@ test('one-off events and movies scheduled with once: true air once then automati
   // After airing, the block is automatically removed from schedule!
   assert.equal(state.schedule.some(b => b.programId === contest.id), false);
   assert.equal(programAtHour(state, 20, 9), undefined); // On next Tuesday (day 9), slot is clear
+});
+
+test('active catalog license prevents duplicate purchases in acquisition market', () => {
+  const state = newGame();
+  const listing = catalogForMonth(state.day).find(p => p.title === '東張西望') || catalogForMonth(state.day).find(p => p.kind === 'catalog' || !p.id.startsWith('viu-original-'));
+  assert.ok(listing);
+
+  // Buy for 180 days
+  const bought = buyProgram(state, listing.id, 180);
+  assert.equal(bought.title, listing.title);
+  assert.equal(bought.licenseDays, 180);
+
+  // Attempting to buy the same program again while license is active must throw
+  assert.throws(() => buyProgram(state, listing.id, 180), /已在片庫|已經入庫/);
+
+  // Even if market month advances (e.g. month 1 where listing might have a prefixed ID), active license blocks re-buying by title
+  state.day = 31;
+  const nextMonthListing = catalogForMonth(31).find(p => p.title === bought.title);
+  if (nextMonthListing) {
+    assert.throws(() => buyProgram(state, nextMonthListing.id, 180), /已在片庫.*播映權仍有效/);
+  }
+});
+
+test('acquisition market rotation never repeats titles within any single 12-month (360-day) game year', () => {
+  const seenTitles = new Map();
+  let duplicates = 0;
+  for (let m = 0; m < 12; m++) {
+    const listings = catalogForQuarter(m).filter(p => !p.id.startsWith('viu-original-'));
+    assert.ok(listings.length >= 35, `Month ${m} should have at least 35 rotating titles`);
+    for (const item of listings) {
+      if (seenTitles.has(item.title)) {
+        duplicates++;
+      }
+      seenTitles.set(item.title, m);
+    }
+  }
+  assert.equal(duplicates, 0, 'Rotating acquisition market titles must strictly never repeat within 12 months');
+});
+
+test('production supports custom titles, title suggestions, new categories, and up to 100 episodes', () => {
+  const state = newGame();
+
+  // Test suggestion generator
+  const suggestions = generateSuggestedTitles('sitcom', '處境劇');
+  assert.ok(suggestions.length >= 4);
+
+  // Test custom title
+  const customSitcom = produce(state, {
+    kind: 'sitcom',
+    topic: '辦公室日常',
+    budgetId: 'standard',
+    episodeHours: 1,
+    episodeCount: 100,
+    styleId: 'mainstream',
+    customTitle: '自訂瘋狂辦公室'
+  }, () => 0.5);
+  assert.equal(customSitcom.title, '自訂瘋狂辦公室');
+  assert.equal(customSitcom.episodes, 100);
+  assert.equal(customSitcom.kind, 'sitcom');
+
+  // Test 100 episodes supported in EPISODE_COUNTS
+  assert.ok(EPISODE_COUNTS.includes(100));
+
+  // Test other new kinds: talkshow, reality, travel, music
+  const talkshow = produce(state, { kind: 'talkshow', topic: '星級專訪', budgetId: 'lean', episodeHours: 1, episodeCount: 12 }, () => 0.5);
+  assert.equal(talkshow.kind, 'talkshow');
+
+  const reality = produce(state, { kind: 'reality', topic: '求職生存', budgetId: 'standard', episodeHours: 2, episodeCount: 8 }, () => 0.5);
+  assert.equal(reality.kind, 'reality');
+
+  const travel = produce(state, { kind: 'travel', topic: '日韓秘境', budgetId: 'standard', episodeHours: 1, episodeCount: 12 }, () => 0.5);
+  assert.equal(travel.kind, 'travel');
+
+  const music = produce(state, { kind: 'music', topic: '流行金曲', budgetId: 'premium', episodeHours: 2, episodeCount: 4 }, () => 0.5);
+  assert.equal(music.kind, 'music');
+});
+
+test('multi-event sports bidding supports concurrent tournaments and targeted sealed bids', () => {
+  const state = newGame();
+  const activeEvents = activeBiddingEvents(state);
+  assert.ok(activeEvents.length >= 2, 'Should offer multiple upcoming sports tournaments');
+
+  // Submit sealed bid for specific tournament
+  const targetEvent = activeEvents[0];
+  const floorBid = targetEvent.floor + 500_000;
+  submitBid(state, floorBid, targetEvent.id);
+  assert.equal(targetEvent.playerBid, floorBid);
+
+  // Another tournament can also be bid concurrently
+  if (activeEvents.length >= 2) {
+    const secondEvent = activeEvents[1];
+    const secondBid = secondEvent.floor + 200_000;
+    submitBid(state, secondBid, secondEvent.id);
+    assert.equal(secondEvent.playerBid, secondBid);
+  }
+});
+
+test('audience interactions support reject button, letter dismissal, fan meetings, and audience polls', () => {
+  const state = newGame();
+
+  // Add letters of various types
+  state.mailbox = [
+    { id: 'crit-1', day: 1, type: 'criticism', text: '道具太假', resolved: false },
+    { id: 'req-1', day: 2, type: 'request', topic: '商戰', text: '敲碗商戰劇', resolved: false },
+    { id: 'gift-1', day: 3, type: 'gift', text: '送上特製戲服', resolved: false },
+    {
+      id: 'spec-1', day: 4, type: 'ofca', title: '通訊局轉介', text: '接獲投訴',
+      options: [{ id: 'opt-1', label: '回應', cost: 10000 }],
+      resolved: false
+    }
+  ];
+
+  // Rejecting criticism does not spend PR money and resolves the letter
+  const cashBefore = state.cash;
+  const rejectedCrit = rejectLetter(state, 'crit-1');
+  assert.equal(rejectedCrit.resolved, true);
+  assert.equal(rejectedCrit.resolvedChoice, 'rejected');
+  assert.equal(state.cash, cashBefore);
+
+  // Rejecting request resolves it cleanly
+  const rejectedReq = rejectLetter(state, 'req-1');
+  assert.equal(rejectedReq.resolved, true);
+  assert.equal(rejectedReq.resolvedChoice, 'rejected');
+
+  // Dismiss letter removes it from mailbox
+  const removed = dismissLetter(state, 'crit-1');
+  assert.equal(removed.id, 'crit-1');
+  assert.equal(state.mailbox.some(l => l.id === 'crit-1'), false);
+
+  // Hold Fan Meeting
+  const fansBefore = state.fans;
+  const fm = holdFanMeeting(state);
+  assert.ok(state.fans > fansBefore);
+  assert.equal(state.lastFanMeetingDay, state.day);
+  // Attempting to hold another fan meeting immediately is blocked by cooldown
+  assert.throws(() => holdFanMeeting(state), /冷卻中/);
+
+  // Launch Audience Poll
+  const poll = launchAudiencePoll(state, () => 0.5);
+  assert.ok(poll.topic);
+  assert.equal(state.audienceBrief, poll.topic);
 });
 
 

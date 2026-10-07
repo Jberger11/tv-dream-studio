@@ -1,5 +1,5 @@
 /** @typedef {'double-o'|'o'|'x'} Compatibility */
-/** @typedef {'drama'|'variety'|'night'|'children'|'news'|'finance'|'information'|'politics'|'social'|'charity'|'contest'|'pageant'|'catalog'} ProgramKind */
+/** @typedef {'drama'|'variety'|'night'|'children'|'sitcom'|'talkshow'|'reality'|'travel'|'music'|'news'|'finance'|'information'|'politics'|'social'|'charity'|'contest'|'pageant'|'catalog'} ProgramKind */
 
 export class Actor {
   constructor(id, name, skill, fee, specialty, source = 'tvb') {
@@ -105,6 +105,7 @@ export class StationState {
     this.awardCeremonies = [];
     this.viralShowBoost = null;
     this.rivalPurchases = [];
+    this.lastFanMeetingDay = -999;
     this.log = [{ quarter:0, text:'電視台開台。片庫已有 12 套節目，24 小時時段全部排好。', type:'neutral' }];
   }
 }

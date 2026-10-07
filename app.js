@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult } from './engine.js';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles } from './engine.js';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -18,7 +18,7 @@ let resetScroll=false;
 let runSummary=null;
 let selectedBroadcastDay=null;
 let reportFilter='all';
-let selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none'};
+let selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none',customTitle:''};
 let editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],recurrence:'daily',allowRepeat:false};
 let editorProgramGroup='all';
 let editorProgramSearch='';
@@ -270,10 +270,12 @@ function studioView() {
   const availableActors=ACTORS.filter(actor=>(actorFilter==='all'||actor.source===actorFilter)&&actor.name.includes(actorSearch.trim()));
   const cost=quote.total;
   const ready=!isDrama||cast.length>=2;
+  const suggestedTitles=generateSuggestedTitles(selected.kind,selected.genre,selected.topic,selected.themes);
   return `<div class="game-grid production-layout">
     <section class="panel studio-panel">
       <div class="panel-heading"><div><div class="eyebrow gold">PRODUCTION DESK</div><h1>節目製作</h1></div><span class="quota">今季已製作 ${state.productionCount} 套 · 資金足夠即可繼續</span></div>
       <div class="field"><div class="field-label"><span>01 / 節目類型</span></div><div class="format-grid">${CONTENT_TYPES.filter(item=>!isOneOffEvent(item.id)).map(item=>`<button class="choice ${selected.kind===item.id?'chosen':''}" data-action="kind" data-value="${item.id}" aria-pressed="${selected.kind===item.id}">${item.label}</button>`).join('')}</div><div class="event-format-title">★ 自製大型活動 <small>一晚限定 · 燒錢換收視、熱度或口碑</small></div><div class="format-grid event-format-grid">${CONTENT_TYPES.filter(item=>isOneOffEvent(item.id)).map(item=>`<button class="choice event-choice ${selected.kind===item.id?'chosen':''}" data-action="kind" data-value="${item.id}" aria-pressed="${selected.kind===item.id}">${item.label}</button>`).join('')}</div></div>
+      <div class="field"><div class="field-label"><span>節目片名</span><small>可自行輸入或挑選以下靈感</small></div><input class="custom-title-input" data-action="custom-title" type="text" placeholder="自訂片名（如留空將自動生成）" value="${safe(selected.customTitle||'')}" maxlength="24" /><div class="title-suggestions-chips" role="group" aria-label="片名建議">${suggestedTitles.map(t=>`<button class="title-chip ${selected.customTitle===t?'chosen':''}" data-action="pick-title" data-value="${safe(t)}" type="button">${safe(t)}</button>`).join('')}</div></div>
       ${isDrama?`
         <div class="field"><div class="field-label"><span>02 / 劇種</span></div><div class="choice-grid">${GENRES.map(g=>`<button class="choice ${selected.genre===g?'chosen':''}" data-action="genre" data-value="${g}" aria-pressed="${selected.genre===g}">${g}</button>`).join('')}</div></div>
         <div class="field"><div class="field-label"><span>03 / 題材</span><small>選 1 至 2 個</small></div><div class="choice-grid">${THEMES.map(t=>`<button class="choice ${selected.themes.includes(t)?'chosen':''}" data-action="theme" data-value="${t}" aria-pressed="${selected.themes.includes(t)}">${t}</button>`).join('')}</div></div>
@@ -597,11 +599,16 @@ function catalogView() {
   const listings = catalogForMonth(state.day);
   const month = marketMonthForDay(state.day) + 1;
   const nextRefresh = month * DAYS_PER_MARKET_MONTH + 1;
-  const ownedIds = new Set(state.library.map(p => p.id));
-  const expiredLicenses = state.library.filter(p => licenseExpired(p, state.day));
+  const expiredLicenses = state.library.filter(p => p.kind === 'catalog' && licenseExpired(p, state.day));
   const readyToReplay = state.library.filter(p => canReplayProgram(p, state.day));
   const rivalBuys = (state.rivalPurchases ?? []).filter(r => r.expiresDay > state.day);
   const rivalBuysMap = new Map(rivalBuys.map(r => [r.marketItemId, r]));
+  const rivalBuysTitleMap = new Map(rivalBuys.map(r => [r.title, r]));
+  const getOwned = (p) => state.library.find(item => (item.id === p.id || item.title === p.title) && item.kind === 'catalog');
+  const isOwnedActive = (p) => {
+    const owned = getOwned(p);
+    return Boolean(owned && !licenseExpired(owned, state.day));
+  };
 
   const categoryFilters = [
     { id: 'all', label: '全部作品', count: listings.length },
@@ -630,7 +637,7 @@ function catalogView() {
     if (catalogNetwork !== 'all' && p.network !== catalogNetwork) return false;
     if (catalogYear !== 'all' && p.releaseYear !== Number(catalogYear)) return false;
     if (query && !`${p.title} ${p.subcategory} ${p.network||''} ${p.origin||''}`.toLocaleLowerCase('zh-HK').includes(query)) return false;
-    if (catalogAvailableOnly && (ownedIds.has(p.id) || rivalBuysMap.has(p.id))) return false;
+    if (catalogAvailableOnly && (isOwnedActive(p) || rivalBuysMap.has(p.id) || rivalBuysTitleMap.has(p.title))) return false;
     return true;
   });
 
@@ -719,10 +726,11 @@ function catalogView() {
 
     <div class="catalog-grid">
       ${shown.length ? shown.map((p, i) => {
-        const owned = state.library.find(item => item.id === p.id);
+        const owned = getOwned(p);
+        const ownedActive = isOwnedActive(p);
         const cost = licensePrice(p.cost, licenseDays);
         const f = owned ? freshnessLabel(owned.freshness, owned.maxFreshness) : null;
-        const rivalBuy = rivalBuysMap.get(p.id);
+        const rivalBuy = rivalBuysMap.get(p.id) ?? rivalBuysTitleMap.get(p.title);
         const isRival = Boolean(rivalBuy);
         const originFlag = p.origin === '韓國' ? '🇰🇷' : p.origin === '日本' ? '🇯🇵' : p.origin === '台灣' ? '🇹🇼' : p.origin === '歐美' ? '🇺🇸' : p.origin === '內地' ? '🇨🇳' : '🇭🇰';
 
@@ -754,14 +762,14 @@ function catalogView() {
                   ? `播映權已到期 · ${catalogProgressLabel(owned)}`
                   : isCatalogCycleComplete(owned)
                   ? `${catalogProgressLabel(owned)} · 可到重播庫安排重溫`
-                  : `播映權有效至第 ${owned.licenseExpiresDay-1} 日 · ${catalogProgressLabel(owned)}`}
+                  : `播映權有效至第 ${owned.licenseExpiresDay-1} 日（尚餘 ${Math.max(0, owned.licenseExpiresDay - state.day)} 日） · ${catalogProgressLabel(owned)}`}
               </p>
             ` : ''}
             <button class="catalog-button ${isRival?'is-rival-btn':''}"
               data-action="${isRival ? '' : owned && licenseExpired(owned, state.day) ? 'renew' : 'buy'}"
-              data-id="${p.id}"
-              ${isRival || (owned && !licenseExpired(owned, state.day)) || state.cash < cost ? 'disabled' : ''}>
-              ${isRival ? '對手已買入' : owned && !licenseExpired(owned, state.day) ? '已在片庫' : state.cash < cost ? '資金不足' : owned ? '續購版權 →' : '購買播映權 →'}
+              data-id="${owned ? owned.id : p.id}"
+              ${isRival || ownedActive || state.cash < cost ? 'disabled' : ''}>
+              ${isRival ? '對手已買入' : ownedActive ? `已在片庫（尚餘 ${Math.max(0, owned.licenseExpiresDay - state.day)} 日）` : state.cash < cost ? '資金不足' : owned ? '續購版權 →' : '購買播映權 →'}
             </button>
           </div>
         </article>`;
@@ -773,13 +781,46 @@ function catalogView() {
 }
 
 function sportsView() {
-  const event=currentEvent(state);
-  const recent=state.events.filter(e=>e.resolved).at(-1);
-  return `<div class="page-head"><div><div class="eyebrow gold">SEALED BID</div><h1>體育版權暗標</h1><p>每項賽事四年一度，提前兩季開放投標。三間對手電視台嘅出價會喺開標日一齊揭曉。中標後每日表可於首 30 日安排獨家轉播。</p></div></div>
-    <div class="sports-layout"><section class="sports-feature"><div class="sports-orbit">◉</div><div class="sports-overline">${event?'投標階段 · '+quarterLabel(event.quarter)+' 開標':recent?.quarter===state.quarter&&recent.winner==='你的電視台'?'今季獨家轉播權在手':'下一場賽事籌備中'}</div><h2>${event?safe(event.name):recent?.quarter===state.quarter&&recent.winner==='你的電視台'?safe(recent.name):'密切留意賽程'}</h2><p>中標後賽事會預排於 18:00–02:00，你可改為其他連續時段，長度最多 24 小時。黃金時段每小時收視達 98；廣告收入達唔到對賭目標，要賠付差額。</p><div class="sports-metrics"><div><small>保底底價</small><b>${event?money(event.floor):'—'}</b></div><div><small>廣告對賭目標</small><b>${event?money(event.adTarget):recent?.quarter===state.quarter?money(recent.adTarget):'—'}</b></div><div><small>開標時間</small><b>${event?quarterLabel(event.quarter):'—'}</b></div></div></section>
-    <section class="panel bid-panel"><div class="eyebrow cyan">YOUR SEALED ENVELOPE</div><h2>提交暗標</h2>${event&&event.quarter>state.quarter?`<p>現時出價只得你睇到。投標會凍結全額保證金，落標退回，中標轉作版權費。開標前可修改。</p><form id="bid-form"><label for="bid-amount">你的出價（百萬）</label><div class="bid-input"><span>$</span><input id="bid-amount" name="amount" type="number" step="0.1" min="${event.floor/1_000_000}" max="100" required value="${event.playerBid!==null?event.playerBid/1_000_000:(event.floor*1.4/1_000_000).toFixed(1)}"/><span>m</span></div><button class="primary-button" type="submit">${event.playerBid!==null?'修改暗標':'封標投出'} <span>↗</span></button></form>${event.playerBid!==null?`<div class="bid-note">已凍結 ${money(event.playerBid)} · 對手出價未公開</div>`:''}`:`<p>當下一場版權拍賣開放，就可以喺呢度提交暗標。</p>`}</section></div>
-    <div class="rivals"><div class="section-heading"><h2>競爭電視台</h2><span>對手會依照各自風格出價</span></div><p class="rival-context">全城電視、本地八台嘅每日節目表可喺「對手節目表」比較；視界台只公開版權暗標出價。</p><div class="rival-grid"><div><span class="rival-icon">01</span><strong>全城電視</strong><small>大型電視網 · 出價進取</small></div><div><span class="rival-icon">02</span><strong>本地八台</strong><small>地區台 · 審慎貼近底價</small></div><div><span class="rival-icon">03</span><strong>視界台</strong><small>小眾台 · 出價難以預測</small></div></div></div>
-    ${recent?`<section class="auction-result"><div class="section-heading"><h2>最近開標：${safe(recent.name)}</h2><span>得標者：${safe(recent.winner)}</span></div><div class="bid-list">${[...recent.bids].sort((a,b)=>b.amount-a.amount).map((b,i)=>`<div><span>${String(i+1).padStart(2,'0')} · ${safe(b.name)}</span><strong>${money(b.amount)}</strong></div>`).join('')}</div></section>`:''}`;
+  const events=activeBiddingEvents(state);
+  const recentList=(state.events??[]).filter(e=>e.resolved).slice(-4).reverse();
+  return `<div class="page-head"><div><div class="eyebrow gold">SEALED BID</div><h1>體育版權暗標競投</h1><p>涵蓋四年一度體育盛事（夏季奧運、FIFA世界盃、歐洲國家盃、冬季奧運）及英超、歐聯等全季轉播權。暗標開標前全額保證金凍結，得標後排播可獲超高收視！</p></div></div>
+    <div class="sports-bidding-grid">
+      ${events.length?events.map(event=>{
+        const isReadyToBid=event.quarter>state.quarter;
+        const quartersUntil=event.quarter-state.quarter;
+        return `<section class="panel sports-bid-card ${event.playerBid!==null?'has-bid':''}">
+          <div class="sports-card-top">
+            <span class="sports-icon-badge">${event.icon||'🏅'}</span>
+            <div>
+              <div class="sports-overline">${event.sport||'大型賽事'} · ${quarterLabel(event.quarter)} 開標（尚餘 ${quartersUntil} 季）</div>
+              <h2>${safe(event.name)}</h2>
+            </div>
+          </div>
+          <div class="sports-metrics">
+            <div><small>競投底價</small><b>${money(event.floor)}</b></div>
+            <div><small>廣告對賭目標</small><b>${money(event.adTarget)}</b></div>
+            <div><small>我的暗標</small><b class="${event.playerBid!==null?'gold-text':'muted'}">${event.playerBid!==null?money(event.playerBid):'未出價'}</b></div>
+          </div>
+          <p class="sports-card-desc">中標後預排於 18:00–02:00（長度最多 24 小時），黃金檔收視可達 98 點；廣告收入達唔到目標需賠付差額。</p>
+          ${isReadyToBid?`
+            <form class="bid-form" data-event="${safe(event.id)}">
+              <div class="bid-input-row">
+                <label for="bid-${safe(event.id)}">暗標出價</label>
+                <div class="bid-input">
+                  <span>$</span>
+                  <input id="bid-${safe(event.id)}" name="amount" type="number" step="0.1" min="${event.floor/1_000_000}" max="100" required value="${event.playerBid!==null?(event.playerBid/1_000_000).toFixed(1):(event.floor*1.35/1_000_000).toFixed(1)}"/>
+                  <span>m</span>
+                </div>
+                <button class="primary-button bid-submit-btn" type="submit">${event.playerBid!==null?'修改暗標':'封標投出'} <span>↗</span></button>
+              </div>
+              ${event.playerBid!==null?`<div class="bid-note">已凍結保證金 ${money(event.playerBid)} · 開標日前可隨時修改</div>`:''}
+            </form>
+          `:`<p class="bid-closed-note">此賽事即將開標或已截止。</p>`}
+        </section>`;
+      }).join(''):'<p class="empty panel">目前未有開放投標嘅體育版權賽事，請繼續推進季度。</p>'}
+    </div>
+    <div class="rivals"><div class="section-heading"><h2>競爭電視台競投風格</h2><span>三間對手會在開標日同時掀開底牌</span></div><div class="rival-grid"><div><span class="rival-icon">01</span><strong>全城電視</strong><small>大型電視網 · 財雄勢大，出價通常高出底價 35%–75%</small></div><div><span class="rival-icon">02</span><strong>本地八台</strong><small>地區台 · 審慎保守，出價通常貼近底價</small></div><div><span class="rival-icon">03</span><strong>視界台</strong><small>小眾台 · 偶爾爆冷高價搶奪特定賽事</small></div></div></div>
+    ${recentList.length?`<section class="panel auction-results-history"><div class="section-heading"><h2>近期賽事開標紀錄</h2><span>揭曉結果</span></div><div class="recent-auctions-grid">${recentList.map(recent=>`<article class="recent-auction-item ${recent.winner==='你的電視台'?'we-won':''}"><div class="recent-auction-header"><strong>${safe(recent.name)}</strong><span class="winner-tag ${recent.winner==='你的電視台'?'gold':''}">得標者：${safe(recent.winner)}</span></div><div class="bid-list">${(recent.bids??[]).sort((a,b)=>b.amount-a.amount).map((b,i)=>`<div class="${b.name==='你的電視台'?'is-our-bid':''}"><span>${String(i+1).padStart(2,'0')} · ${safe(b.name)}</span><strong>${money(b.amount)}</strong></div>`).join('')}</div></article>`).join('')}</div></section>`:''}`;
 }
 
 function hourlyComparisonView() {
@@ -803,25 +844,41 @@ function hourlyComparisonView() {
 }
 
 function audienceView() {
-  const letters=(state.mailbox??[]).slice(0,8),comments=(state.audienceFeed??[]).slice(0,6);
+  const letters=(state.mailbox??[]).slice(0,10),comments=(state.audienceFeed??[]).slice(0,6);
   return `<div class="audience-grid">
     <section class="panel">
       <div class="section-heading"><h2>觀眾留言</h2><span>按每日播映收視生成嘅遊戲模擬評語</span></div>
       ${comments.length?comments.map(item=>`<article class="audience-item ${item.tone}"><small>第 ${item.day} 日 · 《${safe(item.title)}》</small><p>${safe(item.text)}</p></article>`).join(''):'<p class="empty">播出第一日之後，觀眾先會留言。</p>'}
     </section>
     <section class="panel">
-      <div class="section-heading"><h2>觀眾信箱與特別互動</h2><span>觀眾點播、狂熱粉絲與監管機構來信</span></div>
+      <div class="section-heading"><div><h2>觀眾信箱與特別互動</h2><span>觀眾點播、狂熱粉絲與監管機構來信</span></div>${letters.some(l=>l.resolved)?`<button class="inline-link-btn" data-action="clear-resolved-letters">清理已處理信件 ✕</button>`:''}</div>
+      <div class="audience-campaign-box">
+        <div class="campaign-card">
+          <div class="campaign-info">
+            <strong>🎉 舉辦全港粉絲見面會</strong>
+            <small>花費 $100k · 全台熱度 +4、口碑 +2、下一套道具品質 +2、台柱人氣提升</small>
+          </div>
+          <button class="campaign-btn" data-action="fan-meeting" ${state.cash<100_000?'disabled':''}>立即舉辦</button>
+        </div>
+        <div class="campaign-card">
+          <div class="campaign-info">
+            <strong>🗳️ 發起全港節目民意公投</strong>
+            <small>花費 $30k · 全台熱度 +2 · 鎖定全港觀眾最敲碗題材加成</small>
+          </div>
+          <button class="campaign-btn" data-action="poll-audience" ${state.cash<30_000?'disabled':''}>發起公投</button>
+        </div>
+      </div>
       ${letters.length?letters.map(item=>{
         const isSpecial=Boolean(item.options&&item.options.length);
         const typeLabel=item.title?`【${item.title}】`:item.type==='request'?'節目點播':item.type==='gift'?'觀眾禮物':'意見投訴';
         return `<article class="audience-item ${isSpecial?'is-special-audience':''}">
           <div class="audience-item-head">
             <small>第 ${item.day} 日 · ${safe(typeLabel)}</small>
-            ${item.resolved?'<span class="letter-done">✓ 已處理</span>':''}
+            ${item.resolved?`<span class="letter-done">✓ 已處理</span><button class="letter-dismiss-btn" data-action="dismiss-letter" data-id="${safe(item.id)}" title="移除紀錄">✕ 移除</button>`:''}
           </div>
           <p>${safe(item.text)}</p>
           ${item.resolved?`
-            <div class="resolved-note">${item.resolvedChoiceLabel?`已選擇：<strong>${safe(item.resolvedChoiceLabel)}</strong>`:'已回覆觀眾'}</div>
+            <div class="resolved-note">${item.resolvedChoice==='rejected'?'已婉拒／忽略處理':item.resolvedChoiceLabel?`已選擇：<strong>${safe(item.resolvedChoiceLabel)}</strong>`:'已回覆觀眾'}</div>
           `:isSpecial?`
             <div class="letter-choices-box">
               ${item.options.map(opt=>`
@@ -830,9 +887,13 @@ function audienceView() {
                   <small>${safe(opt.desc)}</small>
                 </button>
               `).join('')}
+              <button class="letter-reject-btn" data-action="reject-letter" data-id="${safe(item.id)}">婉拒／忽略 ✕</button>
             </div>
           `:`
-            <button data-action="reply-letter" data-id="${safe(item.id)}">${item.type==='request'?'接納點播':item.type==='gift'?'收下禮物':'回覆及改善 · $50k'}</button>
+            <div class="letter-action-row">
+              <button class="letter-accept-btn" data-action="reply-letter" data-id="${safe(item.id)}">${item.type==='request'?'接納點播':item.type==='gift'?'收下禮物':'回覆及改善 · $50k'}</button>
+              <button class="letter-reject-btn" data-action="reject-letter" data-id="${safe(item.id)}">婉拒／忽略 ✕</button>
+            </div>
           `}
         </article>`;
       }).join(''):'<p class="empty">信箱暫時冇信；繼續播映會收到觀眾回應。</p>'}
@@ -969,10 +1030,16 @@ app.addEventListener('click',e=>{
     if(action==='episode-count'){selected.episodeCount=Number(value);render();}
     if(action==='style'){selected.styleId=value;render();}
     if(action==='hook'){selected.hookId=value;render();}
-    if(action==='produce'){const p=produce(state,selected);selected.actorIds=[];actorPickerOpen=false;actorSearch='';resetProgramPicker();editor={start:p.kind==='night'?22:p.kind==='children'?16:20,duration:p.episodeHours,programId:p.id,days:initialDays(p),recurrence:initialRecurrence(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`《${p.title}》拍好咗，揀時段播出。`);}
+    if(action==='pick-title'){selected.customTitle=value;render();return;}
+    if(action==='produce'){const p=produce(state,selected);selected.actorIds=[];selected.customTitle='';actorPickerOpen=false;actorSearch='';resetProgramPicker();editor={start:p.kind==='night'?22:p.kind==='children'?16:20,duration:p.episodeHours,programId:p.id,days:initialDays(p),recurrence:initialRecurrence(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`《${p.title}》拍好咗，揀時段播出。`);}
     if(action==='sell'||action==='sell-exclusive'){const deal=sellProduction(state,button.dataset.id,button.dataset.rival,action==='sell-exclusive');flash(`《${deal.title}》${deal.exclusive?'獨家賣斷':'聯播授權'}成交，進帳 ${preciseMoney(deal.amount)}。`);}
     if(action==='reply-letter'){const letter=replyToLetter(state,button.dataset.id);flash(letter.type==='request'?'已接納節目點播，去製作頁拍攝。':letter.type==='gift'?'已收下道具，下一套節目品質提升。':'已回覆觀眾意見，口碑提升。');}
     if(action==='reply-letter-choice'){const letter=replyToLetter(state,button.dataset.id,button.dataset.choice);flash(`已處理觀眾特殊互動：${letter.resolvedChoiceLabel||'已落實決策'}`);}
+    if(action==='reject-letter'){rejectLetter(state,button.dataset.id);flash('已婉拒／忽略該封觀眾來信。');}
+    if(action==='dismiss-letter'){dismissLetter(state,button.dataset.id);flash('已移除來信紀錄。');}
+    if(action==='clear-resolved-letters'){state.mailbox=(state.mailbox??[]).filter(l=>!l.resolved);flash('已清理所有已處理信件。');}
+    if(action==='fan-meeting'){holdFanMeeting(state);flash('全港粉絲見面會圓滿成功！熱度與口碑雙收。');}
+    if(action==='poll-audience'){const poll=launchAudiencePoll(state);flash(`公投揭曉！觀眾最敲碗「${poll.topic}」，開拍將獲首播加成！`);}
     if(action==='dismiss-month-result'){dismissMonthResult(state);render();return;}
     if(action==='dismiss-ceremony'){dismissCeremony(state);render();return;}
     if(action==='leaderboard-month'){selectedLeaderboardMonth=Number(button.dataset.month);render();return;}
@@ -1038,10 +1105,10 @@ app.addEventListener('click',e=>{
     }
     if(action==='reset-prompt'){showReset=true;render();}
     if(action==='reset-cancel'){showReset=false;render();}
-    if(action==='reset-confirm'){state=newGame();selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none'};editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],allowRepeat:false};resetProgramPicker();scheduleDay=null;catalogFilter='all';catalogSort='featured';catalogAvailableOnly=false;catalogNetwork='ViuTV';catalogYear='all';catalogQuery='';licenseDays=180;reportFilter='all';actorFilter='viu';actorPickerOpen=false;actorSearch='';tab='schedule';editorOpen=false;runSummary=null;selectedBroadcastDay=null;selectedLeaderboardMonth=null;resetScroll=true;showReset=false;notice='';render();}
+    if(action==='reset-confirm'){state=newGame();selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none',customTitle:''};editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],allowRepeat:false};resetProgramPicker();scheduleDay=null;catalogFilter='all';catalogSort='featured';catalogAvailableOnly=false;catalogNetwork='ViuTV';catalogYear='all';catalogQuery='';licenseDays=180;reportFilter='all';actorFilter='viu';actorPickerOpen=false;actorSearch='';tab='schedule';editorOpen=false;runSummary=null;selectedBroadcastDay=null;selectedLeaderboardMonth=null;resetScroll=true;showReset=false;notice='';render();}
   }catch(error){flash(error.message)}
 });
-app.addEventListener('input',e=>{if(e.target.dataset.action==='actor-search'){actorSearch=e.target.value;app.querySelectorAll('.actor-grid .actor').forEach(button=>{button.hidden=!button.textContent.includes(actorSearch.trim())});}if(e.target.dataset.action==='editor-program-search'&&!e.isComposing){const pos=e.target.selectionStart;editorProgramSearch=e.target.value;render();const input=app.querySelector('[data-action="editor-program-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}if(e.target.dataset.action==='catalog-search'&&!e.isComposing){const pos=e.target.selectionStart;catalogQuery=e.target.value;render();const input=app.querySelector('[data-action="catalog-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}});
+app.addEventListener('input',e=>{if(e.target.dataset.action==='custom-title'){selected.customTitle=e.target.value;}if(e.target.dataset.action==='actor-search'){actorSearch=e.target.value;app.querySelectorAll('.actor-grid .actor').forEach(button=>{button.hidden=!button.textContent.includes(actorSearch.trim())});}if(e.target.dataset.action==='editor-program-search'&&!e.isComposing){const pos=e.target.selectionStart;editorProgramSearch=e.target.value;render();const input=app.querySelector('[data-action="editor-program-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}if(e.target.dataset.action==='catalog-search'&&!e.isComposing){const pos=e.target.selectionStart;catalogQuery=e.target.value;render();const input=app.querySelector('[data-action="catalog-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}});
 app.addEventListener('compositionend',e=>{if(e.target.dataset.action==='editor-program-search'){editorProgramSearch=e.target.value;render();app.querySelector('[data-action="editor-program-search"]')?.focus({preventScroll:true});}if(e.target.dataset.action==='catalog-search'){catalogQuery=e.target.value;render();app.querySelector('[data-action="catalog-search"]')?.focus({preventScroll:true});}});
 app.addEventListener('change',e=>{const action=e.target.dataset.action;if(action==='catalog-sort'){catalogSort=e.target.value;resetScroll=true;render()}if(action==='catalog-year'){catalogYear=e.target.value;resetScroll=true;render()}if(action==='editor-start'){editor.start=Number(e.target.value);editor.allowRepeat=false;render()}if(action==='editor-duration'){editor.duration=Number(e.target.value);render()}if(action==='editor-program'){editor.programId=e.target.value;const p=state.library.find(p=>p.id===editor.programId);editor.duration=p?.episodeHours??Math.min(editor.duration,editor.programId.startsWith('event:')?24:4);editor.days=initialDays(p);editor.recurrence=initialRecurrence(p);editor.allowRepeat=false;render()}if(action==='editor-weekday'){editor.days=[Number(e.target.value)];render()}if(action==='editor-repeat'){editor.allowRepeat=e.target.checked;render()}});
 app.addEventListener('keydown',e=>{
@@ -1054,6 +1121,6 @@ app.addEventListener('keydown',e=>{
     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
   }
 });
-app.addEventListener('submit',e=>{if(e.target.id==='bid-form'){e.preventDefault();try{const amount=Math.round(Number(new FormData(e.target).get('amount')??e.target.querySelector('input').value)*1_000_000);submitBid(state,amount);flash('暗標已封好，等開標日。')}catch(error){flash(error.message)}}});
+app.addEventListener('submit',e=>{if(e.target.matches('.bid-form, #bid-form')){e.preventDefault();try{const eventId=e.target.dataset.event||null;const amount=Math.round(Number(new FormData(e.target).get('amount')??e.target.querySelector('input').value)*1_000_000);submitBid(state,amount,eventId);flash('暗標已封好，等開標日。')}catch(error){flash(error.message)}}});
 render();
 

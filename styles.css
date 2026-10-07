@@ -1460,5 +1460,232 @@ html,body,#app{height:100%;overflow:hidden}
   margin-bottom: 10px;
 }
 
+/* Custom Title & Suggestions */
+.custom-title-input {
+  width: 100%;
+  background: #202638;
+  border: 1px solid #3b455b;
+  border-radius: 8px;
+  color: #edf0f6;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+.custom-title-input:focus {
+  border-color: #f9b657;
+  outline: none;
+}
+.title-suggestions-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.title-chip {
+  background: #1c2233;
+  border: 1px solid #364157;
+  color: #b5c3d4;
+  border-radius: 100px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.title-chip:hover {
+  border-color: #f9b657;
+  color: #fff;
+}
+.title-chip.chosen {
+  background: #473827;
+  border-color: #f9b657;
+  color: #ffe0ae;
+}
+
+/* Multi-Event Sports Bidding */
+.sports-bidding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.sports-bid-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid #374258;
+  background: linear-gradient(135deg, #1b2133 0%, #151928 100%);
+  border-radius: 12px;
+  padding: 20px;
+}
+.sports-bid-card.has-bid {
+  border-color: #e6a752;
+  box-shadow: 0 0 15px rgba(230, 167, 82, 0.12);
+}
+.sports-card-top {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.sports-icon-badge {
+  font-size: 2rem;
+  line-height: 1;
+  background: #242c40;
+  border: 1px solid #3a4763;
+  border-radius: 10px;
+  padding: 10px;
+  flex: none;
+}
+.sports-card-desc {
+  font-size: 0.76rem;
+  color: #9aa7b9;
+  line-height: 1.5;
+  margin: 12px 0;
+}
+.bid-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.bid-submit-btn {
+  padding: 10px 14px;
+  white-space: nowrap;
+  width: auto;
+}
+.auction-results-history {
+  margin-top: 24px;
+}
+.recent-auctions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.recent-auction-item {
+  background: #1b2132;
+  border: 1px solid #313d54;
+  border-radius: 8px;
+  padding: 14px;
+}
+.recent-auction-item.we-won {
+  border-color: #e6a752;
+  background: #232230;
+}
+.recent-auction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+}
+.winner-tag {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #2a3449;
+  color: #a2b2c8;
+}
+.winner-tag.gold {
+  background: #473827;
+  color: #ffd28b;
+  font-weight: 700;
+}
+.bid-list .is-our-bid {
+  color: #ffd28b;
+  font-weight: 700;
+}
+
+/* Audience Campaign and Reject Buttons */
+.audience-campaign-box {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.campaign-card {
+  background: #1b2234;
+  border: 1px solid #334057;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.campaign-info strong {
+  display: block;
+  font-size: 0.86rem;
+  color: #e5edf7;
+}
+.campaign-info small {
+  display: block;
+  font-size: 0.72rem;
+  color: #92a2b7;
+  margin-top: 3px;
+}
+.campaign-btn {
+  background: #f9b657;
+  color: #151620;
+  border: 0;
+  border-radius: 6px;
+  font-weight: 700;
+  padding: 8px 14px;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  flex: none;
+}
+.campaign-btn:hover:not(:disabled) {
+  background: #ffcb80;
+}
+.letter-action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.letter-accept-btn {
+  flex: 1;
+  background: #2b394e;
+  border: 1px solid #485c7c;
+  color: #cde0f5;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.letter-accept-btn:hover {
+  background: #394d6b;
+}
+.letter-reject-btn {
+  background: #2a2428;
+  border: 1px solid #57373f;
+  color: #e69ca6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.letter-reject-btn:hover {
+  background: #422731;
+  border-color: #834453;
+  color: #ffb5c0;
+}
+.letter-dismiss-btn {
+  background: transparent;
+  border: 1px solid #3c485e;
+  color: #8e9db3;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  margin-left: auto;
+}
+.letter-dismiss-btn:hover {
+  background: #2a3345;
+  color: #e2ecf8;
+}
+
 
 
