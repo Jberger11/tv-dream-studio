@@ -1687,5 +1687,58 @@ html,body,#app{height:100%;overflow:hidden}
   color: #e2ecf8;
 }
 
+/* Sports Matchday Presets in Schedule Editor */
+.sports-preset-box {
+  background: linear-gradient(135deg, #1b2238 0%, #151a2d 100%);
+  border: 1px solid #45567d;
+  border-radius: 10px;
+  padding: 12px;
+  margin: 12px 0;
+}
+.sports-preset-title {
+  font-size: 0.82rem;
+  color: #ffd28b;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sports-preset-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sports-slot-btn {
+  background: #232c45;
+  border: 1px solid #43547b;
+  color: #e4ecf7;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sports-slot-btn:hover {
+  background: #313e61;
+  border-color: #ffd28b;
+  color: #fff;
+}
+.sports-slot-btn small {
+  font-size: 0.7rem;
+  color: #9cb0ce;
+  font-weight: normal;
+}
+.sports-preset-tip {
+  font-size: 0.72rem;
+  color: #8da4c4;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
 
 

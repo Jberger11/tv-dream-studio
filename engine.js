@@ -726,6 +726,156 @@ export const SPORTS_CALENDAR = [
   { quarter: 26, name: '2034 FIFA 世界盃足球賽', sport: 'FIFA世界盃', icon: '🌍', floor: 12_000_000, adTarget: 16_000_000, id: 'football-2034' }
 ];
 
+export function getSportsConfig(event) {
+  if (!event) return null;
+  const name = event.name || '';
+  const sport = event.sport || '';
+  const id = event.id || '';
+
+  if (sport === '英超聯賽' || name.includes('英格蘭超級聯賽') || name.includes('英超') || id.startsWith('pl-')) {
+    return {
+      type: 'pl',
+      name: '英超聯賽',
+      icon: '⚽',
+      // Real-world Asian/HK broadcast windows:
+      // Weekend: Sat & Sun (19:00 - 01:00 HK time)
+      // Midweek: Tue & Wed (01:00 - 05:00 HK time)
+      matchDays: [1, 2, 5, 6], // Tue, Wed, Sat, Sun
+      weekendDays: [5, 6],     // Sat, Sun
+      midweekDays: [1, 2],     // Tue, Wed
+      defaultSlots: [
+        { days: [5, 6], start: 19, duration: 5, label: '週末焦點賽事（週六、日 19:00–24:00）' },
+        { days: [1, 2], start: 1, duration: 3, label: '週中快車深夜直播（週二、三 01:00–04:00）' }
+      ],
+      isLiveHour: (day, hour) => {
+        const wd = weekdayForDay(day);
+        if ((wd === 5 || wd === 6) && (hour >= 19 || hour === 0)) return true; // Sat, Sun 19:00-01:00
+        if ((wd === 1 || wd === 2) && (hour >= 1 && hour <= 4)) return true;   // Tue, Wed 01:00-05:00
+        return false;
+      },
+      matchdaysInMonth: 16,
+      autoScheduleDesc: '已預排【週末焦點（週六日 19:00–24:00）】及【週中快車（週二三 01:00–04:00）】直播時段，週一、四、五不佔用頻道，亦可於節目表自由調整。'
+    };
+  }
+
+  if (sport === '歐聯賽事' || name.includes('歐洲聯賽冠軍盃') || name.includes('歐聯') || id.startsWith('ucl-')) {
+    return {
+      type: 'ucl',
+      name: '歐聯賽事',
+      icon: '⭐',
+      // Real-world Asian/HK broadcast windows:
+      // Midweek ONLY: Tue & Wed (01:00 - 05:00 midnight)
+      // UCL NEVER plays on Sat/Sun weekends or Mon/Thu/Fri!
+      matchDays: [1, 2],       // Tue, Wed
+      midweekDays: [1, 2],     // Tue, Wed
+      weekendDays: [],
+      defaultSlots: [
+        { days: [1, 2], start: 1, duration: 4, label: '歐聯淘汰賽深夜大戰（週二、三 01:00–05:00）' }
+      ],
+      isLiveHour: (day, hour) => {
+        const wd = weekdayForDay(day);
+        return (wd === 1 || wd === 2) && (hour >= 1 && hour <= 4);
+      },
+      matchdaysInMonth: 8,
+      autoScheduleDesc: '已預排【歐聯週中深夜大戰（週二、三 01:00–05:00）】直播時段，週末完全留給聯賽及常規綜藝！'
+    };
+  }
+
+  if (sport === '歐洲國家盃' || name.includes('歐洲國家盃') || id.startsWith('euro-')) {
+    return {
+      type: 'euro',
+      name: '歐洲國家盃',
+      icon: '🏆',
+      matchDays: EVERY_DAY,
+      defaultSlots: [
+        { days: EVERY_DAY, start: 20, duration: 6, label: '歐國盃賽事直播（每日 20:00–02:00）' }
+      ],
+      isLiveHour: (day, hour) => hour >= 20 || hour <= 2,
+      matchdaysInMonth: 30,
+      autoScheduleDesc: '已預排每日 20:00–02:00 歐洲國家盃賽事直播！'
+    };
+  }
+
+  if (sport === 'FIFA世界盃' || name.includes('世界盃') || id.startsWith('football-')) {
+    return {
+      type: 'worldcup',
+      name: 'FIFA世界盃',
+      icon: '🌍',
+      matchDays: EVERY_DAY,
+      defaultSlots: [
+        { days: EVERY_DAY, start: 19, duration: 6, label: '世界盃狂熱直播（每日 19:00–01:00）' }
+      ],
+      isLiveHour: (day, hour) => hour >= 18 || hour <= 2,
+      matchdaysInMonth: 30,
+      autoScheduleDesc: '已預排每日 19:00–01:00 世界盃狂熱直播時段！'
+    };
+  }
+
+  if (sport === '夏季奧運' || sport === '冬季奧運' || name.includes('奧運') || id.startsWith('games-') || id.startsWith('winter-')) {
+    return {
+      type: 'olympics',
+      name: '奧林匹克運動會',
+      icon: '🏅',
+      matchDays: EVERY_DAY,
+      defaultSlots: [
+        { days: EVERY_DAY, start: 15, duration: 8, label: '奧運全日直擊（每日 15:00–23:00）' }
+      ],
+      isLiveHour: (day, hour) => hour >= 15 && hour <= 23,
+      matchdaysInMonth: 30,
+      autoScheduleDesc: '已預排每日 15:00–23:00 奧運焦點賽事直播！'
+    };
+  }
+
+  if (sport === '排球及欖球' || id.startsWith('vnl-')) {
+    return {
+      type: 'weekend_tourney',
+      name: '國際排球及欖球',
+      icon: '🏐',
+      matchDays: [4, 5, 6],
+      defaultSlots: [
+        { days: [4, 5, 6], start: 14, duration: 6, label: '巡迴賽直播（週五至日 14:00–20:00）' }
+      ],
+      isLiveHour: (day, hour) => {
+        const wd = weekdayForDay(day);
+        return [4, 5, 6].includes(wd) && hour >= 14 && hour <= 20;
+      },
+      matchdaysInMonth: 12,
+      autoScheduleDesc: '已預排週五至日 14:00–20:00 賽事直播！'
+    };
+  }
+
+  if (sport === '網球及賽車' || id.startsWith('f1-')) {
+    return {
+      type: 'f1_tennis',
+      name: '溫網及F1大獎賽',
+      icon: '🏎️',
+      matchDays: [5, 6],
+      defaultSlots: [
+        { days: [5, 6], start: 19, duration: 5, label: '週末焦點決賽（週六、日 19:00–24:00）' }
+      ],
+      isLiveHour: (day, hour) => {
+        const wd = weekdayForDay(day);
+        return (wd === 5 || wd === 6) && hour >= 19 && hour <= 23;
+      },
+      matchdaysInMonth: 8,
+      autoScheduleDesc: '已預排週六、日 19:00–24:00 焦點決賽直播！'
+    };
+  }
+
+  return {
+    type: 'generic_sports',
+    name: event.name,
+    icon: event.icon || '🏅',
+    matchDays: EVERY_DAY,
+    defaultSlots: [
+      { days: EVERY_DAY, start: 18, duration: 6, label: '焦點賽事直播（每日 18:00–24:00）' }
+    ],
+    isLiveHour: (day, hour) => (hour >= 18 && hour <= 23) || (hour >= 1 && hour <= 4),
+    matchdaysInMonth: 30,
+    autoScheduleDesc: '已預排賽事直播時段！'
+  };
+}
+
 export function activeBiddingEvents(state) {
   return (state.events ?? []).filter(e => !e.resolved && e.quarter >= state.quarter && e.quarter - state.quarter <= 3);
 }
@@ -1134,6 +1284,24 @@ export function migrateLegacyLicenses(state) {
       : program.maxFreshness;
     program.lastAiredDay ??= null;
   }
+  // Migrate legacy 7-day sports schedule blocks to realistic matchday slots
+  for (const block of [...state.schedule]) {
+    if (!block.programId.startsWith('event:')) continue;
+    const ev = (state.events ?? []).find(e => `event:${e.id}` === block.programId);
+    const cfg = getSportsConfig(ev);
+    if (!cfg) continue;
+
+    const days = daysForBlock(block);
+    if (cfg.type === 'pl' && days.length === 7) {
+      state.schedule = state.schedule.filter(b => b !== block);
+      state.schedule.push({ start: 19, duration: 5, programId: block.programId, days: [5, 6], once: false });
+      state.schedule.push({ start: 1, duration: 3, programId: block.programId, days: [1, 2], once: false });
+    } else if (cfg.type === 'ucl' && (days.length === 7 || days.some(d => d === 5 || d === 6))) {
+      state.schedule = state.schedule.filter(b => b !== block);
+      state.schedule.push({ start: 1, duration: 4, programId: block.programId, days: [1, 2], once: false });
+    }
+  }
+  state.schedule.sort((a, b) => a.start - b.start);
   clearCompletedPrograms(state);
   return state;
 }
@@ -1347,7 +1515,26 @@ export function clearCompletedPrograms(state) {
 }
 export const programAtHour = (state,hour,day=state.day) => state.schedule.find(block=>runsOnWeekday(block,weekdayForDay(day)) && hoursInBlock(block).includes(hour) && (block.programId.startsWith('event:') || !isUnavailable(state.library.find(p=>p.id===block.programId),day)));
 export function episodeForBlock(state,block,day=state.day) {
-  if (!block || block.programId.startsWith('event:')) return '';
+  if (!block) return '';
+  if (block.programId.startsWith('event:')) {
+    const ev = (state.events ?? []).find(item => `event:${item.id}` === block.programId);
+    if (!ev) return '大型賽事直播';
+    const cfg = getSportsConfig(ev);
+    const weekday = weekdayForDay(day);
+    if (cfg?.type === 'pl') {
+      if (weekday === 5 || weekday === 6) return '英超 · 週末焦點現場直播';
+      if (weekday === 1 || weekday === 2) return '英超 · 週中快車深夜現場直播';
+      return '英超 · 賽事轉播';
+    }
+    if (cfg?.type === 'ucl') {
+      if (weekday === 1 || weekday === 2) return '歐聯 · 週中深夜巔峰對決現場直播';
+      return '歐聯 · 賽事轉播';
+    }
+    if (cfg?.type === 'euro') return '歐國盃 · 歐洲列強大戰直播';
+    if (cfg?.type === 'worldcup') return '世界盃 · 全城狂熱現場直播';
+    if (cfg?.type === 'olympics') return '奧運 · 焦點獎牌賽事現場直擊';
+    return '焦點賽事現場直播';
+  }
   const program=state.library.find(item=>item.id===block.programId);
   if (!program) return '';
   if (!program.episodes) return '每日新一期';
@@ -1393,7 +1580,6 @@ export function scheduleProgram(state,start,programId,duration,{days=EVERY_DAY,a
   if (special) {
     const event=state.events.find(e=>e.id===programId.slice(6) && e.quarter===state.quarter && e.resolved && e.winner==='你的電視台' && (state.day-1)%DAYS_PER_QUARTER<30);
     if (!event || duration>24) throw Error('大型賽事只可喺擁有轉播權嘅賽事季度排播，最長 24 小時。');
-    if (days.length!==7) throw Error('大型賽事轉播需維持每日播映。');
   } else {
     const program=state.library.find(p=>p.id===programId);
     if (!program || duration>4) throw Error('普通節目只可連續佔用 1 至 4 小時。');
@@ -1438,7 +1624,7 @@ export function submitBid(state,amount,eventId=null) {
   note(state,`已向《${event.name}》提交暗標 ${money(amount)}，全額保證金已凍結；開標前可修改。`);
 }
 
-function resolveAuction(state,event,rng) {
+export function resolveAuction(state,event,rng) {
   if (event.resolved) return;
   // Rival profiles: large network bids high, regional network near floor,
   // niche channel bid erratically. Bids remain sealed until opening.
@@ -1451,8 +1637,30 @@ function resolveAuction(state,event,rng) {
   const winner=bids.reduce((best,b)=>b.amount>best.amount?b:best,bids[0]);
   event.bids=bids; event.winner=winner.name; event.resolved=true;
   if (winner.name==='你的電視台') {
-    event.replacedBlocks=scheduleProgram(state,18,`event:${event.id}`,8);
-    note(state,`《${event.name}》中標！已預排 18:00 至 02:00 嘅大型賽事，可喺節目表調整；保證金 ${money(event.playerBid)} 轉作版權費。`,'good');
+    const config=getSportsConfig(event);
+    const replaced=[];
+    if (config?.defaultSlots?.length) {
+      for (const slot of config.defaultSlots) {
+        const overwritesExistingSport = state.schedule.some(b =>
+          b.programId.startsWith('event:') &&
+          b.programId !== `event:${event.id}` &&
+          daysForBlock(b).some(d => slot.days.includes(d)) &&
+          hoursInBlock(b).some(h => hoursInBlock(slot).includes(h))
+        );
+        // UCL has absolute priority on Tue/Wed midnight; PL midweek should not overwrite UCL
+        if (config.type === 'pl' && slot.days.includes(1) && overwritesExistingSport) {
+          continue;
+        }
+        try {
+          const rep = scheduleProgram(state, slot.start, `event:${event.id}`, slot.duration, { days: slot.days });
+          replaced.push(...rep);
+        } catch (_) {}
+      }
+    } else {
+      replaced.push(...scheduleProgram(state,18,`event:${event.id}`,6,{days:EVERY_DAY}));
+    }
+    event.replacedBlocks=replaced;
+    note(state,`《${event.name}》中標！${config?.autoScheduleDesc??'已預排賽事直播時段'}；保證金 ${money(event.playerBid)} 轉作版權費。`,'good');
     if (!state.achievements.includes('體育版權首勝')) state.achievements.push('體育版權首勝');
   } else {
     if (event.playerBid!==null) state.cash+=event.playerBid;
@@ -1751,16 +1959,9 @@ export function advanceDay(state,rng=Math.random) {
   const talentBefore=new Map();
   const gameDay=state.day, dayOfQuarter=(gameDay-1)%DAYS_PER_QUARTER+1;
   const sports=state.events.find(e=>e.quarter===state.quarter && e.resolved && e.winner==='你的電視台');
+  const winningSports=(state.events??[]).filter(e=>e.quarter===state.quarter && e.resolved && e.winner==='你的電視台' && dayOfQuarter<=30);
   let sportsRevenue=0, sportsPenalty=0;
   const weekday=weekdayForDay(gameDay);
-  const sportsBlocks=state.schedule.filter(block=>block.programId===`event:${sports?.id}` && runsOnWeekday(block,weekday));
-  if (sports && dayOfQuarter<=30) {
-    const totalHours=sportsBlocks.reduce((sum,b)=>sum+b.duration,0);
-    const primeHours=sportsBlocks.flatMap(hoursInBlock).filter(h=>h>=18&&h<=22).length;
-    sportsRevenue=totalHours?Math.round((8_000_000+rng()*7_000_000)*(totalHours/8)*(.75+.65*primeHours/totalHours)*(.90+state.reputation/500)/30):0;
-  }
-  const specialHourCount=sportsBlocks.reduce((sum,b)=>sum+b.duration,0);
-  let specialHourIndex=0, allocatedSpecial=0;
   const todayRuns=new Map();
   const onceBlocksAired=[];
   for (const block of state.schedule) {
@@ -1768,17 +1969,21 @@ export function advanceDay(state,rng=Math.random) {
     if(block.once) onceBlocksAired.push(block);
     const times=hoursInBlock(block), special=block.programId.startsWith('event:');
     const p=special?null:state.library.find(item=>item.id===block.programId);
+    const blockEvent=special?(state.events??[]).find(e=>`event:${e.id}`===block.programId):null;
     if (!special&&!p) continue;
+    if (special&&!blockEvent) continue;
     const run=p?p.runs+(todayRuns.get(p.id)??0):0;
     const runLimit = (p && Number.isInteger(p.replayCount) && p.replayCount > 0 && Number.isInteger(p.replayEndRuns)) ? p.replayEndRuns : p?.episodes;
     if (!special && (isUnavailable(p,gameDay) || (p.episodes && run>=runLimit))) continue;
-    const episode=p?episodeForBlock(state,block,gameDay):'';
+    const episode=episodeForBlock(state,block,gameDay);
     // Each complete pass makes a licensed programme less fresh; cap the decline.
     const decay=p?.kind==='catalog' ? Math.max(.72,Math.pow(p.episodes===1?.96:.90,Number.isInteger(p.replayCount)&&p.replayCount>0?p.replayCount:Math.floor(run/Math.max(1,p.episodes)))) : 1;
     if (p && isDailyFormat(p.kind) && !p.episodes && p.episodeCost && run>0) dailyProduction+=p.episodeCost;
     let blockRevenue=0, ratingTotal=0;
+    const cfg=special?getSportsConfig(blockEvent):null;
     for (const hour of times) {
       const prime=hour>=18&&hour<=22;
+      const isLiveSports=cfg?cfg.isLiveHour(gameDay,hour):prime;
       const isChildrenSlot=(hour>=16 && hour<18) || (weekday>=5 && hour>=9 && hour<12);
       const isSitcomSlot=(hour>=19 && hour<=21);
       const isTalkshowSlot=(hour>=21 || hour<=1);
@@ -1799,12 +2004,19 @@ export function advanceDay(state,rng=Math.random) {
       const pressure=Math.round(Math.max(0,strongest-55)*.16-Math.max(0,55-strongest)*.07);
       const eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
       const freshFactor = p ? getFreshnessFactor(p) : 1;
-      const rating=special?(prime?98:Math.round(76*factor)):clamp(Math.round(p.rating*decay*factor*freshFactor-pressure+eventMod),1,100);
+      const rating=special
+        ?(isLiveSports?clamp(95+Math.round(rng()*4),90,99):clamp(Math.round(72*factor),40,85))
+        :clamp(Math.round(p.rating*decay*factor*freshFactor-pressure+eventMod),1,100);
       let ads;
       if (special) {
-        specialHourIndex++;
-        ads=specialHourIndex===specialHourCount?sportsRevenue-allocatedSpecial:Math.round(sportsRevenue/specialHourCount);
-        allocatedSpecial+=ads;
+        const target=blockEvent?.adTarget??8_000_000;
+        const expectedDays=cfg?.matchdaysInMonth??30;
+        const expectedHoursPerDay=cfg?.type==='pl'?4:cfg?.type==='ucl'?4:cfg?.type==='olympics'?8:6;
+        const basePerHour=target/(expectedDays*expectedHoursPerDay);
+        const repMod=0.90+state.reputation/500;
+        const liveMod=isLiveSports?(1.05+(rng()*0.15-0.05)):0.25;
+        ads=Math.round(basePerHour*liveMod*repMod);
+        sportsRevenue+=ads;
       } else {
         // A completed series earns its ad package over its finite run. Daily
         // evergreen shows pay a much smaller rate because they never expire.
@@ -1812,7 +2024,7 @@ export function advanceDay(state,rng=Math.random) {
         const rightsFactor=p.id.startsWith('start-')?.2:1; // Free opening library is non-exclusive syndication.
         ads=Math.round(rate*rating*rating/70*rightsFactor*(p.outcome==='disaster'?.5:1));
       }
-      hours[hour]={hour,title:special?sports.name:p.title,episode,rating,revenue:ads,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,special,rivals:rivals.map(item=>item.rating),eventMod,eventTitle:state.breakingEvent?.title};
+      hours[hour]={hour,title:special?blockEvent.name:p.title,episode,rating,revenue:ads,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,special,rivals:rivals.map(item=>item.rating),eventMod,eventTitle:state.breakingEvent?.title};
       blockRevenue+=ads; ratingTotal+=rating; revenue+=ads; audience+=rating;
       buzz+=special?90:Math.round(p.buzz*decay*freshFactor);
     }
@@ -1822,11 +2034,11 @@ export function advanceDay(state,rng=Math.random) {
     const effect=p&&isOneOffEvent(p.kind)?oneOffBroadcastEffect(state,p,blockRating,won):'';
     if(effect)note(state,`《${p.title}》播映：收視 ${blockRating}，${effect}。`,won?'good':'neutral');
     const eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
-    details.push({programId:p?.id??block.programId,kind:p?.kind??'sports',category:p?.category??'大型賽事',start:block.start,duration:block.duration,title:special?sports.name:p.title,episode,rating:blockRating,rivalRating,won,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,revenue:blockRevenue,special,effect,eventMod,eventTitle:state.breakingEvent?.title});
+    details.push({programId:p?.id??block.programId,kind:p?.kind??'sports',category:p?.category??'大型賽事',start:block.start,duration:block.duration,title:special?blockEvent.name:p.title,episode,rating:blockRating,rivalRating,won,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,revenue:blockRevenue,special,effect,eventMod,eventTitle:state.breakingEvent?.title});
     state.monthBroadcastLog ??= [];
     state.monthBroadcastLog.push({
       programId: p ? p.id : block.programId,
-      title: special ? sports.name : (p ? p.title : '未排節目'),
+      title: special ? blockEvent.name : (p ? p.title : '未排節目'),
       station: '你的電視台',
       kind: p ? p.kind : 'sports',
       category: p ? p.category : '大型賽事',
@@ -1913,16 +2125,22 @@ export function advanceDay(state,rng=Math.random) {
     hours[hour]={hour,title:'未排節目',episode:'',rating:0,revenue:0,decay:1,empty:true,rivals:state.rivals.map(rival=>rivalAtHour(state,rival,hour,gameDay).rating)};
   }
   state.quarterLedger.sportsRevenue+=sportsRevenue;
-  if (sports && dayOfQuarter===30) {
-    sportsPenalty=Math.max(0,Math.round((sports.adTarget-state.quarterLedger.sportsRevenue)*.55));
-    state.quarterLedger.sportsPenalty=sportsPenalty;
-    note(state,`《${sports.name}》一個月獨家轉播結束。廣告收入 ${money(state.quarterLedger.sportsRevenue)}${sportsPenalty?`，對賭賠付 ${money(sportsPenalty)}`:''}。`,sportsPenalty?'bad':'good');
-    state.schedule=state.schedule.filter(block=>block.programId!==`event:${sports.id}`);
-    for (const old of sports.replacedBlocks??[]) {
-      const available=daysForBlock(old).filter(day=>state.schedule.every(block=>!runsOnWeekday(block,day)||!hoursInBlock(old).some(hour=>hoursInBlock(block).includes(hour))));
-      if (available.length && !isUnavailable(state.library.find(p=>p.id===old.programId),state.day)) state.schedule.push({...old,days:available});
+  if (winningSports.length && dayOfQuarter===30) {
+    const totalTarget = winningSports.reduce((sum, s) => sum + s.adTarget, 0);
+    sportsPenalty = Math.max(0, Math.round((totalTarget - state.quarterLedger.sportsRevenue) * 0.55));
+    state.quarterLedger.sportsPenalty = sportsPenalty;
+    const names = winningSports.map(s => `《${s.name}》`).join('及');
+    note(state, `${names} 一個月獨家轉播結束。累計體育廣告收入 ${money(state.quarterLedger.sportsRevenue)}${sportsPenalty ? `，對賭賠付 ${money(sportsPenalty)}` : '，圓滿達成贊助商目標！'}。`, sportsPenalty ? 'bad' : 'good');
+    for (const s of winningSports) {
+      state.schedule = state.schedule.filter(block => block.programId !== `event:${s.id}`);
+      for (const old of s.replacedBlocks ?? []) {
+        const available = daysForBlock(old).filter(day => state.schedule.every(block => !runsOnWeekday(block, day) || !hoursInBlock(old).some(hour => hoursInBlock(block).includes(hour))));
+        if (available.length && !isUnavailable(state.library.find(p => p.id === old.programId), state.day)) {
+          state.schedule.push({ ...old, days: available });
+        }
+      }
     }
-    state.schedule.sort((a,b)=>a.start-b.start);
+    state.schedule.sort((a, b) => a.start - b.start);
   }
   revenue-=sportsPenalty;
   const overhead=Math.round(1_650_000/DAYS_PER_QUARTER)+dailyProduction;

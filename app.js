@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles } from './engine.js';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig } from './engine.js';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -50,7 +50,7 @@ const hourlyMoney=n=>{const amount=Math.abs(n),sign=n<0?'−':'';return amount>=
 const catalogPrice=n=>n>=1_000_000?`$${(n/1_000_000).toFixed(2)}m`:`$${Math.round(n/1_000)}k`;
 const icon={schedule:'▦',studio:'◈',rivals:'♟',catalog:'▤',sports:'◆',reports:'▥'};
 const timeRange=(start,duration)=>`${hourLabel(start)}–${hourLabel(start+duration)}${start+duration>=24?'（翌日）':''}`;
-const dayPattern=days=>days.length===7?'每日':days.length===5&&days.every((d,i)=>d===i)?'週一至五':days.length===2&&days[0]===5&&days[1]===6?'週六日':days.length===1?`每週${WEEKDAYS[days[0]].slice(1)}`:days.map(day=>WEEKDAYS[day]).join('、');
+const dayPattern=days=>days.length===7?'每日':days.length===5&&days.every((d,i)=>d===i)?'週一至五':days.length===2&&days[0]===5&&days[1]===6?'週六日':days.length===2&&days[0]===1&&days[1]===2?'週二三':days.length===1?`每週${WEEKDAYS[days[0]].slice(1)}`:days.map(day=>WEEKDAYS[day]).join('、');
 const initialDays=p=>p?.category==='香港電影'||p?.kind==='variety'||p?.kind==='night'||p?.kind==='children'||isOneOffEvent(p?.kind)?[weekdayForDay(state.day)]:p?.kind==='drama'||isDailyFormat(p?.kind)?[0,1,2,3,4]:[...EVERY_DAY];
 const initialRecurrence=p=>(isOneOffEvent(p?.kind)||p?.episodes===1||p?.category==='香港電影')?'once':(p?.kind==='drama'||isDailyFormat(p?.kind))?'weekday':(p?.kind==='variety'||p?.kind==='night'||p?.kind==='children')?'weekly':'daily';
 const catalogProgressLabel=p=>p.episodes===1?`已放映 ${catalogCompletedAirings(p)} 次`:`已完整播出 ${catalogCompletedAirings(p)} 次`;
@@ -363,10 +363,10 @@ function distributionView() {
 }
 
 function scheduleView() {
-  const special=state.events.find(e=>e.quarter===state.quarter && e.resolved && e.winner==='你的電視台' && (state.day-1)%DAYS_PER_QUARTER<30);
+  const wonSports=(state.events??[]).filter(e=>e.quarter===state.quarter && e.resolved && e.winner==='你的電視台' && (state.day-1)%DAYS_PER_QUARTER<30);
   const viewing=weekdayForDay(state.day),selectedDay=scheduleDay??viewing;
   const previewDay=state.day+(selectedDay-viewing+7)%7;
-  const options=[...state.library.filter(p=>!isUnavailable(p,state.day)).map(p=>({id:p.id,title:p.title})),...(special?[{id:`event:${special.id}`,title:`★ ${special.name}（大型賽事）`}]:[])];
+  const options=[...state.library.filter(p=>!isUnavailable(p,state.day)).map(p=>({id:p.id,title:p.title})),...wonSports.map(s=>({id:`event:${s.id}`,title:`★ ${s.name}（大型賽事）`}))];
   if (!options.some(p=>p.id===editor.programId)) editor.programId=options[0]?.id??'';
   const fixed=state.library.find(p=>p.id===editor.programId)?.episodeHours;
   const max=editor.programId.startsWith('event:')?24:4;
@@ -382,8 +382,10 @@ function scheduleView() {
   const visibleOptions=options.filter(option=>{const p=state.library.find(item=>item.id===option.id),group=groupFor(p),booked=state.schedule.some(block=>block.programId===option.id);return (editorProgramGroup==='all'||editorProgramGroup==='unbooked'&&!booked||editorProgramGroup===group)&&(!query||`${option.title} ${p?.category??''} ${p?.genre??''} ${p?.topic??''}`.toLocaleLowerCase('zh-HK').includes(query))});
   const selectedProgram=options.find(option=>option.id===editor.programId);
   const selectedItem=state.library.find(p=>p.id===editor.programId);
+  const selectedEvent=editor.programId.startsWith('event:')?(state.events??[]).find(e=>`event:${e.id}`===editor.programId):null;
+  const sportsCfg=getSportsConfig(selectedEvent);
   const isOneOffItem=isOneOffEvent(selectedItem?.kind) || selectedItem?.episodes === 1 || selectedItem?.category === '香港電影';
-  editor.recurrence ??= isOneOffItem ? 'once' : (editor.days.length === 1 ? 'weekly' : editor.days.length === 5 ? 'weekday' : editor.days.length === 2 ? 'weekend' : 'daily');
+  editor.recurrence ??= isOneOffItem ? 'once' : (editor.days.length === 1 ? 'weekly' : editor.days.length === 5 ? 'weekday' : editor.days.length === 2 && editor.days[0] === 1 ? 'midweek' : editor.days.length === 2 ? 'weekend' : 'daily');
   const primeHours=[18,19,20,21,22];
   const primeOccupied=primeHours.filter(h=>occupied.has(h)).length;
   const DAYPARTS=[
@@ -418,9 +420,24 @@ function scheduleView() {
           ['once','⭐ 單次播映（只播一次）',[selectedDay]],
           ['weekly','每週一次',[selectedDay]],
           ['weekend','週六日',[5,6]],
+          ['midweek','週二三（週中快車／歐聯）',[1,2]],
           ['weekday','週一至五',[0,1,2,3,4]],
           ['daily','每日',EVERY_DAY]
         ].map(([id,label,days])=>`<button data-action="recurrence" data-value="${id}" class="${editor.recurrence===id?'chosen':''} ${id==='once'?'once-btn':''}" aria-pressed="${editor.recurrence===id}">${label}</button>`).join('')}</div>
+        ${sportsCfg ? `
+          <div class="sports-preset-box">
+            <div class="sports-preset-title">${sportsCfg.icon} <strong>${safe(sportsCfg.name)} · 官方推薦時區排播</strong></div>
+            <div class="sports-preset-buttons">
+              ${sportsCfg.defaultSlots.map(slot => `
+                <button type="button" class="sports-slot-btn" data-action="apply-sports-slot" data-start="${slot.start}" data-duration="${slot.duration}" data-days="${slot.days.join(',')}">
+                  ${slot.days.length === 2 && slot.days[0] === 5 ? '⚽ 週末黃金大戰' : slot.days.length === 2 && slot.days[0] === 1 ? (sportsCfg.type === 'ucl' ? '⭐ 歐聯週中深夜大戰' : '⚽ 週中快車深夜直播') : '🏆 賽事直播'}
+                  <small>${slot.label}</small>
+                </button>
+              `).join('')}
+            </div>
+            <p class="sports-preset-tip">💡 ${sportsCfg.type === 'pl' ? '英超賽事集中於週六日晚間及週二三深夜，週一、四、五通常沒有賽事。' : sportsCfg.type === 'ucl' ? '歐聯賽事嚴格只在週二、三深夜 01:00–05:00 進行，週末絕無賽事，與英超互不衝突！' : '大賽期間請在賽事時段內密集直播。'}</p>
+          </div>
+        ` : ''}
         ${editor.recurrence==='once'?`<p class="recurrence-note once-note">⭐ 單次播映：只在 ${WEEKDAYS[editor.days[0]]} 播出 1 次，播畢後自動騰空時段。</p>`:isOneOffItem?`<p class="recurrence-note warn-note">💡 自製大型活動／電影為單次播映作品，強烈建議選擇「⭐ 單次播映（只播一次）」。</p>`:''}
         ${(editor.recurrence==='once'||editor.days.length===1)?`<label class="weekday-select-label">指定播出星期幾 <select data-action="editor-weekday">${WEEKDAYS.map((name,day)=>`<option value="${day}" ${editor.days[0]===day?'selected':''}>${name}${day===viewing?'（今日）':''}</option>`).join('')}</select></label>`:''}
       </div>
@@ -442,7 +459,7 @@ function scheduleView() {
             <div class="daypart-grid">
               ${part.hours.map(hour=>{
                 const block=programAtHour(state,hour,previewDay);
-                const item=block&&(block.programId.startsWith('event:')?special:state.library.find(p=>p.id===block.programId));
+                const item=block&&(block.programId.startsWith('event:')?(state.events??[]).find(e=>`event:${e.id}`===block.programId):state.library.find(p=>p.id===block.programId));
                 const title=item?.name??item?.title??'未排節目';
                 const episode=episodeForBlock(state,block,previewDay);
                 const prime=hour>=18&&hour<=22;
@@ -800,8 +817,15 @@ function sportsView() {
             <div><small>競投底價</small><b>${money(event.floor)}</b></div>
             <div><small>廣告對賭目標</small><b>${money(event.adTarget)}</b></div>
             <div><small>我的暗標</small><b class="${event.playerBid!==null?'gold-text':'muted'}">${event.playerBid!==null?money(event.playerBid):'未出價'}</b></div>
-          </div>
-          <p class="sports-card-desc">中標後預排於 18:00–02:00（長度最多 24 小時），黃金檔收視可達 98 點；廣告收入達唔到目標需賠付差額。</p>
+          ${(()=>{
+            const cfg = getSportsConfig(event);
+            const desc = cfg?.type === 'pl'
+              ? '⚽ 英超聯賽：真實亞洲時區轉播。中標後預排【週末焦點（週六日 19:00–24:00）】及【週中快車（週二三 01:00–04:00）】直播；週一、四、五不佔用頻道，直播收視高達 98 點！'
+              : cfg?.type === 'ucl'
+              ? '⭐ 歐聯賽事：歐聯淘汰賽與決賽嚴格於【週二三深夜 01:00–05:00】直播，週末絕無賽事，與英超賽程完美共存不衝突，深夜收視震撼爆燈！'
+              : '中標後依真實賽程排播焦點直播，直播收視可達 98 點；廣告收入達唔到目標需賠付差額。';
+            return `<p class="sports-card-desc">${desc}</p>`;
+          })()}
           ${isReadyToBid?`
             <form class="bid-form" data-event="${safe(event.id)}">
               <div class="bid-input-row">
@@ -1052,9 +1076,34 @@ app.addEventListener('click',e=>{
     if(action==='replay-filter'){replayFilter=value;render();return;}
     if(action==='schedule-day'){scheduleDay=Number(button.dataset.day);render();}
     if(action==='schedule-period'){schedulePeriod=value;render();}
-    if(action==='editor-program-group'){editorProgramGroup=value;render();}
-    if(action==='editor-program-card'){editor.programId=button.dataset.id;const p=state.library.find(item=>item.id===editor.programId);editor.duration=p?.episodeHours??Math.min(editor.duration,editor.programId.startsWith('event:')?24:4);editor.recurrence=initialRecurrence(p);editor.days=initialDays(p);editor.allowRepeat=false;render();}
-    if(action==='recurrence'){editor.recurrence=value;editor.days=(value==='once'||value==='weekly')?[scheduleDay??weekdayForDay(state.day)]:value==='weekday'?[0,1,2,3,4]:value==='weekend'?[5,6]:[...EVERY_DAY];editor.allowRepeat=false;render();}
+    if(action==='editor-program-card'){
+      editor.programId=button.dataset.id;
+      if (editor.programId.startsWith('event:')) {
+        const ev=(state.events??[]).find(e=>`event:${e.id}`===editor.programId);
+        const cfg=getSportsConfig(ev);
+        const primarySlot=cfg?.defaultSlots?.[0];
+        editor.start=primarySlot?.start??18;
+        editor.duration=primarySlot?.duration??6;
+        editor.days=primarySlot?.days?[...primarySlot.days]:[...EVERY_DAY];
+        editor.recurrence=editor.days.length===2&&editor.days[0]===5?'weekend':editor.days.length===2&&editor.days[0]===1?'midweek':editor.days.length===7?'daily':'weekly';
+      } else {
+        const p=state.library.find(item=>item.id===editor.programId);
+        editor.duration=p?.episodeHours??Math.min(editor.duration,4);
+        editor.recurrence=initialRecurrence(p);
+        editor.days=initialDays(p);
+      }
+      editor.allowRepeat=false;
+      render();
+    }
+    if(action==='apply-sports-slot'){
+      editor.start=Number(button.dataset.start);
+      editor.duration=Number(button.dataset.duration);
+      editor.days=button.dataset.days.split(',').map(Number);
+      editor.recurrence=editor.days.length===2&&editor.days[0]===5?'weekend':editor.days.length===2&&editor.days[0]===1?'midweek':editor.days.length===7?'daily':'weekly';
+      editor.allowRepeat=false;
+      render();
+    }
+    if(action==='recurrence'){editor.recurrence=value;editor.days=(value==='once'||value==='weekly')?[scheduleDay??weekdayForDay(state.day)]:value==='weekday'?[0,1,2,3,4]:value==='weekend'?[5,6]:value==='midweek'?[1,2]:[...EVERY_DAY];editor.allowRepeat=false;render();}
     if(action==='catalog-filter'){catalogFilter=value;if(!['all','series','variety'].includes(value))catalogNetwork='all';resetScroll=true;render();}
     if(action==='catalog-network'){catalogNetwork=value;catalogFilter='all';catalogYear='all';resetScroll=true;render();}
     if(action==='catalog-available'){catalogAvailableOnly=!catalogAvailableOnly;resetScroll=true;render();}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -802,5 +802,155 @@ test('audience interactions support reject button, letter dismissal, fan meeting
   assert.ok(poll.topic);
   assert.equal(state.audienceBrief, poll.topic);
 });
+
+test('Premier League and Champions League matchdays strictly follow Asian real-world broadcasting times without clashing', () => {
+  const state = newGame();
+  const plEvent = state.events.find(e => e.id === 'pl-2028');
+  const uclEvent = state.events.find(e => e.id === 'ucl-2028');
+  assert.ok(plEvent, 'PL event exists');
+  assert.ok(uclEvent, 'UCL event exists');
+
+  const plCfg = getSportsConfig(plEvent);
+  const uclCfg = getSportsConfig(uclEvent);
+
+  // 1. Config validation
+  assert.equal(plCfg.type, 'pl');
+  assert.deepEqual(plCfg.weekendDays, [5, 6]);
+  assert.deepEqual(plCfg.midweekDays, [1, 2]);
+
+  assert.equal(uclCfg.type, 'ucl');
+  assert.deepEqual(uclCfg.midweekDays, [1, 2]);
+  assert.deepEqual(uclCfg.weekendDays, []);
+
+  // 2. Real-world live window verification (Asia / HK time zone)
+  // Premier League: Sat/Sun 19:00 - 01:00 (days 5, 6)
+  assert.equal(plCfg.isLiveHour(6, 20), true); // Day 6 is Saturday (weekday 5), 20:00 is live!
+  assert.equal(plCfg.isLiveHour(7, 21), true); // Day 7 is Sunday (weekday 6), 21:00 is live!
+  assert.equal(plCfg.isLiveHour(6, 14), false); // Saturday afternoon is not live match
+  // Premier League midweek: Tue/Wed 01:00 - 05:00 (days 2, 3)
+  assert.equal(plCfg.isLiveHour(2, 2), true);  // Day 2 is Tuesday (weekday 1), 02:00 is live midweek express!
+  assert.equal(plCfg.isLiveHour(3, 3), true);  // Day 3 is Wednesday (weekday 2), 03:00 is live!
+  // Premier League non-matchdays: Thursday (Day 4), Monday (Day 1), Friday (Day 5) have NO live matches
+  assert.equal(plCfg.isLiveHour(4, 20), false); // Thursday has no PL live matches!
+  assert.equal(plCfg.isLiveHour(1, 20), false); // Monday has no PL live matches!
+  assert.equal(plCfg.isLiveHour(5, 20), false); // Friday has no PL live matches!
+
+  // Champions League: strictly Tue/Wed 01:00 - 05:00
+  assert.equal(uclCfg.isLiveHour(2, 2), true);  // Tuesday 02:00 is live UCL!
+  assert.equal(uclCfg.isLiveHour(3, 3), true);  // Wednesday 03:00 is live UCL!
+  assert.equal(uclCfg.isLiveHour(6, 20), false); // UCL NEVER happens on Saturday weekend!
+  assert.equal(uclCfg.isLiveHour(7, 20), false); // UCL NEVER happens on Sunday weekend!
+  assert.equal(uclCfg.isLiveHour(4, 2), false);  // UCL NEVER happens on Thursday!
+
+  // 3. Auto-scheduling verification
+  // Bid and win Premier League
+  plEvent.quarter = state.quarter;
+  plEvent.playerBid = plEvent.floor * 2;
+  resolveAuction(state, plEvent, () => 0.1);
+  assert.equal(plEvent.winner, '你的電視台');
+
+  // Verify that PL auto-schedule sets weekend 19:00-24:00 and Tue/Wed 01:00-04:00
+  const plBlocks = state.schedule.filter(b => b.programId === `event:${plEvent.id}`);
+  assert.ok(plBlocks.length >= 1, 'PL blocks scheduled');
+  const weekendBlock = plBlocks.find(b => daysForBlock(b).includes(5) && daysForBlock(b).includes(6));
+  assert.ok(weekendBlock, 'Weekend PL block exists');
+  assert.equal(weekendBlock.start, 19);
+  assert.equal(weekendBlock.duration, 5);
+
+  // Crucial check: On Thursday (weekday 3), NO PL block is active!
+  const thursdayBlocks = state.schedule.filter(b => b.programId === `event:${plEvent.id}` && runsOnWeekday(b, 3));
+  assert.equal(thursdayBlocks.length, 0, 'Premier League must NOT run on Thursday!');
+
+  // Monday (weekday 0) and Friday (weekday 4) also have no PL blocks
+  const mondayBlocks = state.schedule.filter(b => b.programId === `event:${plEvent.id}` && runsOnWeekday(b, 0));
+  assert.equal(mondayBlocks.length, 0, 'Premier League must NOT run on Monday!');
+
+  // 4. Coexistence with Champions League: Win UCL as well
+  uclEvent.quarter = state.quarter;
+  uclEvent.playerBid = uclEvent.floor * 2;
+  resolveAuction(state, uclEvent, () => 0.1);
+  assert.equal(uclEvent.winner, '你的電視台');
+
+  // UCL should have Tue/Wed 01:00 - 05:00
+  const uclBlocks = state.schedule.filter(b => b.programId === `event:${uclEvent.id}`);
+  assert.ok(uclBlocks.length >= 1, 'UCL blocks scheduled');
+  const uclMain = uclBlocks[0];
+  assert.deepEqual(daysForBlock(uclMain), [1, 2]);
+  assert.equal(uclMain.start, 1);
+  assert.equal(uclMain.duration, 4);
+
+  // Zero collision between PL weekend and UCL midweek!
+  const plWeekend = state.schedule.find(b => b.programId === `event:${plEvent.id}` && daysForBlock(b).includes(5));
+  assert.ok(plWeekend, 'PL weekend block is intact');
+  const hasClash = daysForBlock(plWeekend).some(d => daysForBlock(uclMain).includes(d));
+  assert.equal(hasClash, false, 'PL weekend and UCL midweek must have zero overlap');
+
+  // 4b. Reverse bidding order: Win UCL first, then win PL
+  const state2 = newGame();
+  const pl2 = state2.events.find(e => e.id === 'pl-2028');
+  const ucl2 = state2.events.find(e => e.id === 'ucl-2028');
+  ucl2.quarter = state2.quarter;
+  ucl2.playerBid = ucl2.floor * 2;
+  resolveAuction(state2, ucl2, () => 0.1);
+  assert.equal(ucl2.winner, '你的電視台');
+
+  pl2.quarter = state2.quarter;
+  pl2.playerBid = pl2.floor * 2;
+  resolveAuction(state2, pl2, () => 0.1);
+  assert.equal(pl2.winner, '你的電視台');
+
+  const ucl2Block = state2.schedule.find(b => b.programId === `event:${ucl2.id}`);
+  assert.ok(ucl2Block, 'UCL preserved on Tue/Wed');
+  assert.deepEqual(daysForBlock(ucl2Block), [1, 2]);
+  const pl2Weekend = state2.schedule.find(b => b.programId === `event:${pl2.id}` && daysForBlock(b).includes(5));
+  assert.ok(pl2Weekend, 'PL weekend scheduled on Sat/Sun');
+
+  // 5. Peak live rating verification during live match window
+  // On Saturday (Day 6), advance day and verify PL live rating is 95+
+  state.day = 6; // Saturday (weekday 5)
+  const satReport = advanceDay(state, () => 0.5);
+  const plSatHour = satReport.hours[20];
+  assert.equal(plSatHour.title, plEvent.name);
+  assert.ok(plSatHour.rating >= 95, `Live PL rating on Saturday should be 95+, got ${plSatHour.rating}`);
+  assert.ok(plSatHour.revenue > 0, 'Generates strong advertising revenue');
+});
+
+test('legacy 7-day sports saves migrate to realistic matchdays and clear non-matchday slots like Thursday', () => {
+  const state = newGame();
+  const plEvent = state.events.find(e => e.id === 'pl-2028');
+  plEvent.quarter = state.quarter;
+  plEvent.winner = '你的電視台';
+  plEvent.resolved = true;
+
+  // Simulate old legacy save where PL was placed 18:00-02:00 every day [0,1,2,3,4,5,6]
+  state.schedule = [
+    { start: 18, duration: 8, programId: `event:${plEvent.id}`, days: [0, 1, 2, 3, 4, 5, 6] }
+  ];
+
+  // Run migration
+  migrateLegacyLicenses(state);
+
+  // Verification:
+  // 1. Thursday (weekday 3) should have NO PL blocks
+  const thursdayAiring = state.schedule.filter(b => b.programId === `event:${plEvent.id}` && runsOnWeekday(b, 3));
+  assert.equal(thursdayAiring.length, 0, 'Thursday (Day 451) must be cleared of sports blocks');
+
+  // 2. Monday (0) and Friday (4) should also have NO PL blocks
+  const fridayAiring = state.schedule.filter(b => b.programId === `event:${plEvent.id}` && runsOnWeekday(b, 4));
+  assert.equal(fridayAiring.length, 0, 'Friday must be cleared of sports blocks');
+
+  // 3. Saturday and Sunday should have the weekend PL slot (19:00 - 24:00)
+  const satAiring = state.schedule.find(b => b.programId === `event:${plEvent.id}` && runsOnWeekday(b, 5));
+  assert.ok(satAiring, 'Saturday has PL');
+  assert.equal(satAiring.start, 19);
+  assert.equal(satAiring.duration, 5);
+
+  // 4. Tue and Wed have the midweek express slot (01:00 - 04:00)
+  const tueAiring = state.schedule.find(b => b.programId === `event:${plEvent.id}` && runsOnWeekday(b, 1));
+  assert.ok(tueAiring, 'Tuesday has PL midweek');
+  assert.equal(tueAiring.start, 1);
+  assert.equal(tueAiring.duration, 3);
+});
+
 
 
