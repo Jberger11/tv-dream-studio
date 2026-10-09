@@ -364,7 +364,6 @@ function distributionView() {
 
 function scheduleView() {
   const wonSports = getActiveSportsEvents(state);
-  const pendingSports = (state.events ?? []).filter(e => !e.resolved && e.playerBid !== null);
   const viewing=weekdayForDay(state.day),selectedDay=scheduleDay??viewing;
   const previewDay=state.day+(selectedDay-viewing+7)%7;
   const options=[...state.library.filter(p=>!isUnavailable(p,state.day)).map(p=>({id:p.id,title:p.title})),...wonSports.map(s=>({id:`event:${s.id}`,title:`🏆 ${s.name}（體育直播）`}))];
@@ -407,16 +406,6 @@ function scheduleView() {
         <button class="slot-add" data-action="open-editor">＋ 安排新時段</button>
       </div>
     </div>
-    ${pendingSports.length ? `
-      <div class="pending-sports-banner">
-        <span class="banner-icon">⚽</span>
-        <div class="banner-text">
-          <strong>你已提交體育暗標：${pendingSports.map(s => `《${safe(s.name)}》（保證金 ${money(s.playerBid)}）`).join('、')}</strong>
-          <p>賽事暗標尚未開標。想即時排播英超／歐聯？前往體育專區可【⚡ 立即提前開標】或【⚡ 補足一口價買斷】即買即播！</p>
-        </div>
-        <button class="primary-button banner-btn" data-action="go-sports">前往體育專區開播 →</button>
-      </div>
-    ` : ''}
     <div class="weekday-tabs" role="group" aria-label="查看每週節目表">${WEEKDAYS.map((name,day)=>`<button data-action="schedule-day" data-day="${day}" class="${selectedDay===day?'active':''}" aria-pressed="${selectedDay===day}">${name}${day===viewing?'<span>今日</span>':''}</button>`).join('')}</div>
     <p class="schedule-tip">每個星期幾可以有唔同節目；點時段改排播。現在查看第 ${previewDay} 日。</p>
     ${editorOpen?'<button class="schedule-scrim" data-action="close-editor" aria-label="關閉時段編輯"></button>':''}
