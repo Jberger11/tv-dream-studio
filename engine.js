@@ -876,6 +876,19 @@ export function getSportsConfig(event) {
   };
 }
 
+export function isSportsActive(event, state) {
+  if (!event || !event.resolved || event.winner !== '你的電視台') return false;
+  const cfg = getSportsConfig(event);
+  const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || (event.name && event.name.includes('全季'));
+  const wonDay = event.wonDay ?? Math.max(1, (event.wonQuarter ?? (event.quarter - 1)) * DAYS_PER_QUARTER + 1);
+  const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
+  return state.day >= wonDay && state.day < wonDay + validDuration;
+}
+
+export function getActiveSportsEvents(state) {
+  return (state.events ?? []).filter(e => isSportsActive(e, state));
+}
+
 export function activeBiddingEvents(state) {
   return (state.events ?? []).filter(e => !e.resolved && e.quarter >= state.quarter && e.quarter - state.quarter <= 3);
 }
@@ -1289,6 +1302,11 @@ export function migrateLegacyLicenses(state) {
       : program.maxFreshness;
     program.lastAiredDay ??= null;
   }
+  for (const ev of state.events ?? []) {
+    if (ev.resolved && ev.winner === '你的電視台') {
+      ev.wonDay ??= Math.max(1, (ev.wonQuarter ?? (ev.quarter - 1)) * DAYS_PER_QUARTER + 1);
+    }
+  }
   // Migrate legacy 7-day sports schedule blocks to realistic matchday slots
   for (const block of [...state.schedule]) {
     if (!block.programId.startsWith('event:')) continue;
@@ -1583,8 +1601,8 @@ export function scheduleProgram(state,start,programId,duration,{days=EVERY_DAY,a
   days=[...days].sort((a,b)=>a-b);
   const special=programId.startsWith('event:');
   if (special) {
-    const event=state.events.find(e=>e.id===programId.slice(6) && e.quarter===state.quarter && e.resolved && e.winner==='你的電視台' && (state.day-1)%DAYS_PER_QUARTER<30);
-    if (!event || duration>24) throw Error('大型賽事只可喺擁有轉播權嘅賽事季度排播，最長 24 小時。');
+    const event = getActiveSportsEvents(state).find(e => e.id === programId.slice(6));
+    if (!event || duration>24) throw Error('體育賽事只可於轉播權有效期內排播，最長 24 小時。');
   } else {
     const program=state.library.find(p=>p.id===programId);
     if (!program || duration>4) throw Error('普通節目只可連續佔用 1 至 4 小時。');
@@ -1642,6 +1660,8 @@ export function resolveAuction(state,event,rng) {
   const winner=bids.reduce((best,b)=>b.amount>best.amount?b:best,bids[0]);
   event.bids=bids; event.winner=winner.name; event.resolved=true;
   if (winner.name==='你的電視台') {
+    event.wonDay = state.day;
+    event.wonQuarter = state.quarter;
     const config=getSportsConfig(event);
     const replaced=[];
     if (config?.defaultSlots?.length) {
@@ -1662,7 +1682,9 @@ export function resolveAuction(state,event,rng) {
         } catch (_) {}
       }
     } else {
-      replaced.push(...scheduleProgram(state,18,`event:${event.id}`,6,{days:EVERY_DAY}));
+      try {
+        replaced.push(...scheduleProgram(state,18,`event:${event.id}`,6,{days:EVERY_DAY}));
+      } catch (_) {}
     }
     event.replacedBlocks=replaced;
     note(state,`《${event.name}》中標！${config?.autoScheduleDesc??'已預排賽事直播時段'}；保證金 ${money(event.playerBid)} 轉作版權費。`,'good');
@@ -1671,6 +1693,64 @@ export function resolveAuction(state,event,rng) {
     if (event.playerBid!==null) state.cash+=event.playerBid;
     note(state,`《${event.name}》由 ${winner.name} 以 ${money(winner.amount)} 中標。你的保證金已退回。`,'neutral');
   }
+}
+
+export function buyoutSportsEvent(state, eventId) {
+  const event = (state.events ?? []).find(e => e.id === eventId);
+  if (!event || event.resolved) throw Error('該賽事轉播權已結算或無法買斷。');
+  const cfg = getSportsConfig(event);
+  const buyoutCost = Math.round(event.floor * 1.35 / 100_000) * 100_000;
+  const existingBid = event.playerBid ?? 0;
+  const additionalCost = buyoutCost - existingBid;
+  if (state.cash < additionalCost) {
+    throw Error(`可用資金不足以一口價買斷。買斷一口價 ${money(buyoutCost)}，尚缺 ${money(additionalCost)}。`);
+  }
+  state.cash -= additionalCost;
+  event.playerBid = buyoutCost;
+  event.winner = '你的電視台';
+  event.resolved = true;
+  event.bids = [
+    { name: '你的電視台（一口價買斷）', amount: buyoutCost },
+    { name: '全城電視', amount: Math.round(event.floor * 1.25 / 100_000) * 100_000 },
+    { name: '本地八台', amount: event.floor }
+  ];
+  event.wonDay = state.day;
+  event.wonQuarter = state.quarter;
+
+  const replaced = [];
+  if (cfg?.defaultSlots?.length) {
+    for (const slot of cfg.defaultSlots) {
+      const overwritesExistingSport = state.schedule.some(b =>
+        b.programId.startsWith('event:') &&
+        b.programId !== `event:${event.id}` &&
+        daysForBlock(b).some(d => slot.days.includes(d)) &&
+        hoursInBlock(b).some(h => hoursInBlock(slot).includes(h))
+      );
+      if (cfg.type === 'pl' && slot.days.includes(1) && overwritesExistingSport) {
+        continue;
+      }
+      try {
+        const rep = scheduleProgram(state, slot.start, `event:${event.id}`, slot.duration, { days: slot.days });
+        replaced.push(...rep);
+      } catch (_) {}
+    }
+  } else {
+    try {
+      replaced.push(...scheduleProgram(state, 18, `event:${event.id}`, 6, { days: EVERY_DAY }));
+    } catch (_) {}
+  }
+  event.replacedBlocks = replaced;
+  note(state, `成功以一口價 ${money(buyoutCost)} 買斷《${event.name}》轉播權！${cfg?.autoScheduleDesc ?? '已預排賽事直播時段'}。`, 'good');
+  if (!state.achievements.includes('體育版權首勝')) state.achievements.push('體育版權首勝');
+  return event;
+}
+
+export function revealAuctionNow(state, eventId, rng = Math.random) {
+  const event = (state.events ?? []).find(e => e.id === eventId);
+  if (!event || event.resolved) throw Error('該賽事轉播權已結算。');
+  if (event.playerBid === null) throw Error('尚未提交暗標，請先輸入出價或選擇一口價買斷。');
+  resolveAuction(state, event, rng);
+  return event;
 }
 
 function oneOffBroadcastEffect(state,program,rating,won) {
@@ -1963,8 +2043,8 @@ export function advanceDay(state,rng=Math.random) {
   let dailyProduction=0;
   const talentBefore=new Map();
   const gameDay=state.day, dayOfQuarter=(gameDay-1)%DAYS_PER_QUARTER+1;
-  const sports=state.events.find(e=>e.quarter===state.quarter && e.resolved && e.winner==='你的電視台');
-  const winningSports=(state.events??[]).filter(e=>e.quarter===state.quarter && e.resolved && e.winner==='你的電視台' && dayOfQuarter<=30);
+  const sports=state.events.find(e=>isSportsActive(e,state));
+  const winningSports=getActiveSportsEvents(state);
   let sportsRevenue=0, sportsPenalty=0;
   const weekday=weekdayForDay(gameDay);
   const todayRuns=new Map();
@@ -2145,13 +2225,22 @@ export function advanceDay(state,rng=Math.random) {
     hours[hour]={hour,title:'未排節目',episode:'',rating:0,revenue:0,decay:1,empty:true,rivals:state.rivals.map(rival=>rivalAtHour(state,rival,hour,gameDay).rating)};
   }
   state.quarterLedger.sportsRevenue+=sportsRevenue;
-  if (winningSports.length && dayOfQuarter===30) {
-    const totalTarget = winningSports.reduce((sum, s) => sum + s.adTarget, 0);
-    sportsPenalty = Math.max(0, Math.round((totalTarget - state.quarterLedger.sportsRevenue) * 0.55));
-    state.quarterLedger.sportsPenalty = sportsPenalty;
-    const names = winningSports.map(s => `《${s.name}》`).join('及');
-    note(state, `${names} 一個月獨家轉播結束。累計體育廣告收入 ${money(state.quarterLedger.sportsRevenue)}${sportsPenalty ? `，對賭賠付 ${money(sportsPenalty)}` : '，圓滿達成贊助商目標！'}。`, sportsPenalty ? 'bad' : 'good');
-    for (const s of winningSports) {
+  const concludingSports = (state.events ?? []).filter(e => {
+    if (!e.resolved || e.winner !== '你的電視台' || e.settled) return false;
+    const cfg = getSportsConfig(e);
+    const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || (e.name && e.name.includes('全季'));
+    const wonDay = e.wonDay ?? Math.max(1, (e.wonQuarter ?? (e.quarter - 1)) * DAYS_PER_QUARTER + 1);
+    const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
+    return gameDay >= wonDay + validDuration - 1;
+  });
+  if (concludingSports.length) {
+    for (const s of concludingSports) {
+      s.settled = true;
+      const target = s.adTarget ?? 8_000_000;
+      const penalty = Math.max(0, Math.round((target - state.quarterLedger.sportsRevenue) * 0.55));
+      sportsPenalty += penalty;
+      state.quarterLedger.sportsPenalty += penalty;
+      note(state, `《${s.name}》轉播權合約期滿圓滿結束。累計體育廣告收入 ${money(state.quarterLedger.sportsRevenue)}${penalty ? `，對賭差額賠付 ${money(penalty)}` : '，圓滿達成贊助商目標！'}。`, penalty ? 'bad' : 'good');
       state.schedule = state.schedule.filter(block => block.programId !== `event:${s.id}`);
       for (const old of s.replacedBlocks ?? []) {
         const available = daysForBlock(old).filter(day => state.schedule.every(block => !runsOnWeekday(block, day) || !hoursInBlock(old).some(hour => hoursInBlock(block).includes(hour))));

@@ -14,8 +14,8 @@ export class Program {
 }
 
 export class BiddingEvent {
-  constructor({ id, name, quarter, floor, adTarget }) {
-    Object.assign(this, { id, name, quarter, floor, adTarget, playerBid: null, resolved: false, winner: null, bids: null });
+  constructor({ id, name, quarter, floor, adTarget, sport = '', icon = '🏅' }) {
+    Object.assign(this, { id, name, quarter, floor, adTarget, sport, icon, playerBid: null, resolved: false, winner: null, bids: null, wonDay: null, wonQuarter: null, settled: false });
   }
 }
 

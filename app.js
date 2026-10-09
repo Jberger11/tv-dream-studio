@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig } from './engine.js';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig } from './engine.js';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -363,10 +363,11 @@ function distributionView() {
 }
 
 function scheduleView() {
-  const wonSports=(state.events??[]).filter(e=>e.quarter===state.quarter && e.resolved && e.winner==='你的電視台' && (state.day-1)%DAYS_PER_QUARTER<30);
+  const wonSports = getActiveSportsEvents(state);
+  const pendingSports = (state.events ?? []).filter(e => !e.resolved && e.playerBid !== null);
   const viewing=weekdayForDay(state.day),selectedDay=scheduleDay??viewing;
   const previewDay=state.day+(selectedDay-viewing+7)%7;
-  const options=[...state.library.filter(p=>!isUnavailable(p,state.day)).map(p=>({id:p.id,title:p.title})),...wonSports.map(s=>({id:`event:${s.id}`,title:`★ ${s.name}（大型賽事）`}))];
+  const options=[...state.library.filter(p=>!isUnavailable(p,state.day)).map(p=>({id:p.id,title:p.title})),...wonSports.map(s=>({id:`event:${s.id}`,title:`🏆 ${s.name}（體育直播）`}))];
   if (!options.some(p=>p.id===editor.programId)) editor.programId=options[0]?.id??'';
   const fixed=state.library.find(p=>p.id===editor.programId)?.episodeHours;
   const max=editor.programId.startsWith('event:')?24:4;
@@ -378,7 +379,7 @@ function scheduleView() {
   const duplicateDetails=duplicate?`${dayPattern(daysForBlock(duplicate))} ${timeRange(duplicate.start,duplicate.duration)}`:'';
   const dayOfQuarter=(state.day-1)%DAYS_PER_QUARTER+1;
   const groupFor=(p,optId)=>optId?.startsWith('event:')?'sports':p?.kind==='catalog'?'catalog':p?.id?.startsWith('start-')?'starter':isDailyFormat(p?.kind)?'daily':'original';
-  const filterTabs=[['all','全部'],['unbooked','未排'],...(wonSports.length>0?[['sports','⚽ 體育']]:[]),['original','自製'],['catalog','外購'],['daily','每日'],['starter','開台片庫']];
+  const filterTabs=[['all','全部'],['unbooked','未排'],...(wonSports.length>0?[['sports',`⚽ 體育 (${wonSports.length})`]]:[]),['original','自製'],['catalog','外購'],['daily','每日'],['starter','開台片庫']];
   const query=editorProgramSearch.trim().toLocaleLowerCase('zh-HK');
   const visibleOptions=options.filter(option=>{const p=state.library.find(item=>item.id===option.id),group=groupFor(p,option.id),booked=state.schedule.some(block=>block.programId===option.id);return (editorProgramGroup==='all'||editorProgramGroup==='unbooked'&&!booked||editorProgramGroup===group)&&(!query||`${option.title} ${p?.category??''} ${p?.genre??''} ${p?.topic??''}`.toLocaleLowerCase('zh-HK').includes(query))});
   const selectedProgram=options.find(option=>option.id===editor.programId);
@@ -406,12 +407,22 @@ function scheduleView() {
         <button class="slot-add" data-action="open-editor">＋ 安排新時段</button>
       </div>
     </div>
+    ${pendingSports.length ? `
+      <div class="pending-sports-banner">
+        <span class="banner-icon">⚽</span>
+        <div class="banner-text">
+          <strong>你已提交體育暗標：${pendingSports.map(s => `《${safe(s.name)}》（保證金 ${money(s.playerBid)}）`).join('、')}</strong>
+          <p>賽事暗標尚未開標。想即時排播英超／歐聯？前往體育專區可【⚡ 立即提前開標】或【⚡ 補足一口價買斷】即買即播！</p>
+        </div>
+        <button class="primary-button banner-btn" data-action="go-sports">前往體育專區開播 →</button>
+      </div>
+    ` : ''}
     <div class="weekday-tabs" role="group" aria-label="查看每週節目表">${WEEKDAYS.map((name,day)=>`<button data-action="schedule-day" data-day="${day}" class="${selectedDay===day?'active':''}" aria-pressed="${selectedDay===day}">${name}${day===viewing?'<span>今日</span>':''}</button>`).join('')}</div>
     <p class="schedule-tip">每個星期幾可以有唔同節目；點時段改排播。現在查看第 ${previewDay} 日。</p>
     ${editorOpen?'<button class="schedule-scrim" data-action="close-editor" aria-label="關閉時段編輯"></button>':''}
     <div class="schedule-editor ${editorOpen?'open':''}" ${editorOpen?'role="dialog" aria-modal="true" aria-label="安排播映時段"':'hidden'}><div class="schedule-editor-heading">安排 ${timeRange(editor.start,editor.duration)} <button class="editor-dismiss" data-action="close-editor" aria-label="關閉時段編輯">✕</button></div>
       <div class="schedule-fields"><label>開始時間<select data-action="editor-start">${Array.from({length:24},(_,i)=>`<option value="${i}" ${editor.start===i?'selected':''}>${hourLabel(i)}</option>`).join('')}</select></label><label>播映長度<select data-action="editor-duration" ${fixed?'disabled':''}>${(fixed?[fixed]:Array.from({length:max},(_,i)=>i+1)).map(n=>`<option value="${n}" ${editor.duration===n?'selected':''}>${n} 小時</option>`).join('')}</select></label></div>
-      <div class="program-picker"><div class="picker-heading"><strong>選擇節目</strong><span>已揀：${safe(selectedProgram?.title??'未選')}${(()=>{const sp=options.find(o=>o.id===editor.programId);const it=sp?state.library.find(p=>p.id===sp.id):null;if(!it)return '';const sf=freshnessLabel(it.freshness,it.maxFreshness);return ` · <b class="sel-freshness-tag ${sf.tier}">${sf.icon} 新鮮度 ${sf.percent}%</b>`;})()}</span></div><input type="search" data-action="editor-program-search" value="${safe(editorProgramSearch)}" placeholder="搜尋節目名、類型或題材" aria-label="搜尋排播節目" autocomplete="off"><div class="picker-filters" aria-label="節目分類">${filterTabs.map(([id,label])=>`<button data-action="editor-program-group" data-value="${id}" aria-pressed="${editorProgramGroup===id}" class="${editorProgramGroup===id?'active':''}">${label}</button>`).join('')}</div><div class="program-choices" aria-label="可排播節目">${visibleOptions.length?visibleOptions.map(option=>{const item=state.library.find(p=>p.id===option.id),bookings=state.schedule.filter(block=>block.programId===option.id),booked=bookings.map(block=>`${dayPattern(daysForBlock(block))} ${hourLabel(block.start)}`).join('、');const subtitle=booked?`已排 ${booked}`:'未排';const episodes=item?.episodes?`${item.kind==='catalog'?catalogCycleProgress(item).remaining:Math.max(0,item.episodes-item.runs)} 集可播`:isDailyFormat(item?.kind)?'每日新一期':option.id.startsWith('event:')?'大型賽事':'常規播放';const f=item?freshnessLabel(item.freshness,item.maxFreshness):null;return `<button data-action="editor-program-card" data-id="${safe(option.id)}" class="program-choice ${editor.programId===option.id?'chosen':''}" aria-pressed="${editor.programId===option.id}"><span class="program-choice-icon">${safe(premiereProfile(item?.kind).symbol)}</span><span class="program-choice-text"><strong>${safe(option.title)}</strong><small>${safe(item?.category??'體育')} · ${safe(episodes)}</small></span><span class="program-choice-status">${f?`<span class="choice-fresh-tag ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`:'<span class="choice-fresh-tag high">🏆 體育</span>'}<span>${safe(subtitle)}</span></span></button>`}).join(''):'<p class="picker-empty">搵唔到節目。試吓清除搜尋或轉分類。</p>'}</div></div>
+      <div class="program-picker"><div class="picker-heading"><strong>選擇節目</strong><span>已揀：${safe(selectedProgram?.title??'未選')}${(()=>{const sp=options.find(o=>o.id===editor.programId);const it=sp?state.library.find(p=>p.id===sp.id):null;if(!it)return '';const sf=freshnessLabel(it.freshness,it.maxFreshness);return ` · <b class="sel-freshness-tag ${sf.tier}">${sf.icon} 新鮮度 ${sf.percent}%</b>`;})()}</span></div><input type="search" data-action="editor-program-search" value="${safe(editorProgramSearch)}" placeholder="搜尋節目名、類型或題材" aria-label="搜尋排播節目" autocomplete="off"><div class="picker-filters" aria-label="節目分類">${filterTabs.map(([id,label])=>`<button data-action="editor-program-group" data-value="${id}" aria-pressed="${editorProgramGroup===id}" class="${editorProgramGroup===id?'active':''}">${label}</button>`).join('')}</div><div class="program-choices" aria-label="可排播節目">${visibleOptions.length?visibleOptions.map(option=>{const item=state.library.find(p=>p.id===option.id),bookings=state.schedule.filter(block=>block.programId===option.id),booked=bookings.map(block=>`${dayPattern(daysForBlock(block))} ${hourLabel(block.start)}`).join('、');const subtitle=booked?`已排 ${booked}`:'未排';const episodes=item?.episodes?`${item.kind==='catalog'?catalogCycleProgress(item).remaining:Math.max(0,item.episodes-item.runs)} 集可播`:isDailyFormat(item?.kind)?'每日新一期':option.id.startsWith('event:')?'全季直播賽事':'常規播放';const f=item?freshnessLabel(item.freshness,item.maxFreshness):null;return `<button data-action="editor-program-card" data-id="${safe(option.id)}" class="program-choice ${editor.programId===option.id?'chosen':''}" aria-pressed="${editor.programId===option.id}"><span class="program-choice-icon">${safe(option.id.startsWith('event:')?'⚽':premiereProfile(item?.kind).symbol)}</span><span class="program-choice-text"><strong>${safe(option.title)}</strong><small>${safe(item?.category??'體育直播')} · ${safe(episodes)}</small></span><span class="program-choice-status">${f?`<span class="choice-fresh-tag ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`:'<span class="choice-fresh-tag high">🏆 體育</span>'}<span>${safe(subtitle)}</span></span></button>`}).join(''):'<p class="picker-empty">搵唔到節目。試吓清除搜尋或轉分類。</p>'}</div></div>
       <div class="recurrence">
         <div class="recurrence-head-row">
           <strong>播出日子</strong>
@@ -673,6 +684,25 @@ function catalogView() {
     <div class="legend">本月片單 <strong>第 ${month} 個月 · 尚餘 ${nextRefresh - state.day} 日換月</strong></div>
   </div>
 
+  ${(()=>{
+    const activeSports = getActiveSportsEvents(state);
+    if (!activeSports.length) return '';
+    return `<div class="catalog-sports-bar">
+      <span class="sports-badge">🏆 體育轉播權</span>
+      <div class="sports-bar-text">
+        ${activeSports.map(s => {
+          const cfg = getSportsConfig(s);
+          const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || (s.name && s.name.includes('全季'));
+          const wonDay = s.wonDay ?? Math.max(1, (s.wonQuarter ?? (s.quarter - 1)) * DAYS_PER_QUARTER + 1);
+          const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
+          const daysLeft = Math.max(0, wonDay + validDuration - state.day);
+          return `<strong>${safe(s.name)}</strong>（尚餘 ${daysLeft} 天）`;
+        }).join(' · ')}
+      </div>
+      <button class="primary-button" data-action="go-schedule">前往節目表排播 →</button>
+    </div>`;
+  })()}
+
   <div class="catalog-subnav" role="tablist" aria-label="片庫分頁">
     <button class="subnav-tab ${catalogSubTab==='market'?'active':''}" data-action="catalog-subtab" data-value="market" role="tab" aria-selected="${catalogSubTab==='market'}">
       🛒 外購節目市場 <span class="subnav-count">${listings.length}</span>
@@ -799,13 +829,52 @@ function catalogView() {
 }
 
 function sportsView() {
+  const activeSports=getActiveSportsEvents(state);
   const events=activeBiddingEvents(state);
   const recentList=(state.events??[]).filter(e=>e.resolved).slice(-4).reverse();
-  return `<div class="page-head"><div><div class="eyebrow gold">SEALED BID</div><h1>體育版權暗標競投</h1><p>涵蓋四年一度體育盛事（夏季奧運、FIFA世界盃、歐洲國家盃、冬季奧運）及英超、歐聯等全季轉播權。暗標開標前全額保證金凍結，得標後排播可獲超高收視！</p></div></div>
+  return `<div class="page-head"><div><div class="eyebrow gold">SPORTS BROADCAST RIGHTS</div><h1>體育版權中心 · 競投與買斷</h1><p>涵蓋英超、歐聯等全季轉播權及奧運、世界盃等頂級盛事。可選擇【一口價即時買斷】即買即播，亦可透過【暗標競投】比拼對台！</p></div></div>
+    ${activeSports.length ? `
+      <section class="panel sports-active-section">
+        <div class="section-heading">
+          <h2>🏆 已持有轉播權賽事（現正熱播）</h2>
+          <span>即時直播資產 · 隨時可排播</span>
+        </div>
+        <div class="sports-active-grid">
+          ${activeSports.map(s => {
+            const cfg = getSportsConfig(s);
+            const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || (s.name && s.name.includes('全季'));
+            const wonDay = s.wonDay ?? Math.max(1, (s.wonQuarter ?? (s.quarter - 1)) * DAYS_PER_QUARTER + 1);
+            const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
+            const daysLeft = Math.max(0, wonDay + validDuration - state.day);
+            const bookedBlocks = state.schedule.filter(b => b.programId === `event:${s.id}`);
+            const bookedSummary = bookedBlocks.length ? bookedBlocks.map(b => `${dayPattern(daysForBlock(b))} ${hourLabel(b.start)}`).join('、') : '尚未排播';
+            return `<div class="sports-owned-card">
+              <div class="sports-owned-info">
+                <span class="sports-icon-badge">${s.icon || '🏅'}</span>
+                <div>
+                  <strong>${safe(s.name)}</strong>
+                  <p>轉播權有效中（至第 ${wonDay + validDuration - 1} 日，尚餘 ${daysLeft} 天） · 當前排播：<b>${safe(bookedSummary)}</b></p>
+                </div>
+              </div>
+              <button class="primary-button" data-action="go-schedule">前往節目表排播 →</button>
+            </div>`;
+          }).join('')}
+        </div>
+      </section>
+    ` : ''}
     <div class="sports-bidding-grid">
       ${events.length?events.map(event=>{
         const isReadyToBid=event.quarter>state.quarter;
         const quartersUntil=event.quarter-state.quarter;
+        const buyoutCost=Math.round(event.floor*1.35/100_000)*100_000;
+        const existingBid=event.playerBid??0;
+        const neededBuyout=buyoutCost-existingBid;
+        const cfg = getSportsConfig(event);
+        const desc = cfg?.type === 'pl'
+          ? '⚽ 英超聯賽：真實亞洲時區轉播。買斷或中標後預排【週末焦點（週六日 19:00–24:00）】及【週中快車（週二三 01:00–04:00）】直播；週一、四、五不佔用頻道，直播收視高達 98 點！'
+          : cfg?.type === 'ucl'
+          ? '⭐ 歐聯賽事：歐聯淘汰賽與決賽嚴格於【週二三深夜 01:00–05:00】直播，週末絕無賽事，與英超賽程完美共存不衝突，深夜收視震撼爆燈！'
+          : '依真實賽程排播焦點直播，直播收視可達 98 點；廣告收入達唔到目標需賠付差額。';
         return `<section class="panel sports-bid-card ${event.playerBid!==null?'has-bid':''}">
           <div class="sports-card-top">
             <span class="sports-icon-badge">${event.icon||'🏅'}</span>
@@ -816,36 +885,54 @@ function sportsView() {
           </div>
           <div class="sports-metrics">
             <div><small>競投底價</small><b>${money(event.floor)}</b></div>
+            <div><small>一口價買斷</small><b class="gold-text">${money(buyoutCost)}</b></div>
             <div><small>廣告對賭目標</small><b>${money(event.adTarget)}</b></div>
             <div><small>我的暗標</small><b class="${event.playerBid!==null?'gold-text':'muted'}">${event.playerBid!==null?money(event.playerBid):'未出價'}</b></div>
-          ${(()=>{
-            const cfg = getSportsConfig(event);
-            const desc = cfg?.type === 'pl'
-              ? '⚽ 英超聯賽：真實亞洲時區轉播。中標後預排【週末焦點（週六日 19:00–24:00）】及【週中快車（週二三 01:00–04:00）】直播；週一、四、五不佔用頻道，直播收視高達 98 點！'
-              : cfg?.type === 'ucl'
-              ? '⭐ 歐聯賽事：歐聯淘汰賽與決賽嚴格於【週二三深夜 01:00–05:00】直播，週末絕無賽事，與英超賽程完美共存不衝突，深夜收視震撼爆燈！'
-              : '中標後依真實賽程排播焦點直播，直播收視可達 98 點；廣告收入達唔到目標需賠付差額。';
-            return `<p class="sports-card-desc">${desc}</p>`;
-          })()}
-          ${isReadyToBid?`
-            <form class="bid-form" data-event="${safe(event.id)}">
-              <div class="bid-input-row">
-                <label for="bid-${safe(event.id)}">暗標出價</label>
+          </div>
+          <p class="sports-card-desc">${desc}</p>
+          <div class="sports-action-box">
+            ${event.playerBid!==null ? `
+              <div class="bid-current-status">
+                <span class="status-tag gold">🕒 已提交暗標：${money(event.playerBid)}（保證金已凍結）</span>
+                <div class="sports-fast-actions">
+                  <button type="button" class="primary-button" data-action="sports-reveal-now" data-event="${safe(event.id)}">⚡ 立即提前揭曉底牌</button>
+                  <button type="button" class="gold-button" data-action="sports-buyout" data-event="${safe(event.id)}" ${state.cash < neededBuyout ? 'disabled' : ''}>⚡ 補足 ${money(neededBuyout)} 一口價買斷（即買即播）</button>
+                </div>
+              </div>
+              <form class="bid-form inline-bid-form" data-event="${safe(event.id)}">
+                <label for="bid-${safe(event.id)}">修改暗標</label>
                 <div class="bid-input">
                   <span>$</span>
-                  <input id="bid-${safe(event.id)}" name="amount" type="number" step="0.1" min="${event.floor/1_000_000}" max="100" required value="${event.playerBid!==null?(event.playerBid/1_000_000).toFixed(1):(event.floor*1.35/1_000_000).toFixed(1)}"/>
+                  <input id="bid-${safe(event.id)}" name="amount" type="number" step="0.1" min="${event.floor/1_000_000}" max="100" required value="${(event.playerBid/1_000_000).toFixed(1)}"/>
                   <span>m</span>
                 </div>
-                <button class="primary-button bid-submit-btn" type="submit">${event.playerBid!==null?'修改暗標':'封標投出'} <span>↗</span></button>
+                <button class="soft-button bid-submit-btn" type="submit">更新暗標</button>
+              </form>
+            ` : `
+              <div class="sports-fast-actions">
+                <button type="button" class="gold-button buyout-btn" data-action="sports-buyout" data-event="${safe(event.id)}" ${state.cash < buyoutCost ? 'disabled' : ''}>⚡ 一口價買斷全季轉播權（${money(buyoutCost)} · 即買即播）</button>
               </div>
-              ${event.playerBid!==null?`<div class="bid-note">已凍結保證金 ${money(event.playerBid)} · 開標日前可隨時修改</div>`:''}
-            </form>
-          `:`<p class="bid-closed-note">此賽事即將開標或已截止。</p>`}
+              <div class="or-divider"><span>或選擇暗標競投</span></div>
+              <form class="bid-form" data-event="${safe(event.id)}">
+                <div class="bid-input-row">
+                  <label for="bid-${safe(event.id)}">暗標出價</label>
+                  <div class="bid-input">
+                    <span>$</span>
+                    <input id="bid-${safe(event.id)}" name="amount" type="number" step="0.1" min="${event.floor/1_000_000}" max="100" required value="${(event.floor*1.35/1_000_000).toFixed(1)}"/>
+                    <span>m</span>
+                  </div>
+                  <button class="primary-button bid-submit-btn" type="submit">封標投出 <span>↗</span></button>
+                </div>
+                <div class="bid-note">暗標出價凍結保證金 · 開標日揭曉對手底牌</div>
+              </form>
+            `}
+          </div>
         </section>`;
-      }).join(''):'<p class="empty panel">目前未有開放投標嘅體育版權賽事，請繼續推進季度。</p>'}
+      }).join(''):'<p class="empty panel">目前未有開放投標或買斷嘅體育版權賽事，請繼續推進季度。</p>'}
     </div>
     <div class="rivals"><div class="section-heading"><h2>競爭電視台競投風格</h2><span>三間對手會在開標日同時掀開底牌</span></div><div class="rival-grid"><div><span class="rival-icon">01</span><strong>全城電視</strong><small>大型電視網 · 財雄勢大，出價通常高出底價 35%–75%</small></div><div><span class="rival-icon">02</span><strong>本地八台</strong><small>地區台 · 審慎保守，出價通常貼近底價</small></div><div><span class="rival-icon">03</span><strong>視界台</strong><small>小眾台 · 偶爾爆冷高價搶奪特定賽事</small></div></div></div>
-    ${recentList.length?`<section class="panel auction-results-history"><div class="section-heading"><h2>近期賽事開標紀錄</h2><span>揭曉結果</span></div><div class="recent-auctions-grid">${recentList.map(recent=>`<article class="recent-auction-item ${recent.winner==='你的電視台'?'we-won':''}"><div class="recent-auction-header"><strong>${safe(recent.name)}</strong><span class="winner-tag ${recent.winner==='你的電視台'?'gold':''}">得標者：${safe(recent.winner)}</span></div><div class="bid-list">${(recent.bids??[]).sort((a,b)=>b.amount-a.amount).map((b,i)=>`<div class="${b.name==='你的電視台'?'is-our-bid':''}"><span>${String(i+1).padStart(2,'0')} · ${safe(b.name)}</span><strong>${money(b.amount)}</strong></div>`).join('')}</div></article>`).join('')}</div></section>`:''}`;
+    ${recentList.length?`<section class="panel auction-results-history"><div class="section-heading"><h2>近期賽事開標紀錄</h2><span>揭曉結果</span></div><div class="recent-auctions-grid">${recentList.map(recent=>`<article class="recent-auction-item ${recent.winner==='你的電視台'?'we-won':''}"><div class="recent-auction-header"><strong>${safe(recent.name)}</strong><span class="winner-tag ${recent.winner==='你的電視台'?'gold':''}">得標者：${safe(recent.winner)}</span></div><div class="bid-list">${(recent.bids??[]).sort((a,b)=>b.amount-a.amount).map((b,i)=>`<div class="${b.name==='你的電視台'?'is-our-bid':''}"><span>${String(i+1).padStart(2,'0')} · ${safe(b.name)}</span><strong>${money(b.amount)}</strong></div>`).join('')}</div></article>`).join('')}</div></section>`:''}
+`;
 }
 
 function hourlyComparisonView() {
@@ -1115,6 +1202,24 @@ app.addEventListener('click',e=>{
       }
       editor.allowRepeat=false;
       render();
+    }
+    if(action==='go-sports'){tab='sports';resetScroll=true;render();return;}
+    if(action==='go-schedule'){tab='schedule';resetScroll=true;render();return;}
+    if(action==='sports-buyout'){
+      const ev=buyoutSportsEvent(state,button.dataset.event);
+      flash(`成功買斷《${ev.name}》全季轉播權！已自動預排直播時段。`);
+      tab='schedule';resetScroll=true;render();return;
+    }
+    if(action==='sports-reveal-now'){
+      const ev=revealAuctionNow(state,button.dataset.event,Math.random);
+      if(ev.winner==='你的電視台'){
+        flash(`恭喜中標《${ev.name}》！已自動預排直播時段。`);
+        tab='schedule';resetScroll=true;render();
+      }else{
+        flash(`很遺憾，《${ev.name}》由 ${ev.winner} 得標，保證金已全額退回。`);
+        render();
+      }
+      return;
     }
     if(action==='apply-sports-slot'){
       editor.start=Number(button.dataset.start);

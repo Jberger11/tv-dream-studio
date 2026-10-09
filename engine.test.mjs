@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -997,4 +997,50 @@ test('actor fame can drop when a show flops and decays upon extended inactivity'
   const idleDayResult = advanceDay(state, () => 0.5);
   assert.ok(state.talent[idleActorId].fame < 90, `Idle fame should decay: ${state.talent[idleActorId].fame} < 90`);
   assert.ok(idleDayResult.talentChanges.some(t => t.id === idleActorId && t.reason === '久未露面人氣降溫'));
+});
+
+test('sports buyout and early reveal grant active rights and allow scheduling past day 30', () => {
+  const state = newGame();
+  state.cash = 60_000_000;
+
+  const events = activeBiddingEvents(state);
+  const plEvent = events.find(e => e.id === 'pl' || (e.name && e.name.includes('英超'))) || events[0];
+  assert.ok(plEvent, 'Should have bidding event available');
+
+  // Instant buyout
+  const bought = buyoutSportsEvent(state, plEvent.id);
+  assert.equal(bought.winner, '你的電視台');
+  assert.equal(bought.resolved, true);
+  assert.equal(bought.settled, false); // Contract active, not yet settled/expired
+  assert.ok(bought.wonDay >= 1);
+
+  // Active in getActiveSportsEvents
+  const active = getActiveSportsEvents(state);
+  assert.ok(active.some(e => e.id === plEvent.id));
+
+  // Event was automatically scheduled by buyout
+  const autoScheduled = state.schedule.filter(b => b.programId === `event:${plEvent.id}`);
+  assert.ok(autoScheduled.length > 0, 'Buyout should automatically pre-schedule slots');
+
+  // Schedulable past Day 30 without throwing
+  state.day = 45;
+  assert.doesNotThrow(() => {
+    scheduleProgram(state, 14, `event:${plEvent.id}`, 2, { allowRepeat: true });
+  });
+
+  // Advance day at day 45 - should not wipe out the sport block
+  advanceDay(state, () => 0.5);
+  const scheduledBlock = state.schedule.find(b => b.programId === `event:${plEvent.id}`);
+  assert.ok(scheduledBlock, 'Event should remain scheduled past Day 30');
+
+  // Early reveal with another event
+  const otherEvent = activeBiddingEvents(state).find(e => e.id !== plEvent.id);
+  if (otherEvent) {
+    submitBid(state, otherEvent.floor * 2, otherEvent.id);
+    const revealed = revealAuctionNow(state, otherEvent.id, () => 0.1);
+    assert.equal(revealed.resolved, true);
+    assert.equal(revealed.settled, false);
+    assert.equal(revealed.winner, '你的電視台');
+    assert.ok(getActiveSportsEvents(state).some(e => e.id === otherEvent.id));
+  }
 });
