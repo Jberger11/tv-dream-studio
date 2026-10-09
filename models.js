@@ -2,8 +2,8 @@
 /** @typedef {'drama'|'variety'|'night'|'children'|'sitcom'|'talkshow'|'reality'|'travel'|'music'|'news'|'finance'|'information'|'politics'|'social'|'charity'|'contest'|'pageant'|'catalog'} ProgramKind */
 
 export class Actor {
-  constructor(id, name, skill, fee, specialty, source = 'tvb') {
-    Object.assign(this, { id, name, skill, fee, specialty, source });
+  constructor(id, name, skill, fee, specialty, source = 'tvb', contractType = 'freelance', contractDaysLeft = 0, stamina = 100, trainedCount = 0) {
+    Object.assign(this, { id, name, skill, fee, specialty, source, contractType, contractDaysLeft, stamina, trainedCount });
   }
 }
 
@@ -106,6 +106,16 @@ export class StationState {
     this.viralShowBoost = null;
     this.rivalPurchases = [];
     this.lastFanMeetingDay = -999;
+    // New Feature Systems
+    this.adPricingStrategy = 'standard'; // 'budget' | 'standard' | 'premium'
+    this.activeAdContracts = [];
+    this.adContractsMarket = [];
+    this.facilities = { studio: 1, postLab: 1, prDept: 1, newsFleet: 1 };
+    this.boardSatisfaction = 75;
+    this.boardWarnings = 0;
+    this.boardHistory = [];
+    this.subChannelUnlocked = false;
+    this.subChannelSchedule = [];
     this.log = [{ quarter:0, text:'電視台開台。片庫已有 12 套節目，24 小時時段全部排好。', type:'neutral' }];
   }
 }

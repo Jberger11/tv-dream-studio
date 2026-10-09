@@ -705,6 +705,259 @@ export function rivalPremiere(rival,day) {
   return {title,genre,rating,month,slot:'19:00–21:00'};
 }
 
+export const AD_CONTRACT_TEMPLATES = [
+  {
+    id: 'ad-rolls-royce',
+    name: '勞斯萊斯汽車 (Rolls-Royce)',
+    category: '尊尚名車',
+    icon: '🏎️',
+    description: '冠名贊助黃金檔劇集與綜藝，要求極致品味與頂級收視群。',
+    targetType: 'prime', // 18..23
+    targetRating: 66,
+    durationDays: 30,
+    advancePayment: 3_600_000,
+    bonusPayment: 6_400_000,
+    penalty: 2_500_000
+  },
+  {
+    id: 'ad-patek-philippe',
+    name: '百達斐麗鐘錶 (Patek Philippe)',
+    category: '瑞士名錶',
+    icon: '⌚',
+    description: '全日高品質節目特約贊助，要求全天平均收視穩居前列。',
+    targetType: 'all',
+    targetRating: 55,
+    durationDays: 30,
+    advancePayment: 2_600_000,
+    bonusPayment: 4_800_000,
+    penalty: 1_800_000
+  },
+  {
+    id: 'ad-hang-seng',
+    name: '恒生優越理財 (Hang Seng Wealth)',
+    category: '金融理財',
+    icon: '💼',
+    description: '贊助晨早新聞、開市財經及午後專題時段。',
+    targetType: 'day', // 6..17
+    targetRating: 50,
+    durationDays: 30,
+    advancePayment: 2_000_000,
+    bonusPayment: 3_800_000,
+    penalty: 1_200_000
+  },
+  {
+    id: 'ad-swire-luxury',
+    name: '太古地產頂級豪宅 (Swire Properties)',
+    category: '高端地產',
+    icon: '🏢',
+    description: '鎖定週末黃金檔（週六、日 19:00–24:00）旗艦節目。',
+    targetType: 'weekend_prime',
+    targetRating: 70,
+    durationDays: 30,
+    advancePayment: 4_000_000,
+    bonusPayment: 7_500_000,
+    penalty: 3_000_000
+  },
+  {
+    id: 'ad-vitasoy',
+    name: '維他奶國際 (Vitasoy)',
+    category: '家庭飲品',
+    icon: '🧃',
+    description: '贊助晚間綜藝與處境喜劇，陪伴全港家庭用餐。',
+    targetType: 'prime',
+    targetRating: 58,
+    durationDays: 30,
+    advancePayment: 1_800_000,
+    bonusPayment: 3_200_000,
+    penalty: 1_000_000
+  },
+  {
+    id: 'ad-nin-jiom',
+    name: '京都念慈菴 (Nin Jiom)',
+    category: '健康醫藥',
+    icon: '🍯',
+    description: '特約贊助深夜與慢活清晨時段，為夜貓及晨型觀眾護航。',
+    targetType: 'dawn', // 0..5
+    targetRating: 42,
+    durationDays: 30,
+    advancePayment: 1_400_000,
+    bonusPayment: 2_400_000,
+    penalty: 800_000
+  }
+];
+
+export const FACILITY_CONFIGS = {
+  studio: {
+    id: 'studio',
+    name: '製作攝影棚',
+    icon: '🎬',
+    levels: [
+      { level: 1, name: '小型實景棚', cost: 0, qualityBonus: 0, qualityCap: 75, desc: '基礎拍攝影棚，滿足日常節目錄製。' },
+      { level: 2, name: '數碼高清攝影棚', cost: 4_500_000, qualityBonus: 5, qualityCap: 88, desc: '配備全高清廣播級攝錄設備，自製節目品質上限提升至 88，初始品質 +5。' },
+      { level: 3, name: '4K 實景超大影棚', cost: 12_000_000, qualityBonus: 10, qualityCap: 99, desc: '荷里活級虛擬實境與超大影棚，自製劇品質上限解鎖至 99，初始品質 +10！' }
+    ]
+  },
+  postLab: {
+    id: 'postLab',
+    name: '後期製作剪輯室',
+    icon: '💻',
+    levels: [
+      { level: 1, name: '基礎剪接室', cost: 0, reviewBonus: 0, desc: '常規非線性剪接室。' },
+      { level: 2, name: '數碼特效與調色工作室', cost: 3_200_000, reviewBonus: 4, desc: '高階音效合成與達芬奇調色，新節目首播口碑評分 +4。' },
+      { level: 3, name: '頂級虛擬後期製作中心', cost: 8_500_000, reviewBonus: 8, desc: '荷里活級電影特效後期中樞，新節目首播口碑 +8，Cult 經典機率提升。' }
+    ]
+  },
+  prDept: {
+    id: 'prDept',
+    name: '公關宣傳與宣發部',
+    icon: '📢',
+    levels: [
+      { level: 1, name: '常規宣傳組', cost: 0, buzzBonus: 0, desc: '發布日常節目預告與新聞稿。' },
+      { level: 2, name: '整合營銷傳播部', cost: 2_800_000, buzzBonus: 10, desc: '社交媒體矩陣與全港戶外大牌聯動，新節目首播話題度 +10，觀眾投訴減半。' },
+      { level: 3, name: '跨媒體全渠道宣發中心', cost: 7_500_000, buzzBonus: 20, desc: '全球發行與頂流造勢能力，新節目話題度 +20，藝人撲街時知名度倒扣減半！' }
+    ]
+  },
+  newsFleet: {
+    id: 'newsFleet',
+    name: '新聞採訪車隊',
+    icon: '🚐',
+    levels: [
+      { level: 1, name: '常規採訪車', cost: 0, newsBonus: 0, desc: '市區常規採訪車輛。' },
+      { level: 2, name: '衛星直播採訪車隊', cost: 2_500_000, newsBonus: 0.25, desc: '全天候即時衛星轉播車，突發新聞事件發生時，新聞時段收視率額外 +25%。' },
+      { level: 3, name: '5G 空地一體報道中樞', cost: 6_800_000, newsBonus: 0.50, desc: '無人機空拍與 5G 極速直播，突發大事件收視率激增 +50%，開市財經收益 +25%！' }
+    ]
+  }
+};
+
+export function contractTargetDesc(contract) {
+  const typeMap = {
+    prime: '黃金檔（18:00–24:00）',
+    day: '日間時段（06:00–18:00）',
+    dawn: '深夜清晨（00:00–06:00）',
+    weekend_prime: '週末黃金檔（週六日 19:00–24:00）',
+    all: '全日 24 小時'
+  };
+  return `${typeMap[contract.targetType] ?? '指定時段'}連續 ${contract.durationDays} 天平均收視達到 ${contract.targetRating} 點`;
+}
+
+export function signAdContract(state, templateId) {
+  state.activeAdContracts ??= [];
+  if (state.activeAdContracts.length >= 3) {
+    throw Error('最多同時簽署 3 份品牌贊助合約。請等待現有合約期滿。');
+  }
+  const template = AD_CONTRACT_TEMPLATES.find(t => t.id === templateId);
+  if (!template) throw Error('搵唔到該品牌廣告合約。');
+  if (state.activeAdContracts.some(c => c.id === templateId)) {
+    throw Error('已簽署該品牌贊助合約，合約進行中不能重複簽署。');
+  }
+  const contract = {
+    ...template,
+    startDay: state.day,
+    daysElapsed: 0,
+    ratings: []
+  };
+  state.activeAdContracts.push(contract);
+  state.cash += template.advancePayment;
+  note(state, `成功簽約《${template.name}》贊助合約！即時收取預付金 ${money(template.advancePayment)}。目標要求：${contractTargetDesc(template)}。`, 'good');
+  return contract;
+}
+
+export function setAdPricingStrategy(state, strategy) {
+  if (!['budget', 'standard', 'premium'].includes(strategy)) throw Error('未知的廣告定價策略。');
+  state.adPricingStrategy = strategy;
+  const label = strategy === 'budget' ? '特價推廣（薄利多銷 · -15% 廣告費，觀眾好感提升）' : strategy === 'premium' ? '黃金檔溢價（高價招商 · 黃金檔收益 +25%）' : '標準定價（穩健平衡）';
+  note(state, `電視台廣告定價策略調整為：${label}。`, 'neutral');
+}
+
+export function upgradeFacility(state, facilityKey) {
+  state.facilities ??= { studio: 1, postLab: 1, prDept: 1, newsFleet: 1 };
+  const facility = FACILITY_CONFIGS[facilityKey];
+  if (!facility) throw Error('未知的設施部門。');
+  const currentLevel = state.facilities[facilityKey] ?? 1;
+  const nextConfig = facility.levels.find(l => l.level === currentLevel + 1);
+  if (!nextConfig) throw Error('該部門設施已達最高規格等級！');
+  if (state.cash < nextConfig.cost) {
+    throw Error(`資金不足以擴建設施。需要 ${money(nextConfig.cost)}，現有資金 ${money(state.cash)}。`);
+  }
+  state.cash -= nextConfig.cost;
+  state.facilities[facilityKey] = nextConfig.level;
+  note(state, `🏢 成功擴建【${facility.name}】至【${nextConfig.name}】（投入 ${money(nextConfig.cost)}）！${nextConfig.desc}`, 'good');
+  return nextConfig;
+}
+
+export function signExclusiveTalent(state, actorId, durationDays = 90) {
+  const actor = ACTORS.find(a => a.id === actorId);
+  if (!actor) throw Error('未搵到該藝人。');
+  const t = (state.talent ?? {})[actorId];
+  if (!t) throw Error('藝人未加入電視台名冊。');
+  const multiplier = durationDays === 90 ? 2.2 : 7.0;
+  const cost = Math.round(actor.fee * multiplier / 10_000) * 10_000;
+  if (state.cash < cost) {
+    throw Error(`資金不足以簽署專屬經理人合約。需要簽約金 ${money(cost)}，現有資金 ${money(state.cash)}。`);
+  }
+  state.cash -= cost;
+  t.contractType = 'exclusive';
+  t.contractDaysLeft = (t.contractDaysLeft ?? 0) + durationDays;
+  t.stamina = Math.min(100, (t.stamina ?? 100) + 15);
+  note(state, `⭐ 成功與【${actor.name}】簽署專屬台柱經理人合約（${durationDays} 日 · 簽字費 ${money(cost)}）！合約期內拍攝自製劇片酬 $0，並每季為電視台貢獻商業代言收益！`, 'good');
+  return t;
+}
+
+export function trainTalent(state, actorId, trainingType = 'acting') {
+  const actor = ACTORS.find(a => a.id === actorId);
+  if (!actor) throw Error('未搵到該藝人。');
+  const t = (state.talent ?? {})[actorId];
+  if (!t) throw Error('藝人未加入電視台名冊。');
+  const cost = 180_000;
+  if (state.cash < cost) throw Error(`資金不足以安排訓練班。需要學費 ${money(cost)}。`);
+  state.cash -= cost;
+  t.trainedCount = (t.trainedCount ?? 0) + 1;
+  t.stamina = Math.max(0, (t.stamina ?? 100) - 10);
+  if (trainingType === 'acting') {
+    t.skill = Math.min(99, (t.skill ?? actor.skill) + 3);
+    note(state, `🎭【${actor.name}】完成「藝人訓練班：演技深造大師班」，演技提升至 ${t.skill}！`, 'good');
+  } else {
+    t.fame = Math.min(100, Math.round(((t.fame ?? 50) + 4) * 10) / 10);
+    note(state, `🎤【${actor.name}】完成「星級綜藝與形象公關訓練」，知名度提升至 ${t.fame}！`, 'good');
+  }
+  return t;
+}
+
+export function restTalent(state, actorId) {
+  const actor = ACTORS.find(a => a.id === actorId);
+  if (!actor) throw Error('未搵到該藝人。');
+  const t = (state.talent ?? {})[actorId];
+  if (!t) throw Error('藝人未加入電視台名冊。');
+  const cost = 50_000;
+  if (state.cash < cost) throw Error(`資金不足以安排休假。需要 ${money(cost)}。`);
+  state.cash -= cost;
+  t.stamina = Math.min(100, (t.stamina ?? 100) + 50);
+  note(state, `🌴 安排【${actor.name}】享受休假充電假期，體力充沛恢復至 ${t.stamina}%！`, 'good');
+  return t;
+}
+
+export function unlockSubChannel(state) {
+  if (state.subChannelUnlocked) throw Error('數碼二台已開播，無需重複申請。');
+  const licenseFee = 10_000_000;
+  if (state.cash < licenseFee) {
+    throw Error(`資金不足以申請數碼廣播二台牌照。牌照費及基建需要 ${money(licenseFee)}。`);
+  }
+  const meetsCondition = state.cash >= 35_000_000 || (state.boardSatisfaction ?? 70) >= 80 || (state.history ?? []).some(h => h.net > 6_000_000);
+  if (!meetsCondition) {
+    throw Error('尚未達到開辦二台的營運門檻！需要資金達 $3,500 萬或董事會滿意度 80 分以上。');
+  }
+  state.cash -= licenseFee;
+  state.subChannelUnlocked = true;
+  state.subChannelSchedule = [
+    { start: 0, duration: 6, programId: 'sub-rerun', label: '深宵精選重溫' },
+    { start: 6, duration: 6, programId: 'sub-news', label: '晨間新聞財經副台' },
+    { start: 12, duration: 6, programId: 'sub-doc', label: '環球紀錄精選' },
+    { start: 18, duration: 6, programId: 'sub-prime', label: '外購影視與體育分流' }
+  ];
+  note(state, `📺 恭喜獲發「數碼第二頻道廣播牌照」！【數碼二台（J2/外購體育台）】正式開台，每日可創造副頻道廣告收益！`, 'good');
+  return true;
+}
+
 export const SPORTS_CALENDAR = [
   { quarter: 1, name: '2028/29 英格蘭超級聯賽（全季轉播權）', sport: '英超聯賽', icon: '⚽', floor: 6_000_000, adTarget: 9_000_000, id: 'pl-2028' },
   { quarter: 2, name: '2028 洛杉磯奧運會', sport: '夏季奧運', icon: '🏅', floor: 8_000_000, adTarget: 11_000_000, id: 'games-2028' },
@@ -1000,8 +1253,17 @@ export function refreshMarketRivalBuys(state, rng = Math.random) {
 export function newGame() {
   const state = new StationState();
   state.lastAiredDays = {};
+  state.adContractsMarket = AD_CONTRACT_TEMPLATES.map(t => ({ ...t, daysElapsed: 0, ratings: [] }));
   for (const actor of ACTORS) {
-    state.talent[actor.id]={fame:actor.skill-10,fee:actor.fee};
+    state.talent[actor.id] = {
+      skill: actor.skill,
+      fame: actor.skill - 10,
+      fee: actor.fee,
+      stamina: 100,
+      contractType: 'freelance',
+      contractDaysLeft: 0,
+      trainedCount: 0
+    };
     state.lastAiredDays[actor.id] = 1;
   }
   ensureEvents(state);
@@ -1015,7 +1277,11 @@ export function productionQuote(state,{kind='drama',actorIds=[],budgetId='standa
   const cast=kind==='drama'?actorIds.map(id=>ACTORS.find(actor=>actor.id===id)):[];
   if (cast.some(actor=>!actor)||new Set(actorIds).size!==actorIds.length) throw Error('演員名單有誤。');
   const perEpisode=Math.round(budget.cost*(kind==='drama'?1:format.factor)*(1+(episodeHours-1)*.45)*style.factor/1_000)*1_000;
-  const fees=cast.reduce((sum,actor)=>sum+(state.talent[actor.id]?.fee??actor.fee),0);
+  const fees=cast.reduce((sum,actor)=>{
+    const t = state.talent[actor.id];
+    if (t?.contractType === 'exclusive' && (t?.contractDaysLeft ?? 0) > 0) return sum;
+    return sum + (t?.fee ?? actor.fee);
+  }, 0);
   const episodes=isDailyFormat(kind)?0:isOneOffEvent(kind)?1:episodeCount;
   return {perEpisode,episodes,fees,total:perEpisode*(episodes||1)+fees+hook.cost,style,budget,cast,hook};
 }
@@ -1122,6 +1388,21 @@ export function produce(state,{kind='drama',genre,themes=[],actorIds=[],topic=''
     raw=clamp(Math.round(52+budget.bonus*1.25+format.appeal+style.quality-(episodeHours-1)*Math.max(2,6-budget.bonus/4)-(episodeCount===20&&!isDailyFormat(kind)?3:0)+randomInt(-6,6,rng)),35,89);
   }
   if (state.cash<cost) throw Error('現金不足，未能開拍。');
+
+  // Deduct talent stamina
+  for (const actor of cast) {
+    const t = state.talent[actor.id];
+    if (t) {
+      t.stamina = Math.max(0, (t.stamina ?? 100) - (episodeCount >= 20 ? 30 : 20));
+    }
+  }
+
+  // Facilities bonuses:
+  const studioLv = state.facilities?.studio ?? 1;
+  const studioBonus = studioLv === 3 ? 10 : studioLv === 2 ? 5 : 0;
+  const studioCap = studioLv === 3 ? 99 : studioLv === 2 ? 94 : 92;
+  raw = clamp(raw + studioBonus, 25, studioCap);
+
   let quality, review, rating, buzz, outcome='standard', roll=null;
   if (kind!=='drama') {
     quality=clamp(Math.round(raw*1.08),35,95);
@@ -1158,6 +1439,15 @@ export function produce(state,{kind='drama',genre,themes=[],actorIds=[],topic=''
     buzz=clamp(Math.round(quality*.72+style.buzz+randomInt(0,12,rng)),5,100);
     note(state,`新劇開拍完成：${tier==='double-o'?'完美相性 ◎':'良好相性 O'}，品質 ${quality}。`,'good');
   }
+
+  // Post-Production Lab & PR Department bonuses:
+  const postLabLv = state.facilities?.postLab ?? 1;
+  const reviewBonus = postLabLv === 3 ? 8 : postLabLv === 2 ? 4 : 0;
+  review = clamp(review + reviewBonus, 20, 100);
+
+  const prLv = state.facilities?.prDept ?? 1;
+  const buzzBonus = prLv === 3 ? 20 : prLv === 2 ? 10 : 0;
+  buzz = clamp(buzz + buzzBonus, 10, 100);
   const hook=quote.hook;
   let filmingStory='';
   if(kind==='contest'&&rng()<.12){rating=clamp(rating+8,1,100);buzz=clamp(buzz+15,1,100);filmingStory='決賽黑馬殺出，現場觀眾起立歡呼。';}
@@ -1274,6 +1564,27 @@ export function migrateLegacyLicenses(state) {
   state.viralShowBoost??=null;
   state.rivalPurchases??=[];
   state.lastFanMeetingDay??=-999;
+  // Initialize new systems for existing saves
+  state.adPricingStrategy ??= 'standard';
+  state.activeAdContracts ??= [];
+  if (!state.adContractsMarket || !state.adContractsMarket.length) {
+    state.adContractsMarket = AD_CONTRACT_TEMPLATES.map(t => ({ ...t, daysElapsed: 0, ratings: [] }));
+  }
+  state.facilities ??= { studio: 1, postLab: 1, prDept: 1, newsFleet: 1 };
+  state.boardSatisfaction ??= 75;
+  state.boardWarnings ??= 0;
+  state.boardHistory ??= [];
+  state.subChannelUnlocked ??= false;
+  state.subChannelSchedule ??= [];
+  for (const actor of ACTORS) {
+    if (state.talent[actor.id]) {
+      state.talent[actor.id].skill ??= actor.skill;
+      state.talent[actor.id].contractType ??= 'freelance';
+      state.talent[actor.id].contractDaysLeft ??= 0;
+      state.talent[actor.id].stamina ??= 100;
+      state.talent[actor.id].trainedCount ??= 0;
+    }
+  }
   // Old saves had no term. Grant a fresh six-month window without changing cash or runs.
   for (const program of state.library) if (program.kind==='catalog') {
     if (!Number.isInteger(program.licenseExpiresDay)) {
@@ -2087,7 +2398,12 @@ export function advanceDay(state,rng=Math.random) {
       const rivals=state.rivals.map(rival=>rivalAtHour(state,rival,hour,gameDay));
       const strongest=Math.max(...rivals.map(item=>item.rating));
       const pressure=Math.round(Math.max(0,strongest-55)*.16-Math.max(0,55-strongest)*.07);
-      const eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
+      let eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
+      if (eventMod > 0 && (p?.kind === 'news' || p?.kind === 'finance')) {
+        const fleetLv = state.facilities?.newsFleet ?? 1;
+        const fleetBonus = fleetLv === 3 ? 1.50 : fleetLv === 2 ? 1.25 : 1.0;
+        eventMod = Math.round(eventMod * fleetBonus);
+      }
       const freshFactor = p ? getFreshnessFactor(p) : 1;
       const rating=special
         ?(isLiveSports?clamp(95+Math.round(rng()*4),90,99):clamp(Math.round(72*factor),40,85))
@@ -2107,7 +2423,11 @@ export function advanceDay(state,rng=Math.random) {
         // evergreen shows pay a much smaller rate because they never expire.
         const rate=p.episodes?({drama:2_700,sitcom:2_400,variety:2_200,reality:2_500,travel:2_100,music:2_300,talkshow:1_900,children:1_800,night:1_200,charity:5_000,contest:8_000,pageant:9_500,catalog:p.category==='香港電影'?8_000:1_500}[p.kind]??2_000):(p.kind==='finance'?180:p.kind==='news'?130:60);
         const rightsFactor=p.id.startsWith('start-')?.2:1; // Free opening library is non-exclusive syndication.
-        ads=Math.round(rate*rating*rating/70*rightsFactor*(p.outcome==='disaster'?.5:1));
+        const pricingStrategy = state.adPricingStrategy ?? 'standard';
+        let pricingMod = 1.0;
+        if (pricingStrategy === 'budget') pricingMod = 0.85;
+        else if (pricingStrategy === 'premium') pricingMod = prime ? 1.30 : 0.95;
+        ads=Math.round(rate*rating*rating/70*rightsFactor*(p.outcome==='disaster'?.5:1)*pricingMod);
       }
       hours[hour]={hour,title:special?blockEvent.name:p.title,episode,rating,revenue:ads,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,special,rivals:rivals.map(item=>item.rating),eventMod,eventTitle:state.breakingEvent?.title};
       blockRevenue+=ads; ratingTotal+=rating; revenue+=ads; audience+=rating;
@@ -2155,9 +2475,76 @@ export function advanceDay(state,rng=Math.random) {
         if (p.outcome === 'disaster') fameDelta -= 0.25;
         else if (p.outcome === 'cult') fameDelta += 0.15;
 
+        // PR Dept Level 3 protects actor fame drops by 50%
+        if (fameDelta < 0 && (state.facilities?.prDept ?? 1) >= 3) fameDelta *= 0.5;
+
         fameDelta = clamp(fameDelta, -0.6, 0.6);
         talent.fame = clamp(Math.round((talent.fame + fameDelta) * 10) / 10, 15, 100);
         talent.fee = Math.round(actor.fee * clamp(1 + (talent.fame - (actor.skill - 10)) * 0.015, 0.4, 2.0) / 10_000) * 10_000;
+      }
+    }
+  }
+
+  // Active Ad Contracts daily tracking
+  if (state.activeAdContracts?.length) {
+    for (const contract of [...state.activeAdContracts]) {
+      let targetHours = [];
+      if (contract.targetType === 'prime') targetHours = [18, 19, 20, 21, 22, 23];
+      else if (contract.targetType === 'day') targetHours = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+      else if (contract.targetType === 'dawn') targetHours = [0, 1, 2, 3, 4, 5];
+      else if (contract.targetType === 'weekend_prime') {
+        const wd = weekdayForDay(gameDay);
+        if (wd === 5 || wd === 6) targetHours = [19, 20, 21, 22, 23];
+      } else {
+        targetHours = Array.from({length: 24}, (_, i) => i);
+      }
+
+      if (targetHours.length) {
+        const dayAvg = targetHours.reduce((sum, h) => sum + (hours[h]?.rating ?? 0), 0) / targetHours.length;
+        contract.ratings ??= [];
+        contract.ratings.push(dayAvg);
+      }
+      contract.daysElapsed = (contract.daysElapsed ?? 0) + 1;
+
+      if (contract.daysElapsed >= (contract.durationDays ?? 30)) {
+        const totalAvg = contract.ratings.length ? (contract.ratings.reduce((a, b) => a + b, 0) / contract.ratings.length) : 0;
+        const passed = totalAvg >= contract.targetRating;
+        if (passed) {
+          state.cash += contract.bonusPayment;
+          state.reputation = clamp(state.reputation + 2, 0, 100);
+          note(state, `🎉 品牌贊助《${contract.name}》圓滿達成目標！平均收視 ${totalAvg.toFixed(1)} / 目標 ${contract.targetRating}，獲取花紅 ${money(contract.bonusPayment)}，口碑 +2！`, 'good');
+        } else {
+          state.cash -= contract.penalty;
+          state.reputation = clamp(state.reputation - 1, 0, 100);
+          note(state, `⚠️ 品牌贊助《${contract.name}》未達約定目標（平均收視 ${totalAvg.toFixed(1)} / 目標 ${contract.targetRating}），扣付違約賠付 ${money(contract.penalty)}。`, 'bad');
+        }
+        state.activeAdContracts = state.activeAdContracts.filter(c => c !== contract);
+      }
+    }
+  }
+
+  // Multi-Channel Sub-channel Simulation
+  let subChannelRevenue = 0;
+  if (state.subChannelUnlocked) {
+    subChannelRevenue = Math.round(revenue * 0.28);
+    state.cash += subChannelRevenue;
+    state.quarterLedger.revenue += subChannelRevenue;
+    revenue += subChannelRevenue;
+  }
+
+  // Talent Stamina natural recovery & contract expiration
+  for (const actor of ACTORS) {
+    const t = state.talent[actor.id];
+    if (t) {
+      if (!todayRuns.has(actor.id)) {
+        t.stamina = Math.min(100, (t.stamina ?? 100) + 2);
+      }
+      if (t.contractType === 'exclusive' && (t.contractDaysLeft ?? 0) > 0) {
+        t.contractDaysLeft--;
+        if (t.contractDaysLeft === 0) {
+          t.contractType = 'freelance';
+          note(state, `【${actor.name}】專屬經理人合約已到期，轉回自由身演員。`, 'neutral');
+        }
       }
     }
   }
@@ -2400,7 +2787,67 @@ export function advanceDay(state,rng=Math.random) {
     state.reputation=clamp(state.reputation+Math.round((ledger.audience/(24*ledger.days)-40)/14),0,100);
     state.fans=clamp(state.fans+Math.round((ledger.buzz/(24*ledger.days)-30)/15),0,100);
     const totalOverhead=ledger.overhead;
-    const result={quarter:state.quarter,label:quarterLabel(state.quarter),hours,details,revenue:ledger.revenue,overhead:totalOverhead,net:ledger.revenue-totalOverhead,sportsRevenue:ledger.sportsRevenue,sportsPenalty:ledger.sportsPenalty,cash:state.cash};
+    const netProfit=ledger.revenue-totalOverhead;
+
+    // 1. 👔 董事會總裁審批與大股東增資 (Board of Directors & Milestones)
+    let rank = 'B';
+    let boardBonus = 0;
+    let comment = '';
+    if (netProfit >= 10_000_000) {
+      rank = 'S';
+      boardBonus = 8_000_000;
+      state.boardSatisfaction = clamp((state.boardSatisfaction ?? 75) + 20, 0, 100);
+      comment = '業績彪炳！大股東及董事會全體一致讚賞，無償增資 $8.0m 作為擴充發展基金！';
+    } else if (netProfit >= 4_000_000) {
+      rank = 'A';
+      boardBonus = 4_000_000;
+      state.boardSatisfaction = clamp((state.boardSatisfaction ?? 75) + 12, 0, 100);
+      comment = '營運表現優秀，超出大股東預期。大股東發放 $4.0m 發展增資花紅！';
+    } else if (netProfit >= 0) {
+      rank = 'B';
+      boardBonus = 0;
+      state.boardSatisfaction = clamp((state.boardSatisfaction ?? 75) + 4, 0, 100);
+      comment = '電視台財務穩健，保持收支平衡。董事會勉勵管理層再創佳績。';
+    } else if (netProfit >= -5_000_000) {
+      rank = 'C';
+      boardBonus = 0;
+      state.boardSatisfaction = clamp((state.boardSatisfaction ?? 75) - 15, 0, 100);
+      state.boardWarnings = (state.boardWarnings ?? 0) + 1;
+      comment = '當季出現虧損！董事會發出「關注函」，要求下季嚴格控制製作成本。';
+    } else {
+      rank = 'D';
+      boardBonus = 0;
+      state.boardSatisfaction = clamp((state.boardSatisfaction ?? 75) - 25, 0, 100);
+      state.boardWarnings = (state.boardWarnings ?? 0) + 2;
+      comment = '嚴重虧損！董事會總裁下達【整改最後通牒】！若未及時止血，大股東將介入管理！';
+    }
+    if (boardBonus > 0) state.cash += boardBonus;
+    const boardReport = {
+      quarter: state.quarter,
+      rank,
+      netProfit,
+      boardBonus,
+      comment,
+      satisfaction: state.boardSatisfaction,
+      warnings: state.boardWarnings
+    };
+    state.boardHistory ??= [];
+    state.boardHistory.unshift(boardReport);
+
+    // 2. ⭐ 專屬簽約藝人商業代言經理人分紅 (Talent Endorsements)
+    let talentEndorsements = 0;
+    for (const actor of ACTORS) {
+      const t = state.talent[actor.id];
+      if (t?.contractType === 'exclusive' && (t.contractDaysLeft ?? 0) > 0) {
+        talentEndorsements += Math.round((t.fame ?? 70) * 8_000 / 10_000) * 10_000;
+      }
+    }
+    if (talentEndorsements > 0) {
+      state.cash += talentEndorsements;
+      note(state, `旗下專屬台柱接拍商業代言，為電視台貢獻經理人分紅 ${money(talentEndorsements)}！`, 'good');
+    }
+
+    const result={quarter:state.quarter,label:quarterLabel(state.quarter),hours,details,revenue:ledger.revenue,overhead:totalOverhead,net:netProfit,sportsRevenue:ledger.sportsRevenue,sportsPenalty:ledger.sportsPenalty,cash:state.cash,boardReport,talentEndorsements};
     state.history.unshift(result); state.history=state.history.slice(0,12);state.lastResult=result;
     state.quarter++;state.productionCount=0;
     state.quarterLedger={revenue:0,overhead:0,sportsRevenue:0,sportsPenalty:0,audience:0,buzz:0,days:0};
@@ -2408,6 +2855,7 @@ export function advanceDay(state,rng=Math.random) {
     const openings=state.events.filter(e=>e.quarter===state.quarter && !e.resolved);
     for (const opening of openings) resolveAuction(state,opening,rng);
     note(state,`${result.label} 結算：90 日廣告及節目收益 ${money(result.revenue)}，營運開支 ${money(result.overhead)}。`,result.net>=0?'good':'bad');
+    note(state, `👔 董事會總裁審批【${rank} 級】：${comment}`, rank === 'S' || rank === 'A' ? 'good' : rank === 'B' ? 'neutral' : 'bad');
     daily.quarterResult=result;
   }
   return daily;

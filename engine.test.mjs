@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -1044,3 +1044,145 @@ test('sports buyout and early reveal grant active rights and allow scheduling pa
     assert.ok(getActiveSportsEvents(state).some(e => e.id === otherEvent.id));
   }
 });
+
+test('dynamic ad contracts pay bonuses on target rating and enforce breach penalties on failure', () => {
+  const state = newGame();
+  state.cash = 10_000_000;
+  assert.equal(state.adPricingStrategy, 'standard');
+
+  // Change pricing strategy
+  setAdPricingStrategy(state, 'premium');
+  assert.equal(state.adPricingStrategy, 'premium');
+
+  // Sign contract
+  const contract = state.adContractsMarket.find(c => c.id === 'ad-rolls-royce');
+  assert.ok(contract, 'Rolls Royce ad contract exists');
+  const initialCash = state.cash;
+  const signed = signAdContract(state, 'ad-rolls-royce');
+  assert.equal(signed.id, 'ad-rolls-royce');
+  assert.equal(state.cash, initialCash + signed.advancePayment);
+  assert.equal(state.activeAdContracts.length, 1);
+
+  // Duplicate sign throws error
+  assert.throws(() => signAdContract(state, 'ad-rolls-royce'), /已簽署/);
+
+  // Fast-track contract test: test success condition
+  signed.durationDays = 2;
+  signed.daysElapsed = 1;
+  signed.ratings = [80]; // Higher than target
+  const day1Cash = state.cash;
+  advanceDay(state, () => 0.5);
+  // Contract should resolve as passed and grant bonus payment
+  assert.equal(state.activeAdContracts.length, 0);
+  assert.ok(state.cash > day1Cash + signed.bonusPayment - 2_000_000); // Account for daily overhead/revenue
+});
+
+test('exclusive talent signing waives production actor fee and pays quarterly endorsements', () => {
+  const state = newGame();
+  state.cash = 20_000_000;
+  const actorId = 'hera'; // 何依婷, freelance initially
+  assert.equal(state.talent[actorId].contractType, 'freelance');
+
+  // Standard freelance quote includes actor fee
+  const standardQuote = productionQuote(state, {
+    kind: 'drama',
+    genre: '商戰',
+    themes: ['職場'],
+    actorIds: [actorId],
+    budgetId: 'lean'
+  });
+  assert.ok(standardQuote.fees > 0);
+
+  // Sign exclusive manager contract for 90 days
+  const preSignCash = state.cash;
+  const res = signExclusiveTalent(state, actorId, 90);
+  assert.equal(res.contractType, 'exclusive');
+  assert.equal(state.talent[actorId].contractType, 'exclusive');
+  assert.equal(state.talent[actorId].contractDaysLeft, 90);
+  assert.ok(state.cash < preSignCash);
+
+  // Exclusive actor fee in quote is 0!
+  const exclusiveQuote = productionQuote(state, {
+    kind: 'drama',
+    genre: '商戰',
+    themes: ['職場'],
+    actorIds: [actorId],
+    budgetId: 'lean'
+  });
+  assert.equal(exclusiveQuote.fees, 0);
+  assert.ok(exclusiveQuote.total < standardQuote.total);
+});
+
+test('talent academy trains acting and speech while vacation restores stamina', () => {
+  const state = newGame();
+  state.cash = 10_000_000;
+  const actorId = 'edaan';
+  const initialSkill = state.talent[actorId].skill;
+  state.talent[actorId].stamina = 50;
+
+  // Train acting skill
+  const trainRes = trainTalent(state, actorId, 'acting');
+  assert.ok(trainRes.skill > initialSkill);
+  assert.ok(state.talent[actorId].skill > initialSkill);
+  assert.equal(state.talent[actorId].stamina, 40); // -10 stamina
+
+  // Send on holiday/rest to recover stamina
+  const restRes = restTalent(state, actorId);
+  assert.equal(restRes.stamina, 90); // +50 stamina
+  assert.equal(state.talent[actorId].stamina, 90);
+});
+
+test('facility upgrades boost studio production quality cap and PR buzz', () => {
+  const state = newGame();
+  state.cash = 50_000_000;
+  assert.equal(state.facilities.studio, 1);
+  assert.equal(state.facilities.prDept, 1);
+
+  // Upgrade Studio to Lv2
+  const upRes = upgradeFacility(state, 'studio');
+  assert.equal(upRes.level, 2);
+  assert.equal(state.facilities.studio, 2);
+
+  // Studio Lv2 boosts production quality
+  const show = produce(state, {
+    kind: 'drama',
+    genre: '商戰',
+    themes: ['職場'],
+    actorIds: ['sheren', 'bosco'],
+    budgetId: 'premium'
+  }, () => 0.9);
+  assert.ok(show.quality >= 70);
+});
+
+test('quarterly boardroom evaluation grants S-rank capital injection and digital sub-channel unlocks', () => {
+  const state = newGame();
+  state.cash = 100_000_000;
+
+  // Unlock digital sub-channel
+  assert.equal(state.subChannelUnlocked, false);
+  const unlockRes = unlockSubChannel(state);
+  assert.equal(unlockRes, true);
+  assert.equal(state.subChannelUnlocked, true);
+  assert.throws(() => unlockSubChannel(state), /已開播/);
+
+  // Advance to end of quarter with high profit
+  state.day = 90;
+  state.quarterLedger = {
+    revenue: 50_000_000,
+    overhead: 5_000_000,
+    sportsRevenue: 0,
+    sportsPenalty: 0,
+    audience: 5000,
+    buzz: 5000,
+    days: 89
+  };
+
+  const dayRes = advanceDay(state, () => 0.5);
+  assert.ok(dayRes.quarterResult, 'Should have quarterly result on day 90');
+  const boardReport = dayRes.quarterResult.boardReport;
+  assert.ok(boardReport, 'Board report must be present');
+  assert.equal(boardReport.rank, 'S');
+  assert.equal(boardReport.boardBonus, 8_000_000);
+  assert.ok(state.boardHistory.length >= 1);
+});
+

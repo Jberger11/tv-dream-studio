@@ -1,3 +1,40 @@
+# Antigravity 開發紀錄：經典電視台經營 5 大核心機制全面實裝（廣告招商、藝人經理人部、電視大樓擴建、數碼二台、董事會審批）
+- Updated: 2026-10-10T06:15:00+08:00
+- Agent: Antigravity
+- Goal:
+  全面實裝經典《電視大亨 / 電視夢工場》原作 5 大核心深度經營系統：
+  1. 💼 動態廣告招商與合約系統 (Sponsor Contracts & Dynamic Pricing)
+  2. ⭐ 藝人專屬簽約、培訓與體力機制 (Talent Agency & Training)
+  3. 🏢 電視大樓設施與攝影棚擴建 (Station Facilities & Studio Upgrades)
+  4. 📺 多頻道雙線營運 (Multi-Channel Expansion / 數碼二台)
+  5. 👔 董事會總裁審批與增資 (Board of Directors & Milestones)
+- Project:
+  - 獨立倉庫: `C:\Users\Shackie\Documents\Codex\2026-09-05\tv-dream-studio` (`https://github.com/Jberger11/tv-dream-studio.git`)
+  - Monorepo: `C:\Users\Shackie\Documents\Codex\2026-09-05\1980-2026-hong-kong-cinema-tycoon\outputs\game\tv-station`
+- Current state:
+  - 單元測試套件 `engine.test.mjs` 增至 49 項，49/49 全部通過（涵蓋廣告合約達標紅利/違約賠償、專屬藝人零片酬/代言分紅、培訓大師班/休假回體力、大樓設施升級上限與口碑加乘、季度董事會評核增資與數碼二台排播）。
+  - 代碼語法檢查 `node --check` 針對 `engine.js`、`app.js`、`models.js` 全數通過。
+  - Chrome DevTools 390×844 手機與桌面版完整實測通過，無報錯、無水平溢出。
+  - 存檔相容性保證：存檔 key 維持 `tv-dream-studio-v1`，舊存檔（如第 175、208 日）無痛自動平滑遷移，完全不破壞玩家已有資金、劇集、片庫與進度。
+  - 盛典命名規範：嚴格遵循規則，維持 `Annual TV Awards Gala / 年度電視頒獎盛典`，絕不使用萬千星輝。
+- Last completed work:
+  - `models.js`: 擴充 `StationState` 及 `Actor` 結構，支援廣告招商底價策略與品牌合約、大樓設施等級、董事會滿意度與警告、數碼二台解鎖與排表、藝人合約類別/剩餘天數/體力值。
+  - `engine.js`: 實裝廣告品牌池（勞斯萊斯、百達翡麗、恒生、太古地產、維他奶、京都念慈菴）與對賭結算、大樓 4 大部門設施升級（影棚、後期剪輯、公關宣發、採訪車隊）、藝人專屬簽約（拍自製劇片酬 $0 + 每季代言分紅）、藝人培訓大師班（演技+3 / 知名度+4）、休假充電（體力+50%）、數碼二台副頻道營運增收、每季董事會大股東評核（S/A/B/C/D 級獎懲及無償注資）與舊存檔自動遷移。
+  - `app.js` & `styles.css`:
+    - 頂部導航新增【💼 招商】分頁：底價策略切換、進行中品牌合約進度追蹤、招商市場簽約。
+    - 頂部導航新增【🏢 大樓】分頁：4 大部門設施等級階梯、升級效益與擴建按鈕。
+    - 【🎬 製作】分頁整合藝人經理人部與培訓班：知名度/演技/體力儀表板、簽 90 日專屬台柱、培訓與休假充電。
+    - 【📺 排播】分頁新增數碼二台申請牌照橫幅、主台/二台頻道切換頁籤與二台獨立排表。
+    - 【📊 戰報】分頁新增大股東與董事會季度評核報告、滿意度儀表、整改警告與注資歷史紀錄。
+- Verification:
+  - `node --test engine.test.mjs`: 49/49 通過。
+  - Chrome DevTools 手機 (390px) 與桌面版渲染驗證，各分頁按鈕與版面正常，0 控制台錯誤。
+- Next:
+  - 玩家可在網頁體驗 5 大核心經營系統。
+- Blockers:
+  - 無。
+
+---
 # Antigravity 開發紀錄：體育轉播權即時買斷、提前揭標與英超/歐聯 360 日全季排播修復
 - Updated: 2026-10-10T05:25:00+08:00
 - Agent: Antigravity

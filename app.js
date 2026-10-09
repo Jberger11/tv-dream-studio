@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig } from './engine.js';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc } from './engine.js';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -25,6 +25,8 @@ let editorProgramSearch='';
 function resetProgramPicker(){editorProgramGroup='all';editorProgramSearch='';}
 let scheduleDay=null;
 let schedulePeriod='early';
+let scheduleChannel=1; // 1 = 翡翠台旗艦主台, 2 = 數碼二台 (J2/體育副台)
+let talentSubTab='viu';
 let catalogSubTab='market';
 let catalogFilter='all';
 let catalogSort='featured';
@@ -48,7 +50,7 @@ const app=document.getElementById('app');
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hourlyMoney=n=>{const amount=Math.abs(n),sign=n<0?'−':'';return amount>=1_000_000?`${sign}${money(amount)}`:amount>=1_000?`${sign}$${(amount/1_000).toFixed(amount<10_000?1:0)}k`:`${sign}$${Math.round(amount).toLocaleString()}`};
 const catalogPrice=n=>n>=1_000_000?`$${(n/1_000_000).toFixed(2)}m`:`$${Math.round(n/1_000)}k`;
-const icon={schedule:'▦',studio:'◈',rivals:'♟',catalog:'▤',sports:'◆',reports:'▥'};
+const icon={schedule:'▦',studio:'◈',ads:'💼',facilities:'🏢',catalog:'▤',sports:'◆',rivals:'♟',reports:'▥'};
 const timeRange=(start,duration)=>`${hourLabel(start)}–${hourLabel(start+duration)}${start+duration>=24?'（翌日）':''}`;
 const dayPattern=days=>days.length===7?'每日':days.length===5&&days.every((d,i)=>d===i)?'週一至五':days.length===2&&days[0]===5&&days[1]===6?'週六日':days.length===2&&days[0]===1&&days[1]===2?'週二三':days.length===1?`每週${WEEKDAYS[days[0]].slice(1)}`:days.map(day=>WEEKDAYS[day]).join('、');
 const initialDays=p=>p?.category==='香港電影'||p?.kind==='variety'||p?.kind==='night'||p?.kind==='children'||isOneOffEvent(p?.kind)?[weekdayForDay(state.day)]:p?.kind==='drama'||isDailyFormat(p?.kind)?[0,1,2,3,4]:[...EVERY_DAY];
@@ -208,10 +210,10 @@ function render() {
       <div class="game-hud"><div class="hud-stats"><span>資金 <b class="${state.cash<0?'danger':''}">${money(state.cash)}</b></span><span>口碑 <b>${state.reputation}</b></span><span>熱度 <b>${state.fans}</b></span></div><div class="hud-broadcast"><span class="broadcast-clock"><span class="broadcast-clock-line"><i></i> <span id="broadcast-status">${live.finished?'今日播畢':'正在播映'}</span> <b id="live-clock">${live.clock}</b></span><small class="clock-rate">現實 30 秒＝遊戲 1 小時</small></span><strong id="now-title">${safe(live.title)}</strong><small id="now-episode">${safe(live.episode||'每日時段')}</small><small>下一節目 <b id="next-title"></b></small></div></div>
       ${breakingEventBannerView()}
       <nav class="tabs" aria-label="遊戲功能">
-        ${[['schedule','排播'],['studio','製作'],['catalog','片庫'],['rivals','對手'],['sports','體育'],['reports','戰報']].map(([id,label])=>`<button data-action="tab" data-tab="${id}" class="tab ${tab===id?'active':''}" ${tab===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}
+        ${[['schedule','排播'],['studio','製作'],['ads','招商'],['facilities','大樓'],['catalog','片庫'],['sports','體育'],['rivals','對手'],['reports','戰報']].map(([id,label])=>`<button data-action="tab" data-tab="${id}" class="tab ${tab===id?'active':''}" ${tab===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}
       </nav>
       <main>
-        ${tab==='schedule'?scheduleHome():tab==='studio'?studioView():tab==='rivals'?rivalsView():tab==='catalog'?catalogView():tab==='sports'?sportsView():reportsView()}
+        ${tab==='schedule'?scheduleHome():tab==='studio'?studioView():tab==='ads'?adsView():tab==='facilities'?facilitiesView():tab==='rivals'?rivalsView():tab==='catalog'?catalogView():tab==='sports'?sportsView():reportsView()}
       </main>
       <footer>電視夢工場：新世代 <span>進度自動保存在此瀏覽器</span></footer>
       ${notice?`<div class="toast" role="status">${safe(notice)}</div>`:''}
@@ -293,7 +295,8 @@ function studioView() {
       ${state.lastProduction?productionResult():''}
     </section>
     <aside class="side-stack"><section class="panel feed-panel"><div class="panel-heading small"><div><div class="eyebrow muted">NEWSROOM</div><h2>電視台快訊</h2></div></div>${state.log.slice(0,3).map(l=>`<div class="news"><span class="news-dot ${l.type}"></span><div><small>${quarterLabel(l.quarter)}</small><p>${safe(l.text)}</p></div></div>`).join('')}</section>${distributionView()}</aside>
-  </div>`;
+  </div>
+  ${talentAgencyView()}`;
 }
 
 function scheduleHome(){
@@ -304,8 +307,36 @@ function scheduleHome(){
   const completedSummary = completed.length <= 3
     ? completed.map(name => `《${safe(name)}》`).join('、')
     : `《${safe(completed[0])}》、《${safe(completed[1])}》等共 ${completed.length} 套節目`;
+  const isSubChannel = state.subChannelUnlocked && scheduleChannel === 2;
 
   return `<div class="schedule-home">
+    ${state.subChannelUnlocked ? `
+      <div class="channel-switch-bar">
+        <button class="channel-tab ${scheduleChannel===1?'active':''}" data-action="switch-channel" data-channel="1">
+          📺 1台 · 翡翠主台 (旗艦頻道 · 24小時自選排播)
+        </button>
+        <button class="channel-tab ${scheduleChannel===2?'active':''}" data-action="switch-channel" data-channel="2">
+          📺 2台 · 數碼二台 (J2 / 體育外購副台 · 每日副線廣告 +28%)
+        </button>
+      </div>
+    ` : `
+      <div class="subchannel-unlock-banner">
+        <div class="banner-icon">📺</div>
+        <div class="banner-body">
+          <strong>開辦「數碼二台」（雙頻道雙線營運）</strong>
+          <p>解鎖第 2 條 24 小時頻道（明珠台/J2/外購體育副台），每日額外賺取主台 28% 之副線廣告收入！</p>
+          <div class="banner-reqs">
+            <span class="${state.cash >= 35_000_000 || (state.boardSatisfaction ?? 70) >= 80 ? 'met' : 'unmet'}">
+              ✓ 門檻：資金 $3,500 萬 或 董事會滿意度 80 分
+            </span>
+            <span>牌照及基建費：${money(10_000_000)}</span>
+          </div>
+        </div>
+        <button class="gold-button" data-action="unlock-subchannel" ${state.cash >= 10_000_000 && (state.cash >= 35_000_000 || (state.boardSatisfaction ?? 70) >= 80 || (state.history ?? []).some(h => h.net > 6_000_000)) ? '' : 'disabled'}>
+          申請開辦數碼二台 ($10.0m) →
+        </button>
+      </div>
+    `}
     ${result?`<div class="day-result-strip" role="status"><span>最近 ${result.days} 日營運</span><strong class="${result.net<0?'danger':''}">${result.net>=0?'+':''}${money(result.net)}</strong><span>對台勝出 ${result.wins} / ${24*result.days} 小時</span><button data-action="tab" data-tab="reports">逐套節目成績 →</button></div>`:''}
     ${completed.length && !dismissedAlerts.completed?`
       <div class="completion-alert has-dismiss" role="status">
@@ -326,7 +357,7 @@ function scheduleHome(){
         </div>
         <button class="alert-dismiss-btn" data-action="dismiss-alert" data-alert="expired" title="關閉提示" aria-label="關閉提示">✕</button>
       </div>`:''}
-    ${scheduleView()}
+    ${isSubChannel ? subChannelView() : scheduleView()}
   </div>`;
 }
 
@@ -360,6 +391,365 @@ function productionResult() {
 function distributionView() {
   const originals=state.library.filter(p=>!p.id.startsWith('start-')&&p.kind!=='catalog'&&!(isDailyFormat(p.kind)&&!p.episodes)).slice(-5).reverse();
   return `<section class="panel distribution-panel"><div class="eyebrow cyan">DISTRIBUTION</div><h2>自製節目賣埠</h2><p>聯播授權：我台可繼續播；對手亦會喺未來 30 日晚間播出。獨家賣斷：收更多錢，但我台即時落畫。每台每套只可交易一次。</p>${originals.length?originals.map(p=>{const deals=(state.distributionDeals??[]).filter(d=>d.programId===p.id);return `<article class="sale-item"><strong>${safe(p.title)}</strong><small>投入 ${money(p.cost)} · 已售 ${deals.length} 間</small><div class="sale-actions">${state.rivals.map(r=>`<button data-action="sell" data-id="${safe(p.id)}" data-rival="${r.id}" ${p.soldExclusive||deals.some(d=>d.rivalId===r.id)?'disabled':''}>授權${safe(r.name)} ${preciseMoney(distributionQuote(p.soldExclusive?{...p,soldExclusive:false}:p,false))}</button>`).join('')}${!p.soldExclusive&&!deals.length?`<button data-action="sell-exclusive" data-id="${safe(p.id)}" data-rival="${state.rivals[0].id}">獨家賣斷 ${preciseMoney(distributionQuote(p,true))}</button>`:''}</div></article>`}).join(''):'<p class="empty">拍第一套自製節目之後，可以考慮賣畀其他台。</p>'}</section>`;
+}
+
+function adsView() {
+  const strategy = state.adPricingStrategy ?? 'standard';
+  const activeContracts = state.activeAdContracts ?? [];
+  const market = state.adContractsMarket?.length ? state.adContractsMarket : AD_CONTRACT_TEMPLATES;
+
+  return `<div class="game-grid ads-layout">
+    <section class="panel ads-panel">
+      <div class="panel-heading">
+        <div>
+          <div class="eyebrow gold">COMMERCIAL SPONSORSHIPS & PRICING</div>
+          <h1>💼 動態廣告招商與定價</h1>
+        </div>
+        <span class="quota">進行中合約 ${activeContracts.length} / 3 份 · 現有資金 ${money(state.cash)}</span>
+      </div>
+
+      <!-- 1. 動態定價策略 -->
+      <div class="pricing-strategy-box">
+        <div class="section-title">
+          <h3>📈 全台廣告定價策略 (Dynamic Pricing)</h3>
+          <small>調整各時段廣告底價策略，直接改變每集廣播廣告收入倍率</small>
+        </div>
+        <div class="strategy-choices">
+          <button class="strategy-card ${strategy === 'budget' ? 'active' : ''}" data-action="set-pricing-strategy" data-strategy="budget">
+            <div class="strategy-head">
+              <strong>特價推廣</strong>
+              <span class="badge">薄利多銷</span>
+            </div>
+            <p>廣告費 -15%，吸引大量中小型品牌贊助，觀眾反感減少。</p>
+          </button>
+          <button class="strategy-card ${strategy === 'standard' ? 'active' : ''}" data-action="set-pricing-strategy" data-strategy="standard">
+            <div class="strategy-head">
+              <strong>標準定價</strong>
+              <span class="badge">平衡穩健</span>
+            </div>
+            <p>按市場標準收視公式結算，兼顧收益與品牌客戶承接力。</p>
+          </button>
+          <button class="strategy-card ${strategy === 'premium' ? 'active' : ''}" data-action="set-pricing-strategy" data-strategy="premium">
+            <div class="strategy-head">
+              <strong>黃金檔溢價</strong>
+              <span class="badge highlight">高價招商</span>
+            </div>
+            <p>18:00–24:00 黃金檔廣告費爆增 +30%！非黃金檔微跌 -5%。</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. 進行中品牌合約 -->
+      <div class="active-contracts-box">
+        <div class="section-title">
+          <h3>📋 執行中品牌特約合約 (${activeContracts.length} / 3)</h3>
+          <small>每日營運自動追蹤時段收視，合約期滿達標派發花紅，未達標扣付違約金</small>
+        </div>
+        ${activeContracts.length === 0 ? `
+          <div class="empty-contract-callout">
+            <p>現時尚未簽署品牌贊助合約。請在下方「各大品牌贊助名錄」挑選合約，簽約先收大筆預付款！</p>
+          </div>
+        ` : `
+          <div class="contracts-grid">
+            ${activeContracts.map(c => {
+              const daysLeft = Math.max(0, (c.durationDays ?? 30) - (c.daysElapsed ?? 0));
+              const currentAvg = c.ratings?.length ? (c.ratings.reduce((a, b) => a + b, 0) / c.ratings.length) : 0;
+              const progressPct = Math.min(100, Math.round(((c.daysElapsed ?? 0) / (c.durationDays ?? 30)) * 100));
+              const isPassing = currentAvg >= c.targetRating;
+              return `
+                <div class="contract-card active">
+                  <div class="contract-header">
+                    <span class="contract-icon">${c.icon}</span>
+                    <div class="contract-title-wrap">
+                      <strong>${safe(c.name)}</strong>
+                      <span class="contract-cat">${safe(c.category)}</span>
+                    </div>
+                    <span class="contract-status-pill ${isPassing ? 'passing' : 'warning'}">
+                      ${isPassing ? '✓ 達標中' : '⚠️ 未達標'}
+                    </span>
+                  </div>
+                  <p class="contract-target-line"><strong>目標要求：</strong>${safe(contractTargetDesc(c))}</p>
+                  <div class="contract-metric-row">
+                    <div>
+                      <small>目前平均收視</small>
+                      <strong class="${isPassing ? 'gold-text' : 'danger'}">${currentAvg.toFixed(1)} <span class="muted">/ 目標 ${c.targetRating}</span></strong>
+                    </div>
+                    <div>
+                      <small>合約期尚餘</small>
+                      <strong>${daysLeft} 日</strong>
+                    </div>
+                    <div>
+                      <small>達標花紅</small>
+                      <strong class="gold-text">+${money(c.bonusPayment)}</strong>
+                    </div>
+                  </div>
+                  <div class="contract-progress-bar">
+                    <div class="progress-fill" style="width: ${progressPct}%"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+      </div>
+
+      <!-- 3. 贊助商招商名錄 -->
+      <div class="market-contracts-box">
+        <div class="section-title">
+          <h3>🏢 各大品牌贊助商招商名錄</h3>
+          <small>名車、名錶、金融、豪宅等特定廣告合約，簽約先收大筆預付款</small>
+        </div>
+        <div class="contracts-grid">
+          ${market.map(c => {
+            const isSigned = activeContracts.some(ac => ac.id === c.id);
+            const canSign = !isSigned && activeContracts.length < 3;
+            return `
+              <div class="contract-card ${isSigned ? 'signed' : ''}">
+                <div class="contract-header">
+                  <span class="contract-icon">${c.icon}</span>
+                  <div class="contract-title-wrap">
+                    <strong>${safe(c.name)}</strong>
+                    <span class="contract-cat">${safe(c.category)}</span>
+                  </div>
+                  ${isSigned ? `<span class="badge signed-badge">已簽約</span>` : ''}
+                </div>
+                <p class="contract-desc">${safe(c.description)}</p>
+                <div class="contract-target-spec">
+                  <div class="spec-item"><small>合約期</small><b>${c.durationDays} 日</b></div>
+                  <div class="spec-item"><small>簽約即收預付</small><b class="gold-text">+${money(c.advancePayment)}</b></div>
+                  <div class="spec-item"><small>達標花紅</small><b class="gold-text">+${money(c.bonusPayment)}</b></div>
+                  <div class="spec-item"><small>對賭違約賠付</small><b class="danger">-${money(c.penalty)}</b></div>
+                </div>
+                <p class="contract-req"><span class="req-icon">🎯</span> ${safe(contractTargetDesc(c))}</p>
+                <div class="contract-actions">
+                  <button class="primary-button" data-action="sign-ad-contract" data-contract-id="${c.id}" ${canSign ? '' : 'disabled'}>
+                    ${isSigned ? '合約進行中' : activeContracts.length >= 3 ? '最多同時簽 3 份合約' : `簽署合約 (即收預付款 ${money(c.advancePayment)})`}
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    </section>
+  </div>`;
+}
+
+function facilitiesView() {
+  const facilities = state.facilities ?? { studio: 1, postLab: 1, prDept: 1, newsFleet: 1 };
+  const configs = FACILITY_CONFIGS;
+
+  return `<div class="game-grid facilities-layout">
+    <section class="panel facilities-panel">
+      <div class="panel-heading">
+        <div>
+          <div class="eyebrow gold">STATION HEADQUARTERS & UPGRADES</div>
+          <h1>🏢 電視大樓設施與攝影棚擴建</h1>
+        </div>
+        <span class="quota">電視台現有資金 ${money(state.cash)}</span>
+      </div>
+      <p class="facilities-intro">
+        電視台賺取盈利後投資擴建電視台各部門設施，長遠提升自製劇品質上限、首播口碑與突發事件收視！
+      </p>
+
+      <div class="facilities-grid">
+        ${Object.keys(configs).map(key => {
+          const cfg = configs[key];
+          const curLvl = facilities[key] ?? 1;
+          const curLvlConfig = cfg.levels.find(l => l.level === curLvl) ?? cfg.levels[0];
+          const nextLvlConfig = cfg.levels.find(l => l.level === curLvl + 1);
+          const isMax = !nextLvlConfig;
+          const canAfford = nextLvlConfig && state.cash >= nextLvlConfig.cost;
+
+          return `
+            <div class="facility-card">
+              <div class="facility-head">
+                <span class="facility-icon">${cfg.icon}</span>
+                <div>
+                  <h3>${safe(cfg.name)}</h3>
+                  <div class="facility-level-badge">Lv.${curLvl} ${safe(curLvlConfig.name)}</div>
+                </div>
+                ${isMax ? `<span class="badge max-badge">已達最高規格</span>` : ''}
+              </div>
+
+              <div class="facility-level-ladder">
+                ${cfg.levels.map(l => `
+                  <div class="ladder-step ${l.level <= curLvl ? 'achieved' : ''}">
+                    <span class="step-num">Lv.${l.level}</span>
+                    <span class="step-name">${safe(l.name)}</span>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div class="facility-body">
+                <div class="facility-cur-perk">
+                  <small>目前部門規格效益：</small>
+                  <p>${safe(curLvlConfig.desc)}</p>
+                </div>
+                ${nextLvlConfig ? `
+                  <div class="facility-next-perk">
+                    <small>下一級升級效益（Lv.${nextLvlConfig.level}）：</small>
+                    <p>${safe(nextLvlConfig.desc)}</p>
+                    <div class="upgrade-cost-row">
+                      <span>擴建升級費用：</span>
+                      <strong class="${canAfford ? 'gold-text' : 'danger'}">${money(nextLvlConfig.cost)}</strong>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+
+              <div class="facility-actions">
+                ${isMax ? `
+                  <button class="soft-button" disabled>已達到最高規格等級</button>
+                ` : `
+                  <button class="primary-button" data-action="upgrade-facility" data-facility="${key}" ${canAfford ? '' : 'disabled'}>
+                    ${canAfford ? `擴建升級至 Lv.${nextLvlConfig.level} (${money(nextLvlConfig.cost)})` : `資金不足 (需要 ${money(nextLvlConfig.cost)})`}
+                  </button>
+                `}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  </div>`;
+}
+
+function subChannelView() {
+  const sched = state.subChannelSchedule?.length ? state.subChannelSchedule : [
+    { start: 0, duration: 6, programId: 'sub-rerun', label: '深宵精選重溫 (經典劇集及自製綜藝)' },
+    { start: 6, duration: 6, programId: 'sub-news', label: '晨間新聞財經副台 (全天候財經與生活資訊)' },
+    { start: 12, duration: 6, programId: 'sub-doc', label: '環球紀錄精選 (大自然、科技與世界探索)' },
+    { start: 18, duration: 6, programId: 'sub-prime', label: '外購影視與體育分流 (外購劇集與英超歐聯分流直播)' }
+  ];
+  return `
+    <section class="panel subchannel-panel">
+      <div class="panel-heading">
+        <div>
+          <div class="eyebrow cyan">DIGITAL CHANNEL 2 · 24-HOUR BROADCAST</div>
+          <h2>📺 數碼二台（J2 / 外購體育副台）</h2>
+          <p class="subtitle">雙頻道雙線營運中！副台全天候自動播放精選重溫、外購節目與體育分流，每日創造主台 28% 之額外副頻道廣告收益！</p>
+        </div>
+        <span class="quota highlight">副頻道運作正常 · 每日自動營運</span>
+      </div>
+
+      <div class="subchannel-stats-row">
+        <div class="sub-stat-card">
+          <small>頻道牌照定位</small>
+          <strong>青年活力 · 體育外購副台</strong>
+        </div>
+        <div class="sub-stat-card">
+          <small>每日副台廣告收益貢獻</small>
+          <strong class="gold-text">+28% 主台收入</strong>
+        </div>
+        <div class="sub-stat-card">
+          <small>運作模式</small>
+          <strong>全天候自動排播分流</strong>
+        </div>
+      </div>
+
+      <div class="subchannel-schedule-grid">
+        ${sched.map(slot => `
+          <div class="subchannel-slot-card">
+            <span class="slot-time">${timeRange(slot.start, slot.duration)}</span>
+            <div class="slot-content">
+              <strong>${safe(slot.label)}</strong>
+              <small>自動分流主台觀眾，填補各時段小眾與垂直市場需求</small>
+            </div>
+            <span class="slot-status">✓ 播映中</span>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function talentAgencyView() {
+  const availableActors = ACTORS.filter(actor => (talentSubTab === 'all' || actor.source === talentSubTab));
+  return `
+    <section class="panel talent-agency-panel" id="talent-agency-section">
+      <div class="panel-heading">
+        <div>
+          <div class="eyebrow gold">TALENT MANAGEMENT & TRAINING ACADEMY</div>
+          <h2>⭐ 旗下藝人經理人部與培訓班</h2>
+          <p class="subtitle">簽約專屬台柱（自製劇片酬 $0 + 每季代言分紅）、訓練大師班提升演技與知名度、調配體力精力避免過勞</p>
+        </div>
+        <div class="actor-filters" aria-label="篩選藝人分類">
+          ${[['viu','ViuTV 藝人'],['all','全部藝人'],['tvb','TVB 藝人']].map(([id,label])=>`
+            <button data-action="talent-filter" data-value="${id}" class="${talentSubTab===id?'active':''}">
+              ${label} <span>${id==='all'?ACTORS.length:ACTORS.filter(a=>a.source===id).length}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="talent-agency-grid">
+        ${availableActors.map(a => {
+          const t = state.talent[a.id] ?? { skill: a.skill, fame: a.skill - 10, fee: a.fee, stamina: 100, contractType: 'freelance', contractDaysLeft: 0, trainedCount: 0 };
+          const isExclusive = t.contractType === 'exclusive' && (t.contractDaysLeft ?? 0) > 0;
+          const stamina = t.stamina ?? 100;
+          const exclusiveCost90 = Math.round(a.fee * 2.2 / 10_000) * 10_000;
+          const canSign90 = state.cash >= exclusiveCost90;
+          const canTrain = state.cash >= 180_000 && stamina >= 15;
+          const canRest = state.cash >= 50_000 && stamina < 100;
+
+          return `
+            <div class="talent-agency-card ${isExclusive ? 'is-exclusive' : ''}">
+              <div class="talent-card-header">
+                <span class="avatar">${a.name.slice(0, 1)}</span>
+                <div class="talent-info">
+                  <strong>${safe(a.name)}</strong>
+                  <span class="talent-tag">${safe(a.specialty)} · ${a.source === 'viu' ? 'ViuTV' : 'TVB'}</span>
+                </div>
+                <span class="contract-badge ${isExclusive ? 'exclusive' : 'freelance'}">
+                  ${isExclusive ? `⭐ 專屬台柱 (${t.contractDaysLeft}日)` : '自由身散工'}
+                </span>
+              </div>
+
+              <div class="talent-stat-row">
+                <div class="stat-pill"><small>演技能力</small><b>${t.skill ?? a.skill}</b></div>
+                <div class="stat-pill"><small>知名度</small><b class="gold-text">${(t.fame ?? (a.skill - 10)).toFixed(1)}</b></div>
+                <div class="stat-pill"><small>拍劇片酬</small><b>${isExclusive ? '<span class="free-text">$0 (專屬免費)</span>' : preciseMoney(t.fee ?? a.fee)}</b></div>
+              </div>
+
+              <div class="stamina-box">
+                <div class="stamina-label">
+                  <span>體力狀態</span>
+                  <b class="${stamina < 40 ? 'danger' : stamina < 70 ? 'warning' : 'good'}">${stamina}% ${stamina < 40 ? '（過勞！）' : ''}</b>
+                </div>
+                <div class="stamina-track">
+                  <div class="stamina-fill ${stamina < 40 ? 'danger' : stamina < 70 ? 'warning' : 'good'}" style="width: ${stamina}%"></div>
+                </div>
+              </div>
+
+              <div class="talent-agency-actions">
+                ${!isExclusive ? `
+                  <button class="agency-action-btn sign-btn" data-action="sign-exclusive-talent" data-actor-id="${a.id}" data-days="90" ${canSign90 ? '' : 'disabled'}>
+                    ⭐ 簽專屬台柱 90日 (${money(exclusiveCost90)})
+                  </button>
+                ` : `
+                  <div class="exclusive-perk-hint">
+                    ✓ 自製劇片酬 $0 免費參演 · 每季結算獲取商業代言分紅
+                  </div>
+                `}
+                <div class="train-buttons-row">
+                  <button class="agency-action-btn train-btn" data-action="train-talent" data-actor-id="${a.id}" data-type="acting" ${canTrain ? '' : 'disabled'} title="安排演技大師班（$180k，演技+3，體力-10）">
+                    🎭 演技班 ($180k)
+                  </button>
+                  <button class="agency-action-btn train-btn" data-action="train-talent" data-actor-id="${a.id}" data-type="fame" ${canTrain ? '' : 'disabled'} title="安排形象公關訓練（$180k，知名度+4，體力-10）">
+                    🎤 綜藝班 ($180k)
+                  </button>
+                  <button class="agency-action-btn rest-btn" data-action="rest-talent" data-actor-id="${a.id}" ${canRest ? '' : 'disabled'} title="安排休假充電（$50k，體力+50%）">
+                    🌴 休假 ($50k)
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  `;
 }
 
 function scheduleView() {
@@ -1103,6 +1493,77 @@ function annualAwardsHistoryView() {
   </section>`;
 }
 
+function boardroomReportView() {
+  const satisfaction = state.boardSatisfaction ?? 75;
+  const warnings = state.boardWarnings ?? 0;
+  const history = state.boardHistory ?? [];
+  const latest = history[0] ?? null;
+
+  return `
+    <section class="panel boardroom-panel">
+      <div class="panel-heading">
+        <div>
+          <div class="eyebrow gold">BOARD OF DIRECTORS & SHAREHOLDERS</div>
+          <h2>👔 董事會總裁審批與大股東增資</h2>
+          <p class="subtitle">每季（90 日）向大老闆及董事會交代業績；評核優秀獲無償注資，虧損會收到整改警告！</p>
+        </div>
+        <div class="board-indicators">
+          <span class="board-meter-pill">
+            滿意度 <b>${satisfaction} / 100</b>
+          </span>
+          ${warnings > 0 ? `<span class="board-warning-pill danger">⚠️ 關注函 ${warnings} 次</span>` : '<span class="board-warning-pill good">無警告紀錄</span>'}
+        </div>
+      </div>
+
+      <div class="board-overview-grid">
+        <div class="board-satisfaction-card">
+          <small>大股東及董事會滿意度指數</small>
+          <div class="satisfaction-bar-box">
+            <div class="satisfaction-track">
+              <div class="satisfaction-fill ${satisfaction >= 80 ? 'good' : satisfaction >= 50 ? 'warning' : 'danger'}" style="width: ${satisfaction}%"></div>
+            </div>
+            <strong>${satisfaction}%</strong>
+          </div>
+          <p class="satisfaction-hint">${satisfaction >= 85 ? '🌟 大股東高度信賴管理層，樂於發放擴充基金！' : satisfaction >= 60 ? '穩健運作，繼續保持季度盈利。' : '⚠️ 董事會滿意度偏低，請盡快減虧增收！'}</p>
+        </div>
+
+        <div class="board-latest-card">
+          <small>最近一季董事會評核評級</small>
+          ${latest ? `
+            <div class="board-grade-row">
+              <span class="grade-badge grade-${latest.rank}">${latest.rank} 級</span>
+              <div class="grade-details">
+                <strong>${latest.netProfit >= 0 ? `淨盈利 +${money(latest.netProfit)}` : `虧損 ${money(latest.netProfit)}`}</strong>
+                ${latest.boardBonus > 0 ? `<span class="bonus-tag gold-text">🎉 大股東增資 +${money(latest.boardBonus)}</span>` : '<span class="bonus-tag">無注資</span>'}
+              </div>
+            </div>
+            <p class="board-comment">「${safe(latest.comment)}」</p>
+          ` : `
+            <p class="empty">第一季尚未完成結算。每 90 日將進行董事會大會。</p>
+          `}
+        </div>
+      </div>
+
+      ${history.length > 0 ? `
+        <div class="board-history-box">
+          <h3>歷季董事會審批紀錄</h3>
+          <div class="board-history-list">
+            ${history.map(h => `
+              <div class="board-history-item">
+                <span class="history-quarter">第 ${h.quarter} 季</span>
+                <span class="grade-badge mini grade-${h.rank}">${h.rank} 級</span>
+                <span class="history-net ${h.netProfit >= 0 ? 'good' : 'danger'}">${h.netProfit >= 0 ? '+' : ''}${money(h.netProfit)}</span>
+                ${h.boardBonus > 0 ? `<span class="history-bonus gold-text">+${money(h.boardBonus)} 注資</span>` : '<span class="history-bonus muted">—</span>'}
+                <span class="history-comment">${safe(h.comment)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </section>
+  `;
+}
+
 function reportsView() {
   return `<div class="page-head"><div><div class="eyebrow gold">BOARDROOM</div><h1>每日與季度報告</h1><p>每日節目表會逐日播映，每 90 日結算一季；報告按每小時收視計廣告收益。</p></div></div>${state.lastDayResult?`<section class="panel day-report"><div class="section-heading"><h2>最近一日 · ${state.lastDayResult.label}</h2><span>${quarterLabel(state.lastDayResult.quarter)}</span></div><div class="report-total"><div><small>當日廣告收入</small><strong>${hourlyMoney(state.lastDayResult.revenue)}</strong></div><div><small>當日營運開支</small><strong>${hourlyMoney(state.lastDayResult.overhead)}</strong></div><div><small>當日淨額</small><strong>${hourlyMoney(state.lastDayResult.net)}</strong></div></div><div class="day-episodes">${state.lastDayResult.details.filter(d=>d.episode && d.episode!=='每日新一期').map(d=>`<span>${safe(d.title)} · ${safe(d.episode)}</span>`).join('')}</div></section>`:''}<div class="report-grid"><section class="panel"><div class="section-heading"><h2>最近季度結算</h2><span>${state.lastResult?.label??'尚未結算'}</span></div>${state.lastResult?`<div class="report-total"><div><small>90 日節目及廣告收益</small><strong>${money(state.lastResult.revenue)}</strong></div><div><small>營運開支</small><strong>−${money(state.lastResult.overhead)}</strong></div><div><small>季度淨額</small><strong class="${state.lastResult.net<0?'danger':''}">${money(state.lastResult.net)}</strong></div></div>${state.lastResult.sportsPenalty?`<div class="report-row"><span>體育廣告對賭賠付</span><b>−${money(state.lastResult.sportsPenalty)}</b></div>`:''}`:'<p class="empty">結算第一季之後，就會睇到完整數據。</p>'}</section><section class="panel"><div class="section-heading"><h2>電視台紀錄</h2><span>${state.library.length} 套節目入庫</span></div><div class="achievement"><small>已解鎖成就</small>${state.achievements.length?state.achievements.map(a=>`<span>★ ${safe(a)}</span>`).join(''):'<p>仲未解鎖。試吓挑戰危險錯配，或者贏得一場版權暗標。</p>'}</div><div class="achievement"><small>贊助商</small>${state.sponsors.length?state.sponsors.map(s=>`<span>✦ ${safe(s)}</span>`).join(''):'<p>特殊贊助商會喺 Cult 片爆紅後出現。</p>'}</div></section></div>
   ${state.lastDayResult?.talentChanges?.length?`<section class="panel talent-report">
@@ -1119,6 +1580,7 @@ function reportsView() {
       </div>`;
     }).join('')}</div>
   </section>`:''}
+  ${boardroomReportView()}
   ${audienceView()}
   ${premiereHistoryView()}
   ${broadcastResultsView()}
@@ -1134,6 +1596,15 @@ app.addEventListener('click',e=>{
   const button=e.target.closest('[data-action]');if(!button)return;
   const action=button.dataset.action, value=button.dataset.value;
   try {
+    if(action==='set-pricing-strategy'){setAdPricingStrategy(state,button.dataset.strategy);flash('已調整廣告定價策略！');render();return;}
+    if(action==='sign-ad-contract'){const c=signAdContract(state,button.dataset.contractId);flash(`成功簽署《${c.name}》贊助合約！預付款已入帳。`);render();return;}
+    if(action==='upgrade-facility'){const cfg=upgradeFacility(state,button.dataset.facility);flash(`成功擴建升級【${cfg.name}】！`);render();return;}
+    if(action==='sign-exclusive-talent'){signExclusiveTalent(state,button.dataset.actorId,Number(button.dataset.days||90));flash('成功簽約旗下專屬台柱！拍攝自製劇片酬 $0，並每季貢獻代言收益！');render();return;}
+    if(action==='train-talent'){trainTalent(state,button.dataset.actorId,button.dataset.type);flash('藝人完成培訓課程，能力大幅提升！');render();return;}
+    if(action==='rest-talent'){restTalent(state,button.dataset.actorId);flash('已安排藝人休假充電，體力充分恢復！');render();return;}
+    if(action==='unlock-subchannel'){unlockSubChannel(state);scheduleChannel=2;flash('恭喜獲發牌照！數碼二台正式開台，每日享有 28% 副台廣告收益！');render();return;}
+    if(action==='switch-channel'){scheduleChannel=Number(button.dataset.channel);render();return;}
+    if(action==='talent-filter'){talentSubTab=value;render();return;}
     if(state.pendingPremieres?.length&&['advance-day','advance-week','advance'].includes(action))throw Error('先處理首播戰報，然後再繼續營運。');
     if(action==='premiere-choice'){const result=resolvePremiere(state,value);flash(`《${result.title}》首播決策完成，後續集數會受影響。`);return;}
     if(action==='tab'){tab=button.dataset.tab;editorOpen=false;resetScroll=true;notice='';render();}
