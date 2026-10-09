@@ -152,13 +152,13 @@ function ceremonyModalView() {
   return `<div class="modal-backdrop ceremony-modal-backdrop">
     <div class="modal ceremony-modal" role="dialog" aria-modal="true" aria-labelledby="ceremony-title">
       <div class="ceremony-modal-header">
-        <div class="ceremony-banner-tag">ANNUAL TELEVISION AWARDS GALA</div>
-        <h2 id="ceremony-title">🏆 第 ${ceremony.year} 屆 全城電視大獎 · 年度盛典</h2>
+        <div class="ceremony-banner-tag">ANNUAL TV AWARDS GALA</div>
+        <h2 id="ceremony-title">🏆 ${ceremony.year} 年度電視頒獎盛典</h2>
         <p class="ceremony-subtitle">全港觀眾與業界專業評審聯合評選 · 總結 360 日電視風雲</p>
       </div>
       <div class="ceremony-summary-strip">
         <div><span>我台獲獎數</span><strong class="gold-text">${ceremony.ourWins} / ${ceremony.awards.length} 項</strong></div>
-        <div><span>台慶大獎金</span><strong>+${money(ceremony.totalPrize)}</strong></div>
+        <div><span>盛典總獎金</span><strong>+${money(ceremony.totalPrize)}</strong></div>
         <div><span>聲望回報</span><strong>口碑 +${ceremony.ourWins*3} · 熱度 +${ceremony.ourWins*4}</strong></div>
       </div>
       <div class="ceremony-awards-grid">
@@ -986,21 +986,22 @@ function monthlyLeaderboardView() {
 
 function annualAwardsHistoryView() {
   const ceremonies = state.awardCeremonies ?? [];
-  if (!ceremonies.length) return '';
+  const daysUntilNext = 360 - ((state.day - 1) % 360);
   return `<section class="panel ceremonies-history-panel">
     <div class="section-heading">
       <div>
         <div class="eyebrow gold">HALL OF FAME</div>
-        <h2>歷屆全城電視大獎 · 榮譽殿堂</h2>
+        <h2>榮譽殿堂 · 歷屆年度電視頒獎盛典</h2>
       </div>
-      <span>每 360 日年度盛典</span>
+      <span>距下屆盛典仲有 ${daysUntilNext} 日</span>
     </div>
+    ${ceremonies.length ? `
     <div class="ceremonies-list">
       ${ceremonies.map(c => `
         <article class="ceremony-history-card">
           <div class="ceremony-history-header">
-            <h3>🏆 第 ${c.year} 屆 全城電視大獎</h3>
-            <span class="ceremony-wins-tag">我台勇奪 ${c.ourWins} / ${c.awards.length} 項大獎 · 獲頒台慶獎金 ${money(c.totalPrize)}</span>
+            <h3>🏆 ${c.year} 年度電視頒獎盛典</h3>
+            <span class="ceremony-wins-tag">我台勇奪 ${c.ourWins} / ${c.awards.length} 項大獎 · 獲頒盛典獎金 ${money(c.totalPrize)}</span>
           </div>
           <div class="ceremony-history-grid">
             ${c.awards.map(a => `
@@ -1017,13 +1018,31 @@ function annualAwardsHistoryView() {
           </div>
         </article>
       `).join('')}
-    </div>
+    </div>` : `
+    <div class="trophy-empty-state">
+      <div class="trophy-empty-icon">🏆</div>
+      <strong>尚未有歷屆大獎紀錄</strong>
+      <p>首屆年度電視頒獎盛典將於第 360 日盛大舉行。拍好自製節目、搶贏黃金檔收視，全力衝擊年度大獎！</p>
+    </div>`}
   </section>`;
 }
 
 function reportsView() {
   return `<div class="page-head"><div><div class="eyebrow gold">BOARDROOM</div><h1>每日與季度報告</h1><p>每日節目表會逐日播映，每 90 日結算一季；報告按每小時收視計廣告收益。</p></div></div>${state.lastDayResult?`<section class="panel day-report"><div class="section-heading"><h2>最近一日 · ${state.lastDayResult.label}</h2><span>${quarterLabel(state.lastDayResult.quarter)}</span></div><div class="report-total"><div><small>當日廣告收入</small><strong>${hourlyMoney(state.lastDayResult.revenue)}</strong></div><div><small>當日營運開支</small><strong>${hourlyMoney(state.lastDayResult.overhead)}</strong></div><div><small>當日淨額</small><strong>${hourlyMoney(state.lastDayResult.net)}</strong></div></div><div class="day-episodes">${state.lastDayResult.details.filter(d=>d.episode && d.episode!=='每日新一期').map(d=>`<span>${safe(d.title)} · ${safe(d.episode)}</span>`).join('')}</div></section>`:''}<div class="report-grid"><section class="panel"><div class="section-heading"><h2>最近季度結算</h2><span>${state.lastResult?.label??'尚未結算'}</span></div>${state.lastResult?`<div class="report-total"><div><small>90 日節目及廣告收益</small><strong>${money(state.lastResult.revenue)}</strong></div><div><small>營運開支</small><strong>−${money(state.lastResult.overhead)}</strong></div><div><small>季度淨額</small><strong class="${state.lastResult.net<0?'danger':''}">${money(state.lastResult.net)}</strong></div></div>${state.lastResult.sportsPenalty?`<div class="report-row"><span>體育廣告對賭賠付</span><b>−${money(state.lastResult.sportsPenalty)}</b></div>`:''}`:'<p class="empty">結算第一季之後，就會睇到完整數據。</p>'}</section><section class="panel"><div class="section-heading"><h2>電視台紀錄</h2><span>${state.library.length} 套節目入庫</span></div><div class="achievement"><small>已解鎖成就</small>${state.achievements.length?state.achievements.map(a=>`<span>★ ${safe(a)}</span>`).join(''):'<p>仲未解鎖。試吓挑戰危險錯配，或者贏得一場版權暗標。</p>'}</div><div class="achievement"><small>贊助商</small>${state.sponsors.length?state.sponsors.map(s=>`<span>✦ ${safe(s)}</span>`).join(''):'<p>特殊贊助商會喺 Cult 片爆紅後出現。</p>'}</div></section></div>
-  ${state.lastDayResult?.talentChanges.length?`<section class="panel talent-report"><div class="section-heading"><h2>主演知名度與片酬</h2><span>依照最近一日播映收視調整</span></div><div class="talent-changes">${state.lastDayResult.talentChanges.map(t=>`<div><strong>${safe(t.name)}</strong><span>知名度 ${t.before.fame.toFixed(1)} → ${t.fame.toFixed(1)}</span><b>${preciseMoney(t.before.fee)} → ${preciseMoney(t.fee)}</b></div>`).join('')}</div></section>`:''}
+  ${state.lastDayResult?.talentChanges?.length?`<section class="panel talent-report">
+    <div class="section-heading"><h2>主演知名度與片酬變動</h2><span>依照昨日播映收視與市場期待動態調整（有升有跌）</span></div>
+    <div class="talent-changes">${state.lastDayResult.talentChanges.map(t=>{
+      const fameDiff = t.diff ?? Math.round((t.fame - t.before.fame)*10)/10;
+      const feeDiff = t.feeDiff ?? (t.fee - t.before.fee);
+      const isUp = fameDiff > 0, isDown = fameDiff < 0;
+      return `<div>
+        <strong>${safe(t.name)}</strong>
+        <span>知名度 ${t.before.fame.toFixed(1)} → ${t.fame.toFixed(1)} <b class="${isUp?'trend-up':isDown?'trend-down':'trend-flat'}">${isUp?`▲ +${fameDiff.toFixed(1)}`:isDown?`▼ ${fameDiff.toFixed(1)}`:'― 0.0'}</b></span>
+        <b>${preciseMoney(t.before.fee)} → ${preciseMoney(t.fee)} ${feeDiff>0?`(+${preciseMoney(feeDiff)})`:feeDiff<0?`(−${preciseMoney(Math.abs(feeDiff))})`:''}</b>
+        ${t.reason?`<small class="talent-reason">${safe(t.reason)}</small>`:''}
+      </div>`;
+    }).join('')}</div>
+  </section>`:''}
   ${audienceView()}
   ${premiereHistoryView()}
   ${broadcastResultsView()}

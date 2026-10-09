@@ -968,5 +968,33 @@ test('starter library continuous programs and sports event identifiers do not mi
   assert.equal(isDailyFormat(doc.kind), false);
 });
 
+test('actor fame can drop when a show flops and decays upon extended inactivity', () => {
+  const state = newGame();
+  const actorId = 'sheren'; // 佘詩曼, skill 92, initial fame 82
+  assert.equal(state.talent[actorId].fame, 82);
+  const show = produce(state, {
+    kind: 'drama',
+    genre: '刑偵',
+    themes: ['懸疑'],
+    actorIds: [actorId, 'bosco'],
+    budgetId: 'lean'
+  }, () => 0.01);
+  show.rating = 28; // force flop rating
+  show.outcome = 'disaster';
+  scheduleProgram(state, 20, show.id, 2);
 
+  const initialFame = state.talent[actorId].fame;
+  const dayResult = advanceDay(state, () => 0.5);
+  const updatedFame = state.talent[actorId].fame;
+  assert.ok(updatedFame < initialFame, `Fame should decrease: ${updatedFame} < ${initialFame}`);
+  assert.ok(dayResult.talentChanges.some(t => t.id === actorId && t.diff < 0));
 
+  // Inactivity cooling: idle for 30+ days
+  const idleActorId = 'edaan'; // 呂爵安
+  state.talent[idleActorId].fame = 90;
+  state.lastAiredDays[idleActorId] = 1;
+  state.day = 45; // 44 days idle and day % 15 === 0
+  const idleDayResult = advanceDay(state, () => 0.5);
+  assert.ok(state.talent[idleActorId].fame < 90, `Idle fame should decay: ${state.talent[idleActorId].fame} < 90`);
+  assert.ok(idleDayResult.talentChanges.some(t => t.id === idleActorId && t.reason === '久未露面人氣降溫'));
+});

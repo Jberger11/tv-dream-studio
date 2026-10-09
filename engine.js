@@ -986,7 +986,11 @@ export function refreshMarketRivalBuys(state, rng = Math.random) {
 
 export function newGame() {
   const state = new StationState();
-  for (const actor of ACTORS) state.talent[actor.id]={fame:actor.skill-10,fee:actor.fee};
+  state.lastAiredDays = {};
+  for (const actor of ACTORS) {
+    state.talent[actor.id]={fame:actor.skill-10,fee:actor.fee};
+    state.lastAiredDays[actor.id] = 1;
+  }
   ensureEvents(state);
   refreshMarketRivalBuys(state, () => 0.5);
   return state;
@@ -1253,6 +1257,7 @@ export function migrateLegacyLicenses(state) {
   state.lastMonthResult??=null;
   state.pendingCeremony??=null;
   state.awardCeremonies??=[];
+  state.lastAiredDays??={};
   state.viralShowBoost??=null;
   state.rivalPurchases??=[];
   state.lastFanMeetingDay??=-999;
@@ -2056,8 +2061,23 @@ export function advanceDay(state,rng=Math.random) {
         const talent=state.talent[id],actor=ACTORS.find(item=>item.id===id);
         if (!talent||!actor) continue;
         if (!talentBefore.has(id)) talentBefore.set(id,{fame:talent.fame,fee:talent.fee});
-        talent.fame=clamp(Math.round((talent.fame+(ratingTotal/times.length-48)/90)*10)/10,15,100);
-        talent.fee=Math.round(actor.fee*clamp(1+(talent.fame-(actor.skill-10))*.015,.5,1.8)/10_000)*10_000;
+        (state.lastAiredDays??={})[id]=gameDay;
+
+        // Dynamic expected rating based on actor fame:
+        // A superstar (fame 85+) has higher public expectations than a newcomer.
+        const expectedRating = 44 + (talent.fame - 50) * 0.35;
+        const diff = blockRating - expectedRating;
+        let fameDelta = diff / 45;
+
+        if (won) fameDelta += 0.06;
+        else if (rivalRating - blockRating >= 5) fameDelta -= 0.08;
+
+        if (p.outcome === 'disaster') fameDelta -= 0.25;
+        else if (p.outcome === 'cult') fameDelta += 0.15;
+
+        fameDelta = clamp(fameDelta, -0.6, 0.6);
+        talent.fame = clamp(Math.round((talent.fame + fameDelta) * 10) / 10, 15, 100);
+        talent.fee = Math.round(actor.fee * clamp(1 + (talent.fame - (actor.skill - 10)) * 0.015, 0.4, 2.0) / 10_000) * 10_000;
       }
     }
   }
@@ -2143,9 +2163,35 @@ export function advanceDay(state,rng=Math.random) {
     state.schedule.sort((a, b) => a.start - b.start);
   }
   revenue-=sportsPenalty;
+
+  // Inactivity cooling: actors idle for 30+ days gradually lose peak buzz towards baseline
+  if (gameDay % 15 === 0) {
+    state.lastAiredDays ??= {};
+    for (const actor of ACTORS) {
+      const talent = state.talent[actor.id];
+      if (!talent) continue;
+      const lastAired = state.lastAiredDays[actor.id] ?? 0;
+      const daysIdle = gameDay - lastAired;
+      const baseFame = actor.skill - 10;
+      if (daysIdle >= 30 && talent.fame > baseFame) {
+        if (!talentBefore.has(actor.id)) {
+          talentBefore.set(actor.id, { fame: talent.fame, fee: talent.fee, reason: '久未露面人氣降溫' });
+        }
+        talent.fame = Math.max(baseFame, Math.round((talent.fame - 0.2) * 10) / 10);
+        talent.fee = Math.round(actor.fee * clamp(1 + (talent.fame - (actor.skill - 10)) * 0.015, 0.4, 2.0) / 10_000) * 10_000;
+      }
+    }
+  }
+
   const overhead=Math.round(1_650_000/DAYS_PER_QUARTER)+dailyProduction;
   state.cash+=revenue-overhead;
-  const talentChanges=[...talentBefore].map(([id,before])=>({name:ACTORS.find(a=>a.id===id).name,before,fame:state.talent[id].fame,fee:state.talent[id].fee}));
+  const talentChanges=[...talentBefore].map(([id,before])=>{
+    const actor=ACTORS.find(a=>a.id===id);
+    const talent=state.talent[id];
+    const diff=Math.round((talent.fame-before.fame)*10)/10;
+    const reason=before.reason??(diff>0?'收視亮眼／贏過對台':diff<0?'收視未及預期／遭對手壓制':'表現持平');
+    return {id,name:actor.name,before,fame:talent.fame,fee:talent.fee,diff,feeDiff:talent.fee-before.fee,reason};
+  });
   const wins=hours.filter(item=>item.rating>Math.max(...item.rivals)).length;
   state.audienceFeed??=[];state.mailbox??=[];
   const aired=details.filter(item=>!item.special);

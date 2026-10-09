@@ -1740,5 +1740,34 @@ html,body,#app{height:100%;overflow:hidden}
   line-height: 1.4;
 }
 
+/* Talent Bidirectional Fame Trends */
+.trend-up { color: #10b981; font-weight: 700; margin-left: 4px; }
+.trend-down { color: #f43f5e; font-weight: 700; margin-left: 4px; }
+.trend-flat { color: #94a3b8; font-weight: 600; margin-left: 4px; }
+.talent-reason { display: block; width: 100%; color: #fbbf24; font-size: 0.67rem; margin-top: 2px; }
 
-
+/* Trophy Empty State */
+.trophy-empty-state {
+  text-align: center;
+  padding: 26px 18px;
+  background: #151c2a;
+  border: 1px dashed #334155;
+  border-radius: 10px;
+}
+.trophy-empty-icon {
+  font-size: 2.4rem;
+  margin-bottom: 8px;
+}
+.trophy-empty-state strong {
+  display: block;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+}
+.trophy-empty-state p {
+  color: #64748b;
+  font-size: 0.76rem;
+  max-width: 440px;
+  margin: auto;
+  line-height: 1.55;
+}
