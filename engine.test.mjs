@@ -1182,7 +1182,7 @@ test('quarterly boardroom evaluation grants S-rank capital injection and digital
   const boardReport = dayRes.quarterResult.boardReport;
   assert.ok(boardReport, 'Board report must be present');
   assert.equal(boardReport.rank, 'S');
-  assert.equal(boardReport.boardBonus, 8_000_000);
+  assert.equal(boardReport.boardBonus, 20_000_000);
   assert.ok(state.boardHistory.length >= 1);
 });
 
