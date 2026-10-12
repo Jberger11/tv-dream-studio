@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261012-tvproduction-engine-v2';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261012-tvproduction-v3-fix';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -256,7 +256,8 @@ function render() {
       ${showReset?`<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="reset-title"><h2 id="reset-title">重新開局？</h2><p>目前電視台嘅進度會清除。</p><div class="modal-actions"><button class="soft-button" data-action="reset-cancel">取消</button><button class="danger-button" data-action="reset-confirm">重新開局</button></div></div></div>`:''}
       ${showTransfer?transferModalView():''}
     </div>`;
-  app.querySelector('main').scrollTop=scroll;
+  const mainEl = app.querySelector('main');
+  if (mainEl) mainEl.scrollTop = scroll;
   if(editorOpen)app.querySelector('.schedule-editor.open')?.scrollTo(0,editorScroll);
   if(editorOpen){
     const target=activeEditorField?app.querySelector(`.schedule-editor [data-action="${activeEditorField}"]`):!editorWasOpen?app.querySelector('.editor-dismiss'):null;
@@ -442,6 +443,7 @@ function studioView() {
       : studioSubTab === 'create' ? renderCreateProjectView()
       : studioSubTab === 'studios' ? renderStudiosCrewView()
       : studioSubTab === 'franchises' ? renderFranchisesView()
+      : talentManagementView()}
   </div>`;
 }
 
@@ -2681,7 +2683,7 @@ function reportsView() {
   ${monthlyLeaderboardView()}
   ${annualAwardsHistoryView()}
   ${state.lastDayResult?hourlyComparisonView():''}
-  <section class="panel history-panel"><div class="section-heading"><h2>季度帳目</h2><span>最近 12 季</span></div>${state.history.length?state.history.map(h=>`<div class="history-row"><strong>${h.label}</strong><span>收益 ${money(h.revenue)}</span><span>營運 ${money(h.overhead)}</span><b class="${h.net<0?'danger':''}">${money(h.net)}</b></div>`).join('')}</section>`;
+  <section class="panel history-panel"><div class="section-heading"><h2>季度帳目</h2><span>最近 12 季</span></div>${state.history.length?state.history.map(h=>`<div class="history-row"><strong>${h.label}</strong><span>收益 ${money(h.revenue)}</span><span>營運 ${money(h.overhead)}</span><b class="${h.net<0?'danger':''}">${money(h.net)}</b></div>`).join(''):'<p class="empty">第一季播完之後，就會有每季收支對比。</p>'}</section>`;
 }
 
 function flash(message){notice=message;render();setTimeout(()=>{if(notice===message){notice='';render();}},3600)}
