@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -1336,4 +1336,112 @@ test('quarterly boardroom evaluation grants S-rank capital injection and digital
   assert.equal(boardReport.boardBonus, 20_000_000);
   assert.ok(state.boardHistory.length >= 1);
 });
+
+test('Hong Kong Horse Racing live strictly airs Wed 19-23 & Sun 13-18, excludes July/Aug, and maintains stable ratings', () => {
+  const state = newGame();
+  const racingEvent = state.events.find(e => e.id === 'racing-2028');
+  assert.ok(racingEvent, 'Hong Kong Horse Racing event must exist in calendar');
+  const cfg = getSportsConfig(racingEvent);
+  assert.equal(cfg.type, 'racing');
+  assert.deepEqual(cfg.matchDays, [2, 6], 'Horse racing only takes place on Wednesday (2) and Sunday (6)');
+
+  // Default slots check: Wed 19-23 (duration 4), Sun 13-18 (duration 5)
+  assert.equal(cfg.defaultSlots.length, 2);
+  const wedSlot = cfg.defaultSlots.find(s => s.days.includes(2));
+  assert.equal(wedSlot.start, 19);
+  assert.equal(wedSlot.duration, 4);
+  const sunSlot = cfg.defaultSlots.find(s => s.days.includes(6));
+  assert.equal(sunSlot.start, 13);
+  assert.equal(sunSlot.duration, 5);
+
+  // Day 3: weekdayForDay(3) = (3 - 1) % 7 = 2 (Wednesday), Month 1 (Jan)
+  assert.equal(weekdayForDay(3), 2);
+  assert.equal(cfg.isLiveHour(3, 19), true, 'Wed 19:00 should be live racing');
+  assert.equal(cfg.isLiveHour(3, 22), true, 'Wed 22:00 should be live racing');
+  assert.equal(cfg.isLiveHour(3, 18), false, 'Wed 18:00 should not be live racing');
+  assert.equal(cfg.isLiveHour(3, 23), false, 'Wed 23:00 should not be live racing');
+
+  // Day 7: weekdayForDay(7) = (7 - 1) % 7 = 6 (Sunday), Month 1 (Jan)
+  assert.equal(weekdayForDay(7), 6);
+  assert.equal(cfg.isLiveHour(7, 13), true, 'Sun 13:00 should be live racing');
+  assert.equal(cfg.isLiveHour(7, 17), true, 'Sun 17:00 should be live racing');
+  assert.equal(cfg.isLiveHour(7, 12), false, 'Sun 12:00 should not be live racing');
+  assert.equal(cfg.isLiveHour(7, 18), false, 'Sun 18:00 should not be live racing');
+
+  // Non-racing days (Monday: day 1)
+  assert.equal(cfg.isLiveHour(1, 19), false, 'Mon 19:00 should not be live racing');
+
+  // Summer break: July (Month 7, days 181-210) & August (Month 8, days 211-240)
+  // Day 185: marketMonthForDay(185) = floor(184/30) = 6 -> month 7 (July)
+  // Weekday of 185: (185-1)%7 = 184%7 = 2 (Wednesday!)
+  assert.equal((marketMonthForDay(185) % 12) + 1, 7);
+  assert.equal(weekdayForDay(185), 2);
+  assert.equal(cfg.isSummerBreak(185), true, 'Day 185 (July) is summer break');
+  assert.equal(cfg.isLiveHour(185, 20), false, 'July Wednesday night must NOT have live racing (summer break)');
+
+  // Day 213: floor(212/30) = 7 -> month 8 (August)
+  // Weekday of 213: (213-1)%7 = 212%7 = 2 (Wednesday!)
+  assert.equal((marketMonthForDay(213) % 12) + 1, 8);
+  assert.equal(cfg.isSummerBreak(213), true, 'Day 213 (August) is summer break');
+  assert.equal(cfg.isLiveHour(213, 20), false, 'August Wednesday night must NOT have live racing (summer break)');
+
+  // Buyout horse racing rights
+  state.cash = 20_000_000;
+  buyoutSportsEvent(state, racingEvent.id);
+  assert.equal(racingEvent.winner, '你的電視台');
+  assert.equal(racingEvent.resolved, true);
+  assert.equal(isSportsActive(racingEvent, state), true);
+
+  // Check that rival bid names in buyout are authentic HK TV channels
+  const bidNames = racingEvent.bids.map(b => b.name);
+  assert.ok(bidNames.some(n => n.includes('翡翠台')), 'Bids should include 翡翠台');
+  assert.ok(bidNames.some(n => n.includes('ViuTV')), 'Bids should include ViuTV');
+
+  // Schedule horse racing on Wed 19:00
+  state.schedule = [];
+  scheduleProgram(state, 19, `event:${racingEvent.id}`, 4, { days: [2] });
+
+  // Broadcast on Wednesday (day 3, active month 1)
+  state.day = 3;
+  const wedBroadcast = advanceDay(state, () => 0.5);
+  const liveHour19 = wedBroadcast.hours[19];
+  assert.ok(liveHour19, 'Hour 19 must exist in day result');
+  assert.equal(liveHour19.title, racingEvent.name);
+  // Horse racing rating is stable: 61 - 66 points
+  assert.ok(liveHour19.rating >= 61 && liveHour19.rating <= 66, `Live racing rating (${liveHour19.rating}) must be in stable range 61-66`);
+});
+
+test('three authentic Hong Kong TV competitors have exact user profile mottos, channels, and rich EPGs', () => {
+  const state = newGame();
+  const jade = state.rivals.find(r => r.id === 'jade');
+  const viu = state.rivals.find(r => r.id === 'viu');
+  const hoy = state.rivals.find(r => r.id === 'hoy');
+
+  assert.ok(jade && viu && hoy, 'All 3 HK rivals must exist');
+  assert.equal(jade.channelNo, 81);
+  assert.equal(viu.channelNo, 99);
+  assert.equal(hoy.channelNo, 77);
+
+  // Verify exact requested mottos
+  assert.equal(jade.profile, '財雄勢大，全天候 24 小時王牌劇集與長壽綜藝排播，體育版權出價高。');
+  assert.equal(viu.profile, '主打年輕偶像、原創劇集與大型運動賽事。');
+  assert.equal(hoy.profile, '綜藝生活與焦點大賽爆冷突襲。');
+
+  // Verify key stars
+  assert.ok(jade.stars.includes('馬國明') && jade.stars.includes('陳豪'));
+  assert.ok(viu.stars.includes('楊樂文') && viu.stars.includes('江𤒹生'));
+  assert.ok(hoy.stars.includes('鄭丹瑞') && hoy.stars.includes('簡慕華'));
+
+  // Verify rich 24h EPG output from rivalAtHour
+  for (const rival of [jade, viu, hoy]) {
+    for (let h = 0; h < 24; h++) {
+      const show = rivalAtHour(state, rival, h, 1);
+      assert.ok(show.title, `${rival.name} hour ${h} must have a title`);
+      assert.ok(show.rating >= 1 && show.rating <= 100, `${rival.name} hour ${h} rating must be valid`);
+      assert.ok(show.category, `${rival.name} hour ${h} must have a category`);
+      assert.ok(show.desc, `${rival.name} hour ${h} must have a description`);
+    }
+  }
+});
+
 

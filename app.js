@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost } from './engine.js?v=20261012-v4';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost } from './engine.js?v=20261012-horseracing-hkrivals-v1';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -46,6 +46,7 @@ let notice='';
 let showReset=false;
 let showTransfer=false;
 let selectedLeaderboardMonth=null;
+let rivalsTab='all';
 const app=document.getElementById('app');
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hourlyMoney=n=>{const amount=Math.abs(n),sign=n<0?'−':'';return amount>=1_000_000?`${sign}${money(amount)}`:amount>=1_000?`${sign}$${(amount/1_000).toFixed(amount<10_000?1:0)}k`:`${sign}$${Math.round(amount).toLocaleString()}`};
@@ -852,12 +853,12 @@ function scheduleView() {
             <div class="sports-preset-buttons">
               ${sportsCfg.defaultSlots.map(slot => `
                 <button type="button" class="sports-slot-btn" data-action="apply-sports-slot" data-start="${slot.start}" data-duration="${slot.duration}" data-days="${slot.days.join(',')}">
-                  ${slot.days.length === 2 && slot.days[0] === 5 ? '⚽ 週末黃金大戰' : slot.days.length === 2 && slot.days[0] === 1 ? (sportsCfg.type === 'ucl' ? '⭐ 歐聯週中深夜大戰' : '⚽ 週中快車深夜直播') : '🏆 賽事直播'}
+                  ${sportsCfg.type === 'racing' ? (slot.days[0] === 2 ? '🏇 跑馬地夜馬直播' : '🏇 沙田日馬直播') : (slot.days.length === 2 && slot.days[0] === 5 ? '⚽ 週末黃金大戰' : slot.days.length === 2 && slot.days[0] === 1 ? (sportsCfg.type === 'ucl' ? '⭐ 歐聯週中深夜大戰' : '⚽ 週中快車深夜直播') : '🏆 賽事直播')}
                   <small>${slot.label}</small>
                 </button>
               `).join('')}
             </div>
-            <p class="sports-preset-tip">💡 ${sportsCfg.type === 'pl' ? '英超賽事集中於週六日晚間及週二三深夜，週一、四、五通常沒有賽事。' : sportsCfg.type === 'ucl' ? '歐聯賽事嚴格只在週二、三深夜 01:00–05:00 進行，週末絕無賽事，與英超互不衝突！' : '大賽期間請在賽事時段內密集直播。'}</p>
+            <p class="sports-preset-tip">💡 ${sportsCfg.type === 'racing' ? '賽馬日逢週三晚 19:00–23:00（跑馬地）及週日 13:00–18:00（沙田）直播，7月、8月暑期休季停跑。收視穩定約 61–66 點！' : sportsCfg.type === 'pl' ? '英超賽事集中於週六日晚間及週二三深夜，週一、四、五通常沒有賽事。' : sportsCfg.type === 'ucl' ? '歐聯賽事嚴格只在週二、三深夜 01:00–05:00 進行，週末絕無賽事，與英超互不衝突！' : '大賽期間請在賽事時段內密集直播。'}</p>
           </div>
         ` : ''}
         ${editor.recurrence==='once'?`<p class="recurrence-note once-note">⭐ 單次播映：只在 ${WEEKDAYS[editor.days[0]]} 播出 1 次，播畢後自動騰空時段。</p>`:isOneOffItem?`<p class="recurrence-note warn-note">💡 自製大型活動／電影為單次播映作品，強烈建議選擇「⭐ 單次播映（只播一次）」。</p>`:''}
@@ -970,18 +971,351 @@ function scheduleView() {
   </section>`;
 }
 
+function ratingTierClass(rating) {
+  if (rating >= 80) return 'tier-s';
+  if (rating >= 70) return 'tier-a';
+  if (rating >= 60) return 'tier-b';
+  if (rating >= 50) return 'tier-c';
+  return 'tier-d';
+}
+
+function ratingTierLabel(rating) {
+  if (rating >= 80) return 'S 王牌';
+  if (rating >= 70) return 'A 強檔';
+  if (rating >= 60) return 'B 穩固';
+  if (rating >= 50) return 'C 常規';
+  return 'D 深宵';
+}
+
+function renderRivalDetail(rival, live) {
+  if (!rival) return `<div class="panel"><p>找不到該電視台資料。</p></div>`;
+  const now = rivalAtHour(state, rival, live.hour, state.day);
+  const premiere = rivalPremiere(rival, state.day);
+  const nextPremiere = rivalPremiere(rival, state.day + DAYS_PER_MARKET_MONTH);
+  const deal = (state.distributionDeals ?? []).find(d => d.rivalId === rival.id && d.startDay <= state.day && state.day < d.expiresDay);
+  const rivalBuy = (state.rivalPurchases ?? []).find(r => r.rivalId === rival.id && r.startDay <= state.day && state.day < r.expiresDay);
+
+  const myLiveBlock = programAtHour(state, live.hour);
+  const myLiveProg = myLiveBlock && state.library.find(p => p.id === myLiveBlock.programId);
+  const myLiveEvent = myLiveBlock?.programId.startsWith('event:') && state.events.find(e => `event:${e.id}` === myLiveBlock.programId);
+  const myLiveTitle = myLiveProg?.title ?? myLiveEvent?.name ?? '未排節目';
+
+  return `
+    <article class="channel-detail-header ${rival.id}">
+      <div class="channel-header-top">
+        <div class="channel-brand-badge">
+          <span class="channel-number ${rival.id}">${rival.channelNo || (rival.id === 'jade' ? 81 : rival.id === 'viu' ? 99 : 77)}</span>
+          <h2 class="channel-header-title">${safe(rival.name)} <small class="channel-network-tag">（${safe(rival.englishName || rival.name)} · ${safe(rival.network || '')}）</small></h2>
+        </div>
+        <button type="button" class="soft-button" data-action="rivals-tab" data-value="matchup">⚔️ 查看四台同步對決表 →</button>
+      </div>
+      <div class="channel-user-profile-quote ${rival.id}">
+        <strong>【台格定位】</strong>${safe(rival.profile)}
+      </div>
+      <div class="channel-stars-row">
+        <span class="channel-stars-label">旗下重點藝人：</span>
+        ${(rival.stars || []).map(star => `<span class="star-pill">⭐ ${safe(star)}</span>`).join('')}
+      </div>
+    </article>
+
+    <div class="channel-live-strip">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span class="channel-live-status-tag"><span class="live-pulse-dot"></span> LIVE 播映中（${hourLabel(live.hour)}）</span>
+        <strong style="color:#f8fafc;font-size:1.05rem;">《${safe(now.title)}》</strong>
+        <span class="epg-category-badge">${safe(now.category || '常規節目')}</span>
+        <span class="rating-pill ${ratingTierClass(now.rating)}">${now.rating} 點</span>
+      </div>
+      <div style="color:#94a3b8;font-size:0.78rem;">
+        我台同時段：<strong style="color:#38bdf8;">《${safe(myLiveTitle)}》</strong>
+      </div>
+    </div>
+
+    <section class="panel" style="margin-bottom:20px;">
+      <div class="section-heading">
+        <h2>📅 24 小時全日節目表與收視情報</h2>
+        <span>詳細節目故事大綱 · 實時預測收視</span>
+      </div>
+      <div class="epg-container">
+        ${rival.schedule.map(block => {
+          const isCurrentSlot = live.hour >= block.start && live.hour < (block.start + block.duration);
+          const isPrime = block.start >= 18 && block.start < 23;
+          const show = rivalAtHour(state, rival, block.start, state.day);
+          const isPremiere = block.start === 19;
+          const isDeal = (block.start === 21 || block.start === 22) && deal;
+          const isRivalBuy = (block.start === 21 || block.start === 22) && !deal && rivalBuy;
+
+          const myBlock = programAtHour(state, block.start);
+          const myProg = myBlock && state.library.find(p => p.id === myBlock.programId);
+          const myEvent = myBlock?.programId.startsWith('event:') && state.events.find(e => `event:${e.id}` === myBlock.programId);
+          const myTitle = myProg?.title ?? myEvent?.name ?? '未排節目';
+
+          return `
+            <div class="epg-row-card ${isCurrentSlot ? 'is-now' : ''} ${isPrime ? 'prime-slot' : ''}">
+              <div class="epg-time-col">
+                <span class="epg-time-range">${timeRange(block.start, block.duration)}</span>
+                <span class="epg-duration">${block.duration} 小時時段${isPrime ? ' · 黃金時段' : ''}</span>
+              </div>
+              <div class="epg-content-col">
+                <div class="epg-title-line">
+                  <strong class="epg-title">《${safe(show.title)}》</strong>
+                  <span class="epg-category-badge">${safe(show.category || block.category || '節目')}</span>
+                  ${isPremiere ? '<span class="epg-special-pill premiere">⭐ 本月重點首播</span>' : ''}
+                  ${isDeal ? '<span class="epg-special-pill deal">🤝 購自我台播映權</span>' : ''}
+                  ${isRivalBuy ? '<span class="epg-special-pill market">🛒 外購市場搶購作品</span>' : ''}
+                  ${isCurrentSlot ? '<span class="channel-live-status-tag" style="padding:2px 8px;font-size:0.65rem;"><span class="live-pulse-dot"></span> LIVE 正播</span>' : ''}
+                </div>
+                <p class="epg-desc">${safe(show.desc || block.desc || '暫無節目簡介')}</p>
+                <div style="font-size:0.72rem;color:#64748b;margin-top:2px;">
+                  我台同期對抗：<span style="color:#93c5fd;">《${safe(myTitle)}》</span>
+                </div>
+              </div>
+              <div class="epg-rating-col">
+                <span class="rating-pill ${ratingTierClass(show.rating)}">${show.rating} 點</span>
+                <span class="rating-label">${ratingTierLabel(show.rating)}收視</span>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </section>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+      <article class="panel">
+        <div class="eyebrow cyan">MONTHLY PREMIERE · 本月首播王牌</div>
+        <h3>《${safe(premiere.title)}》</h3>
+        <p style="font-size:0.8rem;color:#94a3b8;">類型：${safe(premiere.genre)} · 播映時段：${safe(premiere.slot)}</p>
+      </article>
+      <article class="panel">
+        <div class="eyebrow gold">NEXT MONTH PREVIEW · 下月預告大作</div>
+        <h3>《${safe(nextPremiere.title)}》</h3>
+        <p style="font-size:0.8rem;color:#94a3b8;">類型：${safe(nextPremiere.genre)} · 預計下月開播</p>
+      </article>
+    </div>
+  `;
+}
+
+function renderRivalsOverview(live) {
+  return `
+    <div class="rival-overview-grid">
+      ${state.rivals.map(rival => {
+        const now = rivalAtHour(state, rival, live.hour, state.day);
+        const prime = rivalAtHour(state, rival, 19, state.day);
+        const late = rivalAtHour(state, rival, 21, state.day);
+        const premiere = rivalPremiere(rival, state.day);
+        const deal = (state.distributionDeals ?? []).find(d => d.rivalId === rival.id && d.startDay <= state.day && state.day < d.expiresDay);
+        const rivalBuy = (state.rivalPurchases ?? []).find(r => r.rivalId === rival.id && r.startDay <= state.day && state.day < r.expiresDay);
+
+        return `
+          <article class="rival-summary-card ${rival.id}">
+            <div class="rival-card-header">
+              <div>
+                <span class="channel-number ${rival.id}" style="font-size:0.85rem;padding:2px 8px;">${rival.channelNo || (rival.id === 'jade' ? 81 : rival.id === 'viu' ? 99 : 77)}</span>
+                <h3 class="rival-card-title" style="display:inline;margin-left:6px;">${safe(rival.name)}</h3>
+              </div>
+              <span class="rival-card-network">${safe(rival.network || '')}</span>
+            </div>
+            <div class="rival-card-quote">
+              ${safe(rival.profile)}
+            </div>
+            <div class="channel-stars-row" style="margin-top:4px;">
+              ${(rival.stars || []).slice(0, 4).map(star => `<span class="star-pill" style="font-size:0.68rem;padding:2px 6px;">${safe(star)}</span>`).join('')}
+            </div>
+            <div class="rival-card-stats">
+              <div class="rival-stat-row">
+                <span>此刻正在播映：</span>
+                <strong>《${safe(now.title)}》 <span class="rating-pill ${ratingTierClass(now.rating)}" style="padding:2px 6px;font-size:0.75rem;">${now.rating} 點</span></strong>
+              </div>
+              <div class="rival-stat-row">
+                <span>19:00 王牌劇集：</span>
+                <strong>《${safe(prime.title)}》 (${prime.rating} 點)</strong>
+              </div>
+              <div class="rival-stat-row">
+                <span>21:00 旗艦劇場：</span>
+                <strong>《${safe(late.title)}》 (${late.rating} 點)</strong>
+              </div>
+              <div class="rival-stat-row">
+                <span>本月重點首播：</span>
+                <strong>《${safe(premiere.title)}》· ${safe(premiere.genre)}</strong>
+              </div>
+              ${deal ? `
+                <div class="rival-stat-row" style="color:#34d399;">
+                  <span>買入我台作品：</span>
+                  <strong>《${safe(deal.title)}》</strong>
+                </div>
+              ` : ''}
+              ${rivalBuy ? `
+                <div class="rival-stat-row" style="color:#fdba74;">
+                  <span>外購市場搶購：</span>
+                  <strong>《${safe(rivalBuy.title)}》</strong>
+                </div>
+              ` : ''}
+            </div>
+            <button type="button" class="soft-button" style="margin-top:auto;" data-action="rivals-tab" data-value="${rival.id}">
+              查看 24 小時完整節目表 →
+            </button>
+          </article>
+        `;
+      }).join('')}
+    </div>
+
+    <section class="panel matchup-panel">
+      <div class="section-heading">
+        <h2>⚡ 此刻四台同步收視即時戰況（${hourLabel(live.hour)}）</h2>
+        <span>即時對抗概況 · 點擊切換完整對決矩陣</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:12px;background:#172230;border-radius:8px;border:1px solid #2a3c54;">
+        ${(() => {
+          const myBlock = programAtHour(state, live.hour);
+          const myProg = myBlock && state.library.find(p => p.id === myBlock.programId);
+          const myEvent = myBlock?.programId.startsWith('event:') && state.events.find(e => `event:${e.id}` === myBlock.programId);
+          const myTitle = myProg?.title ?? myEvent?.name ?? '未排節目';
+          const myRating = state.lastDayResult?.hours?.[live.hour]?.rating ?? (myProg?.rating ?? 45);
+          return `
+            <div style="flex:1;min-width:180px;">
+              <small style="color:#94a3b8;display:block;">我台（你的電視台）</small>
+              <strong style="color:#38bdf8;">《${safe(myTitle)}》</strong>
+              <span class="rating-pill tier-a" style="margin-left:6px;padding:2px 7px;font-size:0.75rem;">${myRating} 點</span>
+            </div>
+          `;
+        })()}
+        ${state.rivals.map(rival => {
+          const show = rivalAtHour(state, rival, live.hour, state.day);
+          return `
+            <div style="flex:1;min-width:180px;">
+              <small style="color:#94a3b8;display:block;">${safe(rival.name)}（${rival.channelNo || ''}台）</small>
+              <strong style="color:#f1f5f9;">《${safe(show.title)}》</strong>
+              <span class="rating-pill ${ratingTierClass(show.rating)}" style="margin-left:6px;padding:2px 7px;font-size:0.75rem;">${show.rating} 點</span>
+            </div>
+          `;
+        }).join('')}
+        <button type="button" class="primary-button" data-action="rivals-tab" data-value="matchup">
+          進入 24 小時全日對決矩陣 →
+        </button>
+      </div>
+    </section>
+  `;
+}
+
+function renderRivalsMatchup(live) {
+  let playerWins = 0, jadeWins = 0, viuWins = 0, hoyWins = 0;
+
+  const rowsHtml = Array.from({ length: 24 }, (_, hour) => {
+    const isNow = hour === live.hour;
+    const isPrime = hour >= 18 && hour <= 22;
+    const block = programAtHour(state, hour);
+    const prog = block && state.library.find(item => item.id === block.programId);
+    const event = block?.programId.startsWith('event:') && state.events.find(e => `event:${e.id}` === block.programId);
+    const title = prog?.title ?? event?.name ?? '未排節目';
+    const episode = episodeForBlock(state, block);
+    const playerRating = state.lastDayResult?.hours?.[hour]?.rating ?? (prog?.rating ?? 45);
+
+    const jade = state.rivals.find(r => r.id === 'jade') || state.rivals[0];
+    const viu = state.rivals.find(r => r.id === 'viu') || state.rivals[1];
+    const hoy = state.rivals.find(r => r.id === 'hoy') || state.rivals[2];
+
+    const jadeShow = rivalAtHour(state, jade, hour, state.day);
+    const viuShow = rivalAtHour(state, viu, hour, state.day);
+    const hoyShow = rivalAtHour(state, hoy, hour, state.day);
+
+    const ratings = [
+      { name: 'player', label: '我台', val: playerRating },
+      { name: 'jade', label: '翡翠台', val: jadeShow.rating },
+      { name: 'viu', label: 'ViuTV', val: viuShow.rating },
+      { name: 'hoy', label: 'HOY TV', val: hoyShow.rating }
+    ];
+    ratings.sort((a, b) => b.val - a.val);
+    const winner = ratings[0];
+    if (winner.name === 'player') playerWins++;
+    else if (winner.name === 'jade') jadeWins++;
+    else if (winner.name === 'viu') viuWins++;
+    else if (winner.name === 'hoy') hoyWins++;
+
+    return `
+      <div class="matchup-row ${isPrime ? 'prime' : ''} ${isNow ? 'is-now' : ''}" data-hour="${hour}" style="grid-template-columns: 80px minmax(160px,1.2fr) minmax(130px,1fr) minmax(130px,1fr) minmax(130px,1fr) 110px;">
+        <strong>${hourLabel(hour)}</strong>
+        <span>
+          ${safe(title)}${episode ? `<small>${safe(episode)}</small>` : ''}
+          <b>${playerRating} 點</b>
+        </span>
+        <span>${safe(jadeShow.title)}<b>${jadeShow.rating} 點</b></span>
+        <span>${safe(viuShow.title)}<b>${viuShow.rating} 點</b></span>
+        <span>${safe(hoyShow.title)}<b>${hoyShow.rating} 點</b></span>
+        <span>
+          <span class="matchup-winner-badge ${winner.name}">
+            ${winner.name === 'player' ? '🏆 我台領先' : `${winner.label}領先`}
+          </span>
+        </span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <section class="panel matchup-panel">
+      <div class="section-heading">
+        <h2>⚔️ 24 小時四台逐小時同步對決表</h2>
+        <span>我台（你的電視台）對陣 81 翡翠台、99 ViuTV、77 HOY TV</span>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;background:#172230;padding:10px 14px;border-radius:8px;font-size:0.8rem;">
+        <span style="color:#94a3b8;">當日領先統計：</span>
+        <strong style="color:#6ee7b7;">我台領先 ${playerWins} 時段</strong> · 
+        <strong style="color:#86efac;">翡翠台領先 ${jadeWins} 時段</strong> · 
+        <strong style="color:#7dd3fc;">ViuTV領先 ${viuWins} 時段</strong> · 
+        <strong style="color:#fda4af;">HOY TV領先 ${hoyWins} 時段</strong>
+      </div>
+      <div class="matchup-scroll">
+        <div class="matchup-table" style="min-width:920px;">
+          <div class="matchup-head" style="grid-template-columns: 80px minmax(160px,1.2fr) minmax(130px,1fr) minmax(130px,1fr) minmax(130px,1fr) 110px;">
+            <span>時段</span>
+            <span>我台節目 · 預測收視</span>
+            <span>81 翡翠台 · 收視</span>
+            <span>99 ViuTV · 收視</span>
+            <span>77 HOY TV · 收視</span>
+            <span>時段盟主</span>
+          </div>
+          ${rowsHtml}
+        </div>
+      </div>
+      <p class="footnote">💡 對手節目與收視為即時情資預測。按「結算今日」後，實際我台收視與藝人人氣將全面更新！黃金時段（18:00–23:00）為收視定奪關鍵戰場。</p>
+    </section>
+  `;
+}
+
 function rivalsView() {
-  const live=broadcastNow(state);
-  return `<div class="page-head"><div><div class="eyebrow cyan">CHANNEL INTELLIGENCE</div><h1>香港三大商業電視台（翡翠台、ViuTV、HOY TV）嘅每日節目表</h1><p>對手每個遊戲月推出新節目，19:00–21:00 會直接搶走我台觀眾。外購市場搶購作品或收購我台作品後亦會喺 21:00–23:00 播出。</p></div><div class="legend">最近一日勝出 <strong>${state.lastDayResult?`${state.lastDayResult.wins} / 24 小時`:'等待第一日結算'}</strong></div></div>
-    <div class="rival-cards">${state.rivals.map(rival=>{
-      const now=rivalAtHour(state,rival,live.hour);
-      const prime=rivalAtHour(state,rival,19);
-      const premiere=rivalPremiere(rival,state.day);
-      const next=rivalPremiere(rival,state.day+DAYS_PER_MARKET_MONTH);
-      const deal=(state.distributionDeals??[]).find(d=>d.rivalId===rival.id&&d.startDay<=state.day&&state.day<d.expiresDay);
-      const rivalBuy=(state.rivalPurchases??[]).find(r=>r.rivalId===rival.id&&r.startDay<=state.day&&state.day<r.expiresDay);
-      return `<article class="panel"><div class="eyebrow cyan">COMPETITOR CHANNEL · 第 ${premiere.month+1} 個月</div><h2>${safe(rival.name)}</h2><p>${safe(rival.profile)}</p><div><small>本月首播</small><strong>《${safe(premiere.title)}》· ${safe(premiere.genre)} · ${premiere.slot}</strong></div><div><small>下月預告</small><strong>《${safe(next.title)}》· ${safe(next.genre)}</strong></div>${deal?`<div><small>買入我台作品</small><strong>《${safe(deal.title)}》· 至第 ${deal.expiresDay-1} 日 (21:00–23:00)</strong></div>`:''}${rivalBuy?`<div><small>外購市場搶購作品</small><strong>《${safe(rivalBuy.title)}》(${safe(rivalBuy.origin||'外購')} · 預測 ${rivalBuy.rating+2} 點) · 21:00–23:00</strong></div>`:''}<div><small>此刻</small><strong>${safe(now.title)} · 預測 ${now.rating}</strong></div><div><small>19:00 對台</small><strong>${safe(prime.title)} · 預測 ${prime.rating}</strong></div></article>`}).join('')}</div>
-    <section class="panel matchup-panel"><div class="section-heading"><h2>逐小時對台</h2><span>我台與三間對手，各 24 小時</span></div><div class="matchup-scroll"><div class="matchup-table"><div class="matchup-head"><span>時段</span><span>我台節目</span>${state.rivals.map(r=>`<span>${safe(r.name)} · 預測</span>`).join('')}</div>${Array.from({length:24},(_,hour)=>{const block=programAtHour(state,hour);const program=block&&state.library.find(item=>item.id===block.programId);const event=block?.programId.startsWith('event:')&&state.events.find(e=>`event:${e.id}`===block.programId);const title=program?.title??event?.name??'未排節目';const episode=episodeForBlock(state,block);return `<div class="matchup-row ${hour>=18&&hour<=22?'prime':''}" data-hour="${hour}"><strong>${hourLabel(hour)}</strong><span>${safe(title)}${episode?`<small>${safe(episode)}</small>`:''}</span>${state.rivals.map(rival=>{const show=rivalAtHour(state,rival,hour);return `<span>${safe(show.title)}<b>${show.rating}</b></span>`}).join('')}</div>`}).join('')}</div></div><p class="footnote">對手收視係遊戲預測；按「結算今日」後，實際我台收視同藝人人氣會更新。</p></section>`;
+  const live = broadcastNow(state);
+  const selectedRival = state.rivals.find(r => r.id === rivalsTab) || null;
+
+  return `
+    <div class="page-head">
+      <div>
+        <div class="eyebrow cyan">CHANNEL INTELLIGENCE · 香港商營免費電視台情報專頁</div>
+        <h1>香港三大電視台節目表與收視情報</h1>
+        <p>全景監察 <strong>81 翡翠台</strong>、<strong>99 ViuTV</strong>、<strong>77 HOY TV</strong> 全日 24 小時節目編排、實時預測收視、旗下王牌藝人及競爭策略。</p>
+      </div>
+      <div class="legend">
+        昨日戰績：<strong>${state.lastDayResult ? `${state.lastDayResult.wins} / 24 小時時段勝出` : '等待第一日結算'}</strong>
+      </div>
+    </div>
+
+    <div class="rival-tab-bar" role="tablist">
+      <button type="button" class="rival-tab-btn ${rivalsTab === 'all' ? 'active' : ''}" data-action="rivals-tab" data-value="all">
+        📺 三台總覽一覽
+      </button>
+      <button type="button" class="rival-tab-btn ${rivalsTab === 'jade' ? 'active tab-jade' : ''}" data-action="rivals-tab" data-value="jade">
+        <span class="rival-tab-badge tab-badge-jade">81</span> 翡翠台（Jade TV）
+      </button>
+      <button type="button" class="rival-tab-btn ${rivalsTab === 'viu' ? 'active tab-viu' : ''}" data-action="rivals-tab" data-value="viu">
+        <span class="rival-tab-badge tab-badge-viu">99</span> ViuTV
+      </button>
+      <button type="button" class="rival-tab-btn ${rivalsTab === 'hoy' ? 'active tab-hoy' : ''}" data-action="rivals-tab" data-value="hoy">
+        <span class="rival-tab-badge tab-badge-hoy">77</span> HOY TV
+      </button>
+      <button type="button" class="rival-tab-btn ${rivalsTab === 'matchup' ? 'active' : ''}" data-action="rivals-tab" data-value="matchup">
+        ⚔️ 24 小時四台對決表
+      </button>
+    </div>
+
+    ${rivalsTab === 'all' ? renderRivalsOverview(live) : rivalsTab === 'matchup' ? renderRivalsMatchup(live) : renderRivalDetail(selectedRival, live)}
+  `;
 }
 
 function replayQueueView() {
@@ -1252,7 +1586,7 @@ function sportsView() {
         <div class="sports-active-grid">
           ${activeSports.map(s => {
             const cfg = getSportsConfig(s);
-            const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || (s.name && s.name.includes('全季'));
+            const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || cfg?.type === 'racing' || (s.name && s.name.includes('全季'));
             const wonDay = s.wonDay ?? Math.max(1, (s.wonQuarter ?? (s.quarter - 1)) * DAYS_PER_QUARTER + 1);
             const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
             const daysLeft = Math.max(0, wonDay + validDuration - state.day);
@@ -1280,7 +1614,9 @@ function sportsView() {
         const existingBid=event.playerBid??0;
         const neededBuyout=buyoutCost-existingBid;
         const cfg = getSportsConfig(event);
-        const desc = cfg?.type === 'pl'
+        const desc = cfg?.type === 'racing'
+          ? '🏇 香港賽馬：跑馬地夜馬（週三 19:00–23:00）及沙田日馬（週日 13:00–18:00）全季直播；7、8月暑期休季停跑。收視率不追求超高但基本盤極穩定（約 61–66 點），忠實馬迷固定收看！'
+          : cfg?.type === 'pl'
           ? '⚽ 英超聯賽：真實亞洲時區轉播。買斷或中標後預排【週末焦點（週六日 19:00–24:00）】及【週中快車（週二三 01:00–04:00）】直播；週一、四、五不佔用頻道，直播收視高達 98 點！'
           : cfg?.type === 'ucl'
           ? '⭐ 歐聯賽事：歐聯淘汰賽與決賽嚴格於【週二三深夜 01:00–05:00】直播，週末絕無賽事，與英超賽程完美共存不衝突，深夜收視震撼爆燈！'
@@ -1768,6 +2104,7 @@ app.addEventListener('click',e=>{
     if(action==='unlock-subchannel'){unlockSubChannel(state);scheduleChannel=2;flash('恭喜獲發牌照！數碼二台正式開台，每日享有 28% 副台廣告收益！');render();return;}
     if(action==='switch-channel'){scheduleChannel=Number(button.dataset.channel);render();return;}
     if(action==='talent-filter'){talentSubTab=value;render();return;}
+    if(action==='rivals-tab'){rivalsTab=value;render();return;}
     if(state.pendingPremieres?.length&&['advance-day','advance-week','advance'].includes(action))throw Error('先處理首播戰報，然後再繼續營運。');
     if(action==='premiere-choice'){const result=resolvePremiere(state,value);flash(`《${result.title}》首播決策完成，後續集數會受影響。`);return;}
     if(action==='tab'){tab=button.dataset.tab;editorOpen=false;resetScroll=true;notice='';render();}

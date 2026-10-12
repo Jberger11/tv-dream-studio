@@ -31,34 +31,78 @@ export class StationState {
     this.talent = {};
     // Three competing Hong Kong commercial channels: Jade TV, ViuTV, HOY TV. Each line-up fills all 24 hourly slots.
     this.rivals = [
-      {id:'jade',name:'翡翠台',profile:'電視廣播（無綫）：黃金檔大劇、處境劇、東張西望與合家歡綜藝',schedule:[
-        {start:0,duration:3,title:'無綫午夜劇場',rating:50},{start:3,duration:3,title:'舊劇重溫經典',rating:44},
-        {start:6,duration:3,title:'香港早晨',rating:65},{start:9,duration:2,title:'開市財經直擊',rating:57},
-        {start:11,duration:2,title:'流行都市生活',rating:55},{start:13,duration:2,title:'午間經典劇場',rating:62},
-        {start:15,duration:2,title:'下午合家歡',rating:57},{start:17,duration:1,title:'六點半新聞報道',rating:72},
-        {start:18,duration:1,title:'東張西望時事',rating:76},
-        {start:19,duration:2,title:'愛·回家之開心速遞',rotation:['愛·回家之開心速遞','年代商戰風雲','律政強人重聚'],rating:82},
-        {start:21,duration:2,title:'黃金旗艦大劇',rating:80},{start:23,duration:1,title:'晚間新聞與夜線',rating:62}
-      ]},
-      {id:'viu',name:'ViuTV',profile:'香港電視娛樂：偶像劇、真人騷綜藝、ERROR/MIRROR 潮流熱話',schedule:[
-        {start:0,duration:2,title:'深夜 Chill Club 音樂',rating:55},{start:2,duration:4,title:'音樂漫遊與重播',rating:42},
-        {start:6,duration:3,title:'早晨新聞透視',rating:53},{start:9,duration:3,title:'智富通開市資訊',rating:51},
-        {start:12,duration:2,title:'亞洲精選人氣劇',rating:56},{start:14,duration:2,title:'潮流生活指南',rating:50},
-        {start:16,duration:2,title:'放學青年天地',rating:52},{start:18,duration:1,title:'傍晚新聞報導',rating:60},
-        {start:19,duration:1,title:'人氣自製偶像劇',rating:72},
-        {start:20,duration:1,title:'爆笑真人實況騷',rotation:['膠戰極限','全員逃走衝擊','ERROR大冒險'],rating:76},
-        {start:21,duration:2,title:'Viu 原創旗艦劇',rotation:['大叔的愛甜蜜蜜','社內大激戰','IT狂人奮鬥記'],rating:78},
-        {start:23,duration:1,title:'晚吹深度清談',rating:68}
-      ]},
-      {id:'hoy',name:'HOY TV',profile:'有線寬頻旗下：生活資訊、星級名廚美食、外購高質日韓劇',schedule:[
-        {start:0,duration:3,title:'深夜滋味重溫',rating:46},{start:3,duration:3,title:'經典懷舊影院',rating:40},
-        {start:6,duration:3,title:'HOY 早晨快訊',rating:50},{start:9,duration:3,title:'財經開市直擊',rating:48},
-        {start:12,duration:2,title:'星級大廚煮意',rating:58},{start:14,duration:2,title:'悠閒生活劇場',rating:52},
-        {start:16,duration:2,title:'健康養生指南',rating:51},{start:18,duration:1,title:'七點新聞透視',rating:59},
-        {start:19,duration:1,title:'開飯喇滋味行',rating:65},
-        {start:20,duration:1,title:'外購強檔韓劇',rotation:['宮廷秘辛','豪門恩怨風雲','都市浪漫曲'],rating:71},
-        {start:21,duration:2,title:'一線生活搜查',rating:68},{start:23,duration:1,title:'晚間新聞夜話',rating:52}
-      ]}
+      {
+        id:'jade',
+        name:'翡翠台',
+        englishName:'Jade TV',
+        network:'電視廣播（無綫電視）',
+        channelNo: 81,
+        themeColor: '#10b981',
+        profile:'財雄勢大，全天候 24 小時王牌劇集與長壽綜藝排播，體育版權出價高。',
+        stars: ['馬國明', '陳豪', '高海寧', '陳曉華', '王浩信', '譚俊彥'],
+        schedule:[
+          {start:0,duration:3,title:'無綫午夜劇場',category:'經典劇集',desc:'深宵重溫歷年經典大劇，忠實劇迷深宵追劇',rating:50},
+          {start:3,duration:3,title:'舊劇重溫經典',category:'經典劇集',desc:'深夜時段循環播映無綫片庫藏品',rating:44},
+          {start:6,duration:3,title:'香港早晨',category:'新聞資訊',desc:'陪伴全港市民上班上學的晨間新聞直播',rating:65},
+          {start:9,duration:2,title:'開市財經直擊',category:'財經資訊',desc:'港股開市第一手即時報價與專家分析',rating:57},
+          {start:11,duration:2,title:'流行都市生活',category:'生活資訊',desc:'長壽婦女生活資訊、家庭烹飪與健康養生',rating:55},
+          {start:13,duration:2,title:'午間經典劇場',category:'經典劇集',desc:'午飯時間合家歡重溫經典時裝恩怨劇',rating:62},
+          {start:15,duration:2,title:'下午合家歡',category:'少兒動漫',desc:'兒童節目、卡通片與合家歡休閒資訊',rating:57},
+          {start:17,duration:1,title:'六點半新聞報道',category:'新聞報道',desc:'無綫旗艦黃金時段新聞，全港收視最高新聞節目',rating:72},
+          {start:18,duration:1,title:'東張西望時事',category:'時事熱話',desc:'緊貼香港民生熱話與社會奇聞，話題收視雙高峰',rating:76},
+          {start:19,duration:2,title:'愛·回家之開心速遞',category:'王牌處境劇',rotation:['愛·回家之開心速遞','年代商戰風雲','律政強人重聚'],desc:'收視穩居榜首的皇牌長壽處境喜劇，全港晚飯首選',rating:82},
+          {start:21,duration:2,title:'黃金旗艦大劇',category:'旗艦大劇',desc:'全台重金打造之合拍旗艦商戰懸疑大劇',rating:80},
+          {start:23,duration:1,title:'晚間新聞與夜線',category:'晚間新聞',desc:'總結全日要聞、體育動態與深宵天氣預測',rating:62}
+        ]
+      },
+      {
+        id:'viu',
+        name:'ViuTV',
+        englishName:'ViuTV',
+        network:'香港電視娛樂',
+        channelNo: 99,
+        themeColor: '#0ea5e9',
+        profile:'主打年輕偶像、原創劇集與大型運動賽事。',
+        stars: ['楊樂文', '江𤒹生', '岑珈其', '陳漢娜', '凌文龍', '邱傲然'],
+        schedule:[
+          {start:0,duration:2,title:'深夜 Chill Club 音樂',category:'音樂節目',desc:'香港獨立音樂與主流人氣歌手現場音樂會',rating:55},
+          {start:2,duration:4,title:'音樂漫遊與重播',category:'音樂重播',desc:'清晨深宵無間斷香港流行音樂 MV 漫遊',rating:42},
+          {start:6,duration:3,title:'早晨新聞透視',category:'晨間新聞',desc:'晨早新聞報導與青年社群焦點議題',rating:53},
+          {start:9,duration:3,title:'智富通開市資訊',category:'財經開市',desc:'金融理財與年輕創業投資資訊',rating:51},
+          {start:12,duration:2,title:'亞洲精選人氣劇',category:'精選外購',desc:'緊貼潮流之高質日劇與話題韓劇精選',rating:56},
+          {start:14,duration:2,title:'潮流生活指南',category:'潮流生活',desc:'文青潮流、潮人穿搭與特色小店探秘',rating:50},
+          {start:16,duration:2,title:'放學青年天地',category:'青年社群',desc:'放學後青年社群綜藝與動漫時段',rating:52},
+          {start:18,duration:1,title:'傍晚新聞報導',category:'傍晚新聞',desc:'重點新聞、國際時事與社會脈搏',rating:60},
+          {start:19,duration:1,title:'人氣自製偶像劇',category:'自製偶像劇',desc:'人氣偶像男團女團主演之青春愛情偶像劇',rating:72},
+          {start:20,duration:1,title:'爆笑真人實況騷',category:'真人實況騷',rotation:['膠戰極限','全員逃走衝擊','ERROR大冒險'],desc:'無底線爆笑遊戲挑戰與偶像冒險，年輕族群熱捧',rating:76},
+          {start:21,duration:2,title:'Viu 原創旗艦劇',category:'原創劇集',rotation:['大叔的愛甜蜜蜜','社內大激戰','IT狂人奮鬥記'],desc:'突破傳統港劇框框，引爆社交網絡洗版狂潮',rating:78},
+          {start:23,duration:1,title:'晚吹深度清談',category:'清談節目',desc:'大膽辛辣訪談節目，話題貼地無禁忌',rating:68}
+        ]
+      },
+      {
+        id:'hoy',
+        name:'HOY TV',
+        englishName:'HOY TV',
+        network:'有線寬頻開電視',
+        channelNo: 77,
+        themeColor: '#f43f5e',
+        profile:'綜藝生活與焦點大賽爆冷突襲。',
+        stars: ['鄭丹瑞', '簡慕華', '林敏驄', '陳秀珠'],
+        schedule:[
+          {start:0,duration:3,title:'深夜滋味重溫',category:'美食生活',desc:'名廚深宵廚房料理重播，引發深宵食慾',rating:46},
+          {start:3,duration:3,title:'經典懷舊影院',category:'懷舊影院',desc:'經典華語與外國老電影放映',rating:40},
+          {start:6,duration:3,title:'HOY 早晨快訊',category:'早晨新聞',desc:'開電視早晨新聞快訊與天氣交通直擊',rating:50},
+          {start:9,duration:3,title:'財經開市直擊',category:'財經資訊',desc:'專業財經團隊即時分析港股及環球市況',rating:48},
+          {start:12,duration:2,title:'星級大廚煮意',category:'名廚烹飪',desc:'香港頂級米芝蓮星廚親授家常名菜秘笈',rating:58},
+          {start:14,duration:2,title:'悠閒生活劇場',category:'生活休閒',desc:'慢活品味與大灣區旅遊休閒節目',rating:52},
+          {start:16,duration:2,title:'健康養生指南',category:'健康養生',desc:'名醫坐鎮解構都市健康問題與養生食療',rating:51},
+          {start:18,duration:1,title:'七點新聞透視',category:'重點新聞',desc:'客觀專業深入之晚間新聞專題',rating:59},
+          {start:19,duration:1,title:'開飯喇滋味行',category:'飲食生活',desc:'全港隱世美食、街坊小店與米芝蓮打卡推介',rating:65},
+          {start:20,duration:1,title:'外購強檔韓劇',category:'精選韓劇',rotation:['宮廷秘辛','豪門恩怨風雲','都市浪漫曲'],desc:'高收視正版引進之大製作宮廷與豪門愛情劇',rating:71},
+          {start:21,duration:2,title:'一線生活搜查',category:'民生時事',desc:'直擊民生痛點、消費陷阱與社會熱點搜查',rating:68},
+          {start:23,duration:1,title:'晚間新聞夜話',category:'夜間新聞',desc:'專業透視夜間新聞與兩岸國際脈搏',rating:52}
+        ]
+      }
     ];
     this.library = [
       new Program({id:'start-doc',title:'城裡的夜',kind:'information',category:'紀錄片',quality:62,rating:48,buzz:34,episodes:6}),

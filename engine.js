@@ -962,22 +962,27 @@ export function unlockSubChannel(state) {
 }
 
 export const SPORTS_CALENDAR = [
+  { quarter: 1, name: '2028/29 香港賽馬全季轉播權（跑馬地夜馬與沙田日馬）', sport: '賽馬直播', icon: '🏇', floor: 4_200_000, adTarget: 8_500_000, id: 'racing-2028' },
   { quarter: 1, name: '2028/29 英格蘭超級聯賽（全季轉播權）', sport: '英超聯賽', icon: '⚽', floor: 6_000_000, adTarget: 9_000_000, id: 'pl-2028' },
   { quarter: 2, name: '2028 洛杉磯奧運會', sport: '夏季奧運', icon: '🏅', floor: 8_000_000, adTarget: 11_000_000, id: 'games-2028' },
   { quarter: 3, name: '2028 歐洲國家盃（UEFA Euro）', sport: '歐洲國家盃', icon: '🏆', floor: 7_500_000, adTarget: 10_500_000, id: 'euro-2028' },
   { quarter: 4, name: '2028/29 歐洲聯賽冠軍盃（歐聯淘汰賽與決賽）', sport: '歐聯賽事', icon: '⭐', floor: 5_500_000, adTarget: 8_500_000, id: 'ucl-2028' },
+  { quarter: 5, name: '2029/30 香港賽馬全季轉播權（跑馬地夜馬與沙田日馬）', sport: '賽馬直播', icon: '🏇', floor: 4_600_000, adTarget: 9_000_000, id: 'racing-2029' },
   { quarter: 5, name: '2029/30 英格蘭超級聯賽（全季轉播權）', sport: '英超聯賽', icon: '⚽', floor: 6_500_000, adTarget: 9_500_000, id: 'pl-2029' },
   { quarter: 6, name: '2029 世界女排聯賽及香港七人欖球賽', sport: '排球及欖球', icon: '🏐', floor: 4_000_000, adTarget: 6_500_000, id: 'vnl-2029' },
   { quarter: 7, name: '2029/30 歐洲聯賽冠軍盃（歐聯全季）', sport: '歐聯賽事', icon: '⭐', floor: 6_000_000, adTarget: 9_000_000, id: 'ucl-2029' },
   { quarter: 8, name: '2030 冬季奧林匹克運動會', sport: '冬季奧運', icon: '❄️', floor: 5_000_000, adTarget: 7_500_000, id: 'winter-2030' },
+  { quarter: 9, name: '2030/31 香港賽馬全季轉播權（跑馬地夜馬與沙田日馬）', sport: '賽馬直播', icon: '🏇', floor: 5_000_000, adTarget: 9_500_000, id: 'racing-2030' },
   { quarter: 9, name: '2030/31 英格蘭超級聯賽（全季轉播權）', sport: '英超聯賽', icon: '⚽', floor: 7_000_000, adTarget: 10_500_000, id: 'pl-2030' },
   { quarter: 10, name: '2030 FIFA 世界盃足球賽', sport: 'FIFA世界盃', icon: '🌍', floor: 10_000_000, adTarget: 13_000_000, id: 'football-2030' },
   { quarter: 11, name: '2030/31 歐洲聯賽冠軍盃（歐聯全季）', sport: '歐聯賽事', icon: '⭐', floor: 6_500_000, adTarget: 9_500_000, id: 'ucl-2030' },
   { quarter: 12, name: '2031 溫布頓網球錦標賽及世界一級方程式賽車（F1）', sport: '網球及賽車', icon: '🏎️', floor: 4_500_000, adTarget: 7_000_000, id: 'f1-2031' },
+  { quarter: 13, name: '2031/32 香港賽馬全季轉播權（跑馬地夜馬與沙田日馬）', sport: '賽馬直播', icon: '🏇', floor: 5_400_000, adTarget: 10_000_000, id: 'racing-2031' },
   { quarter: 13, name: '2031/32 英格蘭超級聯賽（全季轉播權）', sport: '英超聯賽', icon: '⚽', floor: 7_500_000, adTarget: 11_000_000, id: 'pl-2031' },
   { quarter: 14, name: '2032 歐洲國家盃（UEFA Euro）', sport: '歐洲國家盃', icon: '🏆', floor: 8_500_000, adTarget: 12_000_000, id: 'euro-2032' },
   { quarter: 15, name: '2031/32 歐洲聯賽冠軍盃（歐聯全季）', sport: '歐聯賽事', icon: '⭐', floor: 7_000_000, adTarget: 10_000_000, id: 'ucl-2031' },
   { quarter: 16, name: '2032 澳洲布里斯本奧運會', sport: '夏季奧運', icon: '🏅', floor: 11_000_000, adTarget: 14_000_000, id: 'games-2032' },
+  { quarter: 17, name: '2032/33 香港賽馬全季轉播權（跑馬地夜馬與沙田日馬）', sport: '賽馬直播', icon: '🏇', floor: 5_800_000, adTarget: 10_500_000, id: 'racing-2032' },
   { quarter: 17, name: '2032/33 英格蘭超級聯賽（全季轉播權）', sport: '英超聯賽', icon: '⚽', floor: 8_000_000, adTarget: 12_000_000, id: 'pl-2032' },
   { quarter: 26, name: '2034 FIFA 世界盃足球賽', sport: 'FIFA世界盃', icon: '🌍', floor: 12_000_000, adTarget: 16_000_000, id: 'football-2034' }
 ];
@@ -987,6 +992,39 @@ export function getSportsConfig(event) {
   const name = event.name || '';
   const sport = event.sport || '';
   const id = event.id || '';
+
+  if (sport === '賽馬直播' || name.includes('賽馬') || id.startsWith('racing-')) {
+    return {
+      type: 'racing',
+      name: '香港賽馬現場直播',
+      icon: '🏇',
+      // Real-world HK Horse Racing broadcast windows:
+      // Wednesday night: 7pm to 11pm (19:00 - 23:00 HK time) -> Happy Valley 跑馬地夜馬
+      // Sunday afternoon: 1pm to 6pm (13:00 - 18:00 HK time) -> Sha Tin 沙田日馬
+      // Season: September to June (all months exclude July & August 7月、8月暑期休季)
+      matchDays: [2, 6], // Wed (2), Sun (6)
+      wednesdayDays: [2],
+      sundayDays: [6],
+      defaultSlots: [
+        { days: [2], start: 19, duration: 4, label: '跑馬地夜馬直播（週三 19:00–23:00）' },
+        { days: [6], start: 13, duration: 5, label: '沙田日馬直播（週日 13:00–18:00）' }
+      ],
+      isLiveHour: (day, hour) => {
+        const monthInYear = (marketMonthForDay(day) % 12) + 1;
+        if (monthInYear === 7 || monthInYear === 8) return false; // 7月、8月暑期休季
+        const wd = weekdayForDay(day);
+        if (wd === 2 && hour >= 19 && hour <= 22) return true; // 週三夜馬 19:00-23:00
+        if (wd === 6 && hour >= 13 && hour <= 17) return true; // 週日日馬 13:00-18:00
+        return false;
+      },
+      matchdaysInMonth: 8,
+      isSummerBreak: (day) => {
+        const monthInYear = (marketMonthForDay(day) % 12) + 1;
+        return monthInYear === 7 || monthInYear === 8;
+      },
+      autoScheduleDesc: '已預排【跑馬地夜馬（週三 19:00–23:00）】及【沙田日馬（週日 13:00–18:00）】直播時段（7、8月暑期休季停跑）。收視不追求爆發性超高，但基本盤極其穩定！'
+    };
+  }
 
   if (sport === '英超聯賽' || name.includes('英格蘭超級聯賽') || name.includes('英超') || id.startsWith('pl-')) {
     return {
@@ -1135,7 +1173,7 @@ export function getSportsConfig(event) {
 export function isSportsActive(event, state) {
   if (!event || !event.resolved || event.winner !== '你的電視台') return false;
   const cfg = getSportsConfig(event);
-  const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || (event.name && event.name.includes('全季'));
+  const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || cfg?.type === 'racing' || (event.name && event.name.includes('全季'));
   const wonDay = event.wonDay ?? Math.max(1, (event.wonQuarter ?? (event.quarter - 1)) * DAYS_PER_QUARTER + 1);
   const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
   return state.day >= wonDay && state.day < wonDay + validDuration;
@@ -1538,7 +1576,7 @@ export function rivalAtHour(state,rival,hour,day=state.day) {
     if ((hour === 17 || hour === 18) && state.breakingEvent.ratingMods?.kinds?.news) eventMod += Math.round(state.breakingEvent.ratingMods.kinds.news * 0.5);
     if (hour >= 9 && hour <= 10 && state.breakingEvent.ratingMods?.kinds?.finance) eventMod += Math.round(state.breakingEvent.ratingMods.kinds.finance * 0.5);
   }
-  return {title,rating:clamp(base+wave+Math.min(state.quarter%3,2)+eventMod,1,98),block,rivalMarketBuy};
+  return {title,rating:clamp(base+wave+Math.min(state.quarter%3,2)+eventMod,1,98),block,rivalMarketBuy,deal,premiere,category:block.category,desc:block.desc};
 }
 
 export function distributionQuote(program,exclusive=false) {
@@ -2287,8 +2325,8 @@ export function buyoutSportsEvent(state, eventId) {
   event.resolved = true;
   event.bids = [
     { name: '你的電視台（一口價買斷）', amount: buyoutCost },
-    { name: '全城電視', amount: Math.round(event.floor * 1.25 / 100_000) * 100_000 },
-    { name: '本地八台', amount: event.floor }
+    { name: '翡翠台', amount: Math.round(event.floor * 1.25 / 100_000) * 100_000 },
+    { name: 'ViuTV', amount: event.floor }
   ];
   event.wonDay = state.day;
   event.wonQuarter = state.quarter;
@@ -2674,13 +2712,15 @@ export function advanceDay(state,rng=Math.random) {
       }
       const freshFactor = p ? getFreshnessFactor(p) : 1;
       const rating=special
-        ?(isLiveSports?clamp(95+Math.round(rng()*4),90,99):clamp(Math.round(72*factor),40,85))
+        ?(cfg?.type==='racing'
+            ?(isLiveSports?clamp(63+Math.round(rng()*3),61,66):clamp(Math.round(44+rng()*6),40,50))
+            :(isLiveSports?clamp(95+Math.round(rng()*4),90,99):clamp(Math.round(72*factor),40,85)))
         :clamp(Math.round(p.rating*decay*factor*freshFactor-pressure+eventMod),1,100);
       let ads;
       if (special) {
         const target=blockEvent?.adTarget??8_000_000;
         const expectedDays=cfg?.matchdaysInMonth??30;
-        const expectedHoursPerDay=cfg?.type==='pl'?4:cfg?.type==='ucl'?4:cfg?.type==='olympics'?8:6;
+        const expectedHoursPerDay=cfg?.type==='racing'?4.5:(cfg?.type==='pl'?4:cfg?.type==='ucl'?4:cfg?.type==='olympics'?8:6);
         const basePerHour=target/(expectedDays*expectedHoursPerDay);
         const repMod=0.90+state.reputation/500;
         const liveMod=isLiveSports?(1.05+(rng()*0.15-0.05)):0.25;
@@ -2699,7 +2739,7 @@ export function advanceDay(state,rng=Math.random) {
       }
       hours[hour]={hour,title:special?blockEvent.name:p.title,episode,rating,revenue:ads,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,special,rivals:rivals.map(item=>item.rating),eventMod,eventTitle:state.breakingEvent?.title};
       blockRevenue+=ads; ratingTotal+=rating; revenue+=ads; audience+=rating;
-      buzz+=special?90:Math.round(p.buzz*decay*freshFactor);
+      buzz+=special?(cfg?.type==='racing'?55:90):Math.round(p.buzz*decay*freshFactor);
     }
     const blockRating=Math.round(ratingTotal/times.length);
     const rivalRating=Math.round(times.reduce((sum,hour)=>sum+Math.max(...hours[hour].rivals),0)/times.length);
@@ -2885,7 +2925,7 @@ export function advanceDay(state,rng=Math.random) {
   const concludingSports = (state.events ?? []).filter(e => {
     if (!e.resolved || e.winner !== '你的電視台' || e.settled) return false;
     const cfg = getSportsConfig(e);
-    const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || (e.name && e.name.includes('全季'));
+    const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || cfg?.type === 'racing' || (e.name && e.name.includes('全季'));
     const wonDay = e.wonDay ?? Math.max(1, (e.wonQuarter ?? (e.quarter - 1)) * DAYS_PER_QUARTER + 1);
     const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
     return gameDay >= wonDay + validDuration - 1;

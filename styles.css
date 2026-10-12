@@ -3264,3 +3264,393 @@ html,body,#app{height:100%;overflow:hidden}
   }
 }
 
+/* =====================================================================
+   THREE HK COMPETITOR CHANNELS INTELLIGENCE PAGE (翡翠台 / ViuTV / HOY TV)
+   ===================================================================== */
+.rival-tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 20px;
+  background: #141c28;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid #273549;
+}
+.rival-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.rival-tab-btn:hover {
+  color: #f1f5f9;
+  background: #1e293b;
+}
+.rival-tab-btn.active {
+  background: #1e293b;
+  color: #38bdf8;
+  border-color: #38bdf8;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.2);
+}
+.rival-tab-btn.active.tab-jade {
+  color: #10b981;
+  border-color: #10b981;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+.rival-tab-btn.active.tab-viu {
+  color: #0ea5e9;
+  border-color: #0ea5e9;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.2);
+}
+.rival-tab-btn.active.tab-hoy {
+  color: #f43f5e;
+  border-color: #f43f5e;
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.2);
+}
+.rival-tab-badge {
+  font-size: 0.68rem;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-weight: 800;
+}
+.tab-badge-jade { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #10b981; }
+.tab-badge-viu { background: rgba(14, 165, 233, 0.2); color: #38bdf8; border: 1px solid #0ea5e9; }
+.tab-badge-hoy { background: rgba(244, 63, 94, 0.2); color: #fb7185; border: 1px solid #f43f5e; }
+
+/* Channel Profile Banner */
+.channel-detail-header {
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 22px;
+  border: 1px solid #334155;
+  background: linear-gradient(135deg, #182232 0%, #0f172a 100%);
+  position: relative;
+  overflow: hidden;
+}
+.channel-detail-header.jade {
+  border-top: 4px solid #10b981;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.08);
+}
+.channel-detail-header.viu {
+  border-top: 4px solid #0ea5e9;
+  box-shadow: 0 4px 20px rgba(14, 165, 233, 0.08);
+}
+.channel-detail-header.hoy {
+  border-top: 4px solid #f43f5e;
+  box-shadow: 0 4px 20px rgba(244, 63, 94, 0.08);
+}
+.channel-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.channel-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.channel-number {
+  font-size: 1.15rem;
+  font-weight: 900;
+  padding: 4px 12px;
+  border-radius: 8px;
+  letter-spacing: -0.5px;
+}
+.channel-number.jade { background: #10b981; color: #fff; }
+.channel-number.viu { background: #0ea5e9; color: #fff; }
+.channel-number.hoy { background: #f43f5e; color: #fff; }
+.channel-header-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.channel-network-tag {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-left: 6px;
+}
+.channel-user-profile-quote {
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 3px solid #38bdf8;
+  padding: 10px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0 16px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: #e2e8f0;
+}
+.channel-user-profile-quote.jade { border-left-color: #10b981; }
+.channel-user-profile-quote.viu { border-left-color: #0ea5e9; }
+.channel-user-profile-quote.hoy { border-left-color: #f43f5e; }
+
+.channel-stars-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.channel-stars-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+.star-pill {
+  background: #1e293b;
+  color: #f1f5f9;
+  border: 1px solid #334155;
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+}
+
+/* Now On-Air Highlights Card */
+.channel-live-strip {
+  background: #16202f;
+  border: 1px solid #2a3a4f;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.channel-live-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.live-pulse-dot {
+  width: 7px;
+  height: 7px;
+  background: #ef4444;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+/* EPG Schedule Timeline & Grid */
+.epg-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.epg-row-card {
+  display: grid;
+  grid-template-columns: 110px 1fr 100px;
+  gap: 16px;
+  align-items: center;
+  background: #151e2b;
+  border: 1px solid #243245;
+  border-radius: 10px;
+  padding: 12px 18px;
+  transition: all 0.15s ease;
+}
+.epg-row-card:hover {
+  background: #1a2536;
+  border-color: #3b4d66;
+}
+.epg-row-card.is-now {
+  background: #16323c;
+  border: 1px solid #14b8a6;
+  box-shadow: inset 3px 0 #14b8a6;
+}
+.epg-row-card.prime-slot {
+  border-left: 3px solid #f59e0b;
+}
+.epg-time-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.epg-time-range {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+}
+.epg-duration {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+.epg-content-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.epg-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.epg-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+.epg-category-badge {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid #334155;
+}
+.epg-special-pill {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.epg-special-pill.premiere { background: #4338ca; color: #e0e7ff; }
+.epg-special-pill.deal { background: #065f46; color: #a7f3d0; }
+.epg-special-pill.market { background: #7c2d12; color: #fed7aa; }
+
+.epg-desc {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+.epg-rating-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.rating-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+.rating-pill.tier-s { background: #581c87; color: #f3e8ff; border: 1px solid #9333ea; }
+.rating-pill.tier-a { background: #1e3a8a; color: #dbeafe; border: 1px solid #2563eb; }
+.rating-pill.tier-b { background: #064e3b; color: #d1fae5; border: 1px solid #059669; }
+.rating-pill.tier-c { background: #78350f; color: #fef3c7; border: 1px solid #d97706; }
+.rating-pill.tier-d { background: #334155; color: #cbd5e1; border: 1px solid #475569; }
+.rating-label {
+  font-size: 0.62rem;
+  color: #64748b;
+}
+
+/* Overview Cards */
+.rival-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+.rival-summary-card {
+  background: #151e2b;
+  border: 1px solid #27364a;
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.15s ease;
+}
+.rival-summary-card.jade { border-top: 4px solid #10b981; }
+.rival-summary-card.viu { border-top: 4px solid #0ea5e9; }
+.rival-summary-card.hoy { border-top: 4px solid #f43f5e; }
+.rival-summary-card:hover {
+  transform: translateY(-2px);
+  border-color: #3b506d;
+}
+.rival-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.rival-card-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.rival-card-network {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+.rival-card-quote {
+  font-size: 0.78rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+.rival-card-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #233144;
+  padding-top: 10px;
+}
+.rival-stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.76rem;
+}
+.rival-stat-row span { color: #94a3b8; }
+.rival-stat-row strong { color: #f1f5f9; }
+
+/* Matchup Winner Tag */
+.matchup-winner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.matchup-winner-badge.player { background: #065f46; color: #6ee7b7; border: 1px solid #10b981; }
+.matchup-winner-badge.jade { background: #14532d; color: #86efac; border: 1px solid #22c55e; }
+.matchup-winner-badge.viu { background: #0c4a6e; color: #7dd3fc; border: 1px solid #0284c7; }
+.matchup-winner-badge.hoy { background: #4c0519; color: #fda4af; border: 1px solid #f43f5e; }
+
+@media (max-width: 900px) {
+  .rival-overview-grid {
+    grid-template-columns: 1fr;
+  }
+  .epg-row-card {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .epg-rating-col {
+    align-items: flex-start;
+  }
+}
+
