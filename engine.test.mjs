@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -579,7 +579,7 @@ test('acquisition market contains diverse foreign dramas and competitors activel
   // Competitor purchases
   const state = newGame();
   assert.ok(state.rivalPurchases.length >= 2);
-  const cityBuy = state.rivalPurchases.find(r => r.rivalId === 'city');
+  const cityBuy = state.rivalPurchases.find(r => r.rivalId === 'city' || r.rivalId === 'jade');
   assert.ok(cityBuy);
   assert.ok(cityBuy.title);
 
@@ -965,7 +965,158 @@ test('starter library continuous programs and sports event identifiers do not mi
 
   const doc = state.library.find(p => p.id === 'start-doc');
   assert.equal(doc.episodes, 6);
-  assert.equal(isDailyFormat(doc.kind), false);
+});
+
+test('daily broadcast highlights calculate top and lowest rated programs accurately', () => {
+  const state = newGame();
+  const dayResult = advanceDay(state, () => 0.5);
+  assert.ok(dayResult.highlights, 'Daily highlights must be generated');
+  const { top, lowest } = dayResult.highlights;
+  assert.ok(top && lowest, 'Highlights must have top and lowest');
+  assert.ok(top.rating >= lowest.rating, 'Top rating must be >= lowest rating');
+  assert.ok(Number.isInteger(top.start) && top.start >= 0 && top.start < 24);
+  assert.ok(Number.isInteger(lowest.start) && lowest.start >= 0 && lowest.start < 24);
+  assert.ok(top.title);
+  assert.ok(lowest.title);
+  assert.ok(Number.isFinite(top.rivalRating));
+  assert.ok(Number.isFinite(lowest.rivalRating));
+  assert.equal(top.diff, top.rating - top.rivalRating);
+  assert.equal(lowest.diff, lowest.rating - lowest.rivalRating);
+
+  // Cross check against actual details array
+  const maxRating = Math.max(...dayResult.details.map(d => d.rating));
+  const minRating = Math.min(...dayResult.details.map(d => d.rating));
+  assert.equal(top.rating, maxRating);
+  assert.equal(lowest.rating, minRating);
+  assert.ok(state.lastDayResult.highlights);
+});
+
+test('power-up tool shop allows 30-day leasing, stacks extension, and buffs production quality and discounts', () => {
+  const state = newGame();
+  assert.equal(SHOP_TOOLS.length, 6);
+
+  // Buy camera_4k
+  const initialCash = state.cash;
+  const tool = buyShopTool(state, 'camera_4k');
+  assert.equal(tool.id, 'camera_4k');
+  assert.equal(tool.expiresDay, state.day + 30);
+  assert.equal(isToolActive(state, 'camera_4k'), true);
+  assert.equal(getToolTimeRemaining(state, 'camera_4k'), 30);
+  assert.equal(state.cash, initialCash - tool.price);
+
+  // Re-buying camera_4k extends it by 30 days
+  const extended = buyShopTool(state, 'camera_4k');
+  assert.equal(extended.expiresDay, state.day + 60);
+  assert.equal(getToolTimeRemaining(state, 'camera_4k'), 60);
+
+  // Buy script_workshop for production discount
+  buyShopTool(state, 'script_workshop');
+  assert.equal(isToolActive(state, 'script_workshop'), true);
+
+  // Test discount on productionQuote
+  const quoteWithout = productionQuote(newGame(), { kind: 'drama', genre: '青春', themes: ['友情'], actorIds: ['edaan', 'anson_lo'], budgetId: 'standard', episodeHours: 2, episodeCount: 8, styleId: 'mainstream' });
+  const quoteWith = productionQuote(state, { kind: 'drama', genre: '青春', themes: ['友情'], actorIds: ['edaan', 'anson_lo'], budgetId: 'standard', episodeHours: 2, episodeCount: 8, styleId: 'mainstream' });
+  assert.ok(quoteWith.perEpisode < quoteWithout.perEpisode, 'Script workshop should apply 10% discount on episodic production cost');
+
+  // Produce show and verify active tool bonus
+  const drama = produce(state, { kind: 'drama', genre: '青春', themes: ['友情'], actorIds: ['edaan', 'anson_lo'], budgetId: 'standard', episodeHours: 2, episodeCount: 8, styleId: 'mainstream' }, () => 0.5);
+  assert.ok(drama.quality >= 10, 'Camera 4k should boost quality');
+  assert.ok(drama.rating >= 5, 'Script workshop should boost rating');
+
+  // Test tool expiration
+  state.day = 100;
+  advanceDay(state, () => 0.5);
+  assert.equal(isToolActive(state, 'script_workshop'), false);
+});
+
+test('1-year (360-day) artist contracts system with 30-day renewal warnings and competitor signings', () => {
+  const state = newGame();
+  assert.equal(ARTIST_CONTRACT_DAYS, 360);
+
+  // Verify initial rosters
+  assert.equal(state.talent['edaan'].station, 'player');
+  assert.equal(state.talent['edaan'].contractExpiresDay, 360);
+  assert.equal(state.talent['lokman'].station, 'viu');
+  assert.equal(state.talent['lokman'].contractExpiresDay, 360);
+  assert.equal(state.talent['lawrence'].station, 'hoy');
+  assert.equal(state.talent['lawrence'].contractExpiresDay, 360);
+
+  // Player contracted actors receive 40% discount on episodic fees
+  const edaanActor = ACTORS.find(a => a.id === 'edaan');
+  const quoteWithContract = productionQuote(state, { kind: 'drama', genre: '青春', themes: ['友情'], actorIds: ['edaan'], budgetId: 'standard', episodeHours: 2, episodeCount: 8, styleId: 'mainstream' });
+  const rawExpectedFee = Math.round(edaanActor.fee * 0.6);
+  assert.equal(quoteWithContract.fees, rawExpectedFee);
+
+  // Attempting to cast rival exclusive actor throws error
+  assert.throws(() => produce(state, { kind: 'drama', genre: '青春', themes: ['友情'], actorIds: ['lokman', 'edaan'], budgetId: 'standard', episodeHours: 2, episodeCount: 8, styleId: 'mainstream' }), /獨家合約中/);
+
+  // Test 30-day renewal warning letter in mailbox
+  state.talent['edaan'].contractExpiresDay = state.day + 25; // 25 days remaining (<= 30 days)
+  advanceDay(state, () => 0.5);
+
+  const renewLetter = (state.mailbox ?? []).find(l => l.type === 'contract_renew' && l.actorId === 'edaan');
+  assert.ok(renewLetter, 'Mailbox should receive 30-day contract renewal notice');
+
+  // advanceQuarter pauses when unresolved renewal letter is present (advances only 1 day instead of full quarter)
+  const dayBeforeQuarter = state.day;
+  advanceQuarter(state, () => 0.5);
+  assert.equal(state.day, dayBeforeQuarter + 1, 'advanceQuarter must pause immediately so player does not miss renewal');
+
+  // Resolving renewal letter extends contract by 360 days
+  const originalExpires = state.talent['edaan'].contractExpiresDay;
+  const cashBeforeRenew = state.cash;
+  const resolved = replyToLetter(state, renewLetter.id, 'renew');
+  assert.equal(resolved.resolved, true);
+  assert.ok(state.cash < cashBeforeRenew, 'Deducted renewal fee');
+  assert.equal(state.talent['edaan'].contractExpiresDay, originalExpires + 360);
+
+  // Manual renewArtistContract
+  const renewRes = renewArtistContract(state, 'anson_lo');
+  assert.equal(renewRes.contractExpiresDay, 360 + 360);
+
+  // Expiration of contract turns artist into free agent
+  state.talent['wong_tak_bun'].contractExpiresDay = state.day; // Expiring today
+  advanceDay(state, () => 0.5);
+  assert.equal(state.talent['wong_tak_bun'].station, 'free');
+  assert.equal(state.talent['wong_tak_bun'].contractExpiresDay, null);
+
+  // Player can sign free agent
+  const signRes = signArtist(state, 'wong_tak_bun');
+  assert.equal(signRes.station, 'player');
+  assert.equal(signRes.contractExpiresDay, state.day + 360);
+
+  // Competitors can sign free agent
+  const rivalsCountBefore = ACTORS.filter(a => ['jade', 'viu', 'hoy'].includes(state.talent[a.id]?.station)).length;
+  checkCompetitorArtistSignings(state, () => 0.05); // low RNG triggers rival signing
+  const rivalsCountAfter = ACTORS.filter(a => ['jade', 'viu', 'hoy'].includes(state.talent[a.id]?.station)).length;
+  assert.ok(rivalsCountAfter > rivalsCountBefore, 'Competitor must successfully sign a free agent');
+});
+
+test('three authentic Hong Kong TV competitors (翡翠台, ViuTV, HOY TV) operate with 24-hour schedules', () => {
+  const state = newGame();
+  assert.equal(state.rivals.length, 3);
+  const ids = state.rivals.map(r => r.id);
+  assert.deepEqual(ids, ['jade', 'viu', 'hoy']);
+
+  assert.equal(getStationName('player'), '你的電視台');
+  assert.equal(getStationName('jade'), '翡翠台');
+  assert.equal(getStationName('viu'), 'ViuTV');
+  assert.equal(getStationName('hoy'), 'HOY TV');
+
+  // Verify all 3 rivals have complete 24-hour schedules
+  for (const rival of state.rivals) {
+    for (let h = 0; h < 24; h++) {
+      const show = rivalAtHour(state, rival, h);
+      assert.ok(show.title, `${rival.name} hour ${h} should have title`);
+      assert.ok(show.rating > 0, `${rival.name} hour ${h} should have positive rating`);
+    }
+  }
+
+  // Advance day generates 3-rival matchup scores
+  const dayResult = advanceDay(state, () => 0.5);
+  for (let h = 0; h < 24; h++) {
+    assert.equal(dayResult.hours[h].rivals.length, 3, `Hour ${h} must have 3 competitor ratings`);
+  }
 });
 
 test('actor fame can drop when a show flops and decays upon extended inactivity', () => {

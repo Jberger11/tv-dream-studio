@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc } from './engine.js?v=20261010-core5-v3';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost } from './engine.js?v=20261012-v4';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -26,7 +26,7 @@ function resetProgramPicker(){editorProgramGroup='all';editorProgramSearch='';}
 let scheduleDay=null;
 let schedulePeriod='early';
 let scheduleChannel=1; // 1 = 翡翠台旗艦主台, 2 = 數碼二台 (J2/體育副台)
-let talentSubTab='viu';
+let talentSubTab='all';
 let catalogSubTab='market';
 let catalogFilter='all';
 let catalogSort='featured';
@@ -50,7 +50,7 @@ const app=document.getElementById('app');
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hourlyMoney=n=>{const amount=Math.abs(n),sign=n<0?'−':'';return amount>=1_000_000?`${sign}${money(amount)}`:amount>=1_000?`${sign}$${(amount/1_000).toFixed(amount<10_000?1:0)}k`:`${sign}$${Math.round(amount).toLocaleString()}`};
 const catalogPrice=n=>n>=1_000_000?`$${(n/1_000_000).toFixed(2)}m`:`$${Math.round(n/1_000)}k`;
-const icon={schedule:'▦',studio:'◈',ads:'💼',facilities:'🏢',catalog:'▤',sports:'◆',rivals:'♟',reports:'▥'};
+const icon={schedule:'▦',studio:'◈',ads:'💼',facilities:'🏢',catalog:'▤',sports:'◆',shop:'🧰',rivals:'♟',reports:'▥'};
 const timeRange=(start,duration)=>`${hourLabel(start)}–${hourLabel(start+duration)}${start+duration>=24?'（翌日）':''}`;
 const dayPattern=days=>days.length===7?'每日':days.length===5&&days.every((d,i)=>d===i)?'週一至五':days.length===2&&days[0]===5&&days[1]===6?'週六日':days.length===2&&days[0]===1&&days[1]===2?'週二三':days.length===1?`每週${WEEKDAYS[days[0]].slice(1)}`:days.map(day=>WEEKDAYS[day]).join('、');
 const initialDays=p=>p?.category==='香港電影'||p?.kind==='variety'||p?.kind==='night'||p?.kind==='children'||isOneOffEvent(p?.kind)?[weekdayForDay(state.day)]:p?.kind==='drama'||isDailyFormat(p?.kind)?[0,1,2,3,4]:[...EVERY_DAY];
@@ -210,10 +210,10 @@ function render() {
       <div class="game-hud"><div class="hud-stats"><span>資金 <b class="${state.cash<0?'danger':''}">${money(state.cash)}</b></span><span>口碑 <b>${state.reputation}</b></span><span>熱度 <b>${state.fans}</b></span></div><div class="hud-broadcast"><span class="broadcast-clock"><span class="broadcast-clock-line"><i></i> <span id="broadcast-status">${live.finished?'今日播畢':'正在播映'}</span> <b id="live-clock">${live.clock}</b></span><small class="clock-rate">現實 30 秒＝遊戲 1 小時</small></span><strong id="now-title">${safe(live.title)}</strong><small id="now-episode">${safe(live.episode||'每日時段')}</small><small>下一節目 <b id="next-title"></b></small></div></div>
       ${breakingEventBannerView()}
       <nav class="tabs" aria-label="遊戲功能">
-        ${[['schedule','排播'],['studio','製作'],['ads','招商'],['facilities','大樓'],['catalog','片庫'],['sports','體育'],['rivals','對手'],['reports','戰報']].map(([id,label])=>`<button data-action="tab" data-tab="${id}" class="tab ${tab===id?'active':''}" ${tab===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}
+        ${[['schedule','排播'],['studio','製作'],['ads','招商'],['facilities','大樓'],['catalog','片庫'],['sports','體育'],['shop','道具'],['rivals','對手'],['reports','戰報']].map(([id,label])=>`<button data-action="tab" data-tab="${id}" class="tab ${tab===id?'active':''}" ${tab===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}
       </nav>
       <main>
-        ${tab==='schedule'?scheduleHome():tab==='studio'?studioView():tab==='ads'?adsView():tab==='facilities'?facilitiesView():tab==='rivals'?rivalsView():tab==='catalog'?catalogView():tab==='sports'?sportsView():reportsView()}
+        ${tab==='schedule'?scheduleHome():tab==='studio'?studioView():tab==='ads'?adsView():tab==='facilities'?facilitiesView():tab==='rivals'?rivalsView():tab==='catalog'?catalogView():tab==='sports'?sportsView():tab==='shop'?shopView():reportsView()}
       </main>
       <footer>電視夢工場：新世代 <span>進度自動保存在此瀏覽器</span></footer>
       ${notice?`<div class="toast" role="status">${safe(notice)}</div>`:''}
@@ -260,6 +260,105 @@ setInterval(()=>{
   if(state.liveMinute%10===0){try{localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch{}}
 },500);
 
+function talentManagementView() {
+  const ourCount = ACTORS.filter(a => state.talent[a.id]?.station === 'player').length;
+  const filtered = ACTORS.filter(a => {
+    const station = state.talent[a.id]?.station ?? 'free';
+    if (talentSubTab === 'mine') return station === 'player';
+    if (talentSubTab === 'free') return station === 'free';
+    if (talentSubTab === 'rival') return station !== 'player' && station !== 'free';
+    if (talentSubTab === 'viu') return a.source === 'viu';
+    if (talentSubTab === 'tvb') return a.source === 'tvb';
+    return true;
+  });
+
+  return `<section class="panel talent-management-panel" id="talent-agency-section">
+    <div class="section-heading">
+      <div>
+        <div class="eyebrow gold">ARTIST CONTRACTS · 1-YEAR DEALS & TRAINING</div>
+        <h2>旗下與自由身藝人合約管理及培訓部</h2>
+        <p>藝人合約為期 1 年（360 日）。簽下獨家合約可享 40% 單集片酬減免！合約屆滿前 1 個月（30 日）系統將提醒續約；若逾期未續，對手台（翡翠台、ViuTV、HOY TV）將強勢搶簽！旗下藝人可報讀大師班深造演技與知名度。</p>
+      </div>
+      <div class="actor-filters" aria-label="篩選藝人分類">
+        ${[['all','全部藝人'],['mine',`我台 (${ourCount})`],['free','自由身'],['rival','對手旗下'],['viu','ViuTV'],['tvb','TVB']].map(([id,label])=>`
+          <button data-action="talent-filter" data-value="${id}" class="${talentSubTab===id?'active':''}">
+            ${label}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+    <div class="talent-roster-grid">
+      ${filtered.map(a => {
+        const talent = state.talent[a.id];
+        const station = talent?.station ?? 'free';
+        const isMine = station === 'player';
+        const isRival = station !== 'player' && station !== 'free';
+        const daysLeft = talent?.contractExpiresDay ? Math.max(0, talent.contractExpiresDay - state.day) : null;
+        const isExpiring = isMine && daysLeft !== null && daysLeft <= 30;
+        const signCost = artistSignCost(talent, a);
+        const renewCost = artistRenewCost(talent, a);
+        const stamina = talent?.stamina ?? 100;
+        const canTrain = state.cash >= 180_000 && stamina >= 15;
+        const canRest = state.cash >= 50_000 && stamina < 100;
+
+        return `<div class="talent-roster-card ${isMine ? 'mine' : isRival ? 'rival' : 'free'} ${isExpiring ? 'expiring' : ''}">
+          <div class="talent-card-top">
+            <span class="avatar">${a.name.slice(0, 1)}</span>
+            <div class="talent-card-meta">
+              <strong>${a.name}</strong>
+              <small>${a.specialty} · 演技 ${talent?.skill ?? a.skill} · 知名度 ${(talent?.fame ?? (a.skill - 10)).toFixed(1)}</small>
+            </div>
+            <span class="talent-badge ${isMine ? (isExpiring ? 'expiring' : 'mine') : isRival ? 'rival' : 'free'}">
+              ${isMine ? (isExpiring ? `⚠️ 尚餘 ${daysLeft} 日` : `我台旗下 (${daysLeft}日)`) : isRival ? `${getStationName(station)}旗下` : '自由身'}
+            </span>
+          </div>
+          <div class="talent-card-fees">
+            <div><small>常規單集片酬</small><span>${preciseMoney(talent?.fee ?? a.fee)}</span></div>
+            <div><small>我台演出成本</small><strong>${preciseMoney(isMine ? Math.round(a.fee * 0.6) : (talent?.fee ?? a.fee))}${isMine ? '<small class="tag-60">6折</small>' : ''}</strong></div>
+          </div>
+          ${isMine ? `
+            <div class="stamina-box" style="margin: 6px 0;">
+              <div class="stamina-label" style="display:flex; justify-content:space-between; font-size:0.75rem;">
+                <span>體力狀態</span>
+                <b class="${stamina < 40 ? 'danger' : stamina < 70 ? 'warning' : 'good'}">${stamina}% ${stamina < 40 ? '（過勞！）' : ''}</b>
+              </div>
+              <div class="stamina-track" style="height:4px; background:#1b2430; border-radius:2px; overflow:hidden; margin-top:2px;">
+                <div class="stamina-fill ${stamina < 40 ? 'danger' : stamina < 70 ? 'warning' : 'good'}" style="height:100%; width:${stamina}%; background:${stamina < 40 ? '#ef4444' : stamina < 70 ? '#f59e0b' : '#10b981'};"></div>
+              </div>
+            </div>
+          ` : ''}
+          <div class="talent-card-foot">
+            ${isMine ? `
+              <button class="talent-action-btn renew ${isExpiring ? 'urgent' : ''}" data-action="renew-artist" data-actor-id="${a.id}" ${state.cash < renewCost ? 'disabled' : ''}>
+                ${isExpiring ? '⚠️ 約滿在即！' : ''}續約 1 年 (${money(renewCost)})
+              </button>
+              <div class="train-buttons-row" style="display:flex; gap:4px; margin-top:6px;">
+                <button class="agency-action-btn train-btn" data-action="train-talent" data-actor-id="${a.id}" data-type="acting" ${canTrain ? '' : 'disabled'} title="安排演技大師班（$180k，演技+3，體力-10）">
+                  🎭 演技班 ($180k)
+                </button>
+                <button class="agency-action-btn train-btn" data-action="train-talent" data-actor-id="${a.id}" data-type="fame" ${canTrain ? '' : 'disabled'} title="安排形象公關訓練（$180k，知名度+4，體力-10）">
+                  🎤 綜藝班 ($180k)
+                </button>
+                <button class="agency-action-btn rest-btn" data-action="rest-talent" data-actor-id="${a.id}" ${canRest ? '' : 'disabled'} title="安排休假充電（$50k，體力+50%）">
+                  🌴 休假 ($50k)
+                </button>
+              </div>
+            ` : isRival ? `
+              <button class="talent-action-btn rival-locked" disabled>
+                ${getStationName(station)}獨家（尚餘 ${daysLeft} 日）
+              </button>
+            ` : `
+              <button class="talent-action-btn sign" data-action="sign-artist" data-actor-id="${a.id}" ${state.cash < signCost ? 'disabled' : ''}>
+                簽約 1 年 (${money(signCost)})
+              </button>
+            `}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </section>`;
+}
+
 function studioView() {
   const isDrama=selected.kind==='drama';
   const dailyFormat=isDailyFormat(selected.kind);
@@ -269,7 +368,12 @@ function studioView() {
   const cooldown=(state.cooldowns[exactKey(selected.genre,selected.themes)]??-1)>=state.quarter;
   const quote=productionQuote(state,selected);
   const cast=ACTORS.filter(actor=>selected.actorIds.includes(actor.id));
-  const availableActors=ACTORS.filter(actor=>(actorFilter==='all'||actor.source===actorFilter)&&actor.name.includes(actorSearch.trim()));
+  const availableActors=ACTORS.filter(actor=>{
+    const talent=state.talent[actor.id];
+    const station=talent?.station??'free';
+    const matchesFilter = actorFilter==='all' || (actorFilter==='mine' ? station==='player' : actorFilter==='free' ? station==='free' : actor.source===actorFilter);
+    return matchesFilter && actor.name.includes(actorSearch.trim());
+  });
   const cost=quote.total;
   const ready=!isDrama||cast.length>=2;
   const suggestedTitles=generateSuggestedTitles(selected.kind,selected.genre,selected.topic,selected.themes);
@@ -281,7 +385,17 @@ function studioView() {
       ${isDrama?`
         <div class="field"><div class="field-label"><span>02 / 劇種</span></div><div class="choice-grid">${GENRES.map(g=>`<button class="choice ${selected.genre===g?'chosen':''}" data-action="genre" data-value="${g}" aria-pressed="${selected.genre===g}">${g}</button>`).join('')}</div></div>
         <div class="field"><div class="field-label"><span>03 / 題材</span><small>選 1 至 2 個</small></div><div class="choice-grid">${THEMES.map(t=>`<button class="choice ${selected.themes.includes(t)?'chosen':''}" data-action="theme" data-value="${t}" aria-pressed="${selected.themes.includes(t)}">${t}</button>`).join('')}</div></div>
-        <div class="field"><div class="field-label"><span>04 / 主演</span><small>已選 ${cast.length} / 4 位，最少 2 位</small></div><div class="cast-summary">已選：${cast.length?cast.map(a=>safe(a.name)).join('、'):'未揀主演'}</div><button class="actor-toggle" data-action="actor-toggle" aria-expanded="${actorPickerOpen}">${actorPickerOpen?'收起演員名單':'選擇／更換主演'} <span>${ACTORS.length} 位 ▾</span></button>${actorPickerOpen?`<div class="actor-picker"><p class="actor-note">分類按參演劇集；能力同片酬均屬遊戲設定。</p><div class="actor-filters" aria-label="篩選演員">${[['viu','ViuTV 劇集'],['all','全部'],['tvb','TVB 劇集']].map(([id,label])=>`<button data-action="actor-filter" data-value="${id}" class="${actorFilter===id?'active':''}" aria-pressed="${actorFilter===id}">${label} <span>${id==='all'?ACTORS.length:ACTORS.filter(a=>a.source===id).length}</span></button>`).join('')}</div><input class="actor-search" data-action="actor-search" type="search" placeholder="搜尋演員姓名" aria-label="搜尋演員姓名" value="${safe(actorSearch)}" /><div class="actor-grid">${availableActors.map(a=>`<button class="actor ${selected.actorIds.includes(a.id)?'chosen':''}" data-action="actor" data-value="${a.id}" aria-pressed="${selected.actorIds.includes(a.id)}"><span class="avatar">${a.name.slice(0,1)}</span><span><strong>${a.name}</strong><small>${a.specialty} · 知名度 ${state.talent[a.id].fame.toFixed(1)} · 能力 ${a.skill}</small></span><b>${preciseMoney(state.talent[a.id].fee)}</b></button>`).join('')}</div></div>`:''}</div>
+        <div class="field"><div class="field-label"><span>04 / 主演</span><small>已選 ${cast.length} / 4 位，最少 2 位</small></div><div class="cast-summary">已選：${cast.length?cast.map(a=>safe(a.name)).join('、'):'未揀主演'}</div><button class="actor-toggle" data-action="actor-toggle" aria-expanded="${actorPickerOpen}">${actorPickerOpen?'收起演員名單':'選擇／更換主演'} <span>${ACTORS.length} 位 ▾</span></button>${actorPickerOpen?`<div class="actor-picker"><p class="actor-note">我台旗下簽約藝人享 40% 單集片酬優惠；對台獨家簽約藝人不可參演。</p><div class="actor-filters" aria-label="篩選演員">${[['mine','我台旗下'],['free','自由身'],['viu','ViuTV 劇集'],['tvb','TVB 劇集'],['all','全部']].map(([id,label])=>`<button data-action="actor-filter" data-value="${id}" class="${actorFilter===id?'active':''}" aria-pressed="${actorFilter===id}">${label} <span>${id==='all'?ACTORS.length:id==='mine'?ACTORS.filter(a=>state.talent[a.id]?.station==='player').length:id==='free'?ACTORS.filter(a=>(state.talent[a.id]?.station??'free')==='free').length:ACTORS.filter(a=>a.source===id).length}</span></button>`).join('')}</div><input class="actor-search" data-action="actor-search" type="search" placeholder="搜尋演員姓名" aria-label="搜尋演員姓名" value="${safe(actorSearch)}" /><div class="actor-grid">${availableActors.map(a=>{
+          const talent=state.talent[a.id];
+          const station=talent?.station??'free';
+          const isMine=station==='player';
+          const isRival=station!=='player'&&station!=='free';
+          const daysLeft=talent?.contractExpiresDay?Math.max(0,talent.contractExpiresDay-state.day):null;
+          const isExpiring=isMine&&daysLeft!==null&&daysLeft<=30;
+          const fee=isMine?Math.round(a.fee*0.6):(talent?.fee??a.fee);
+          const badge=isMine?(isExpiring?`<span class="actor-status-pill exp">⚠️ 約滿在即 (${daysLeft}日)</span>`:`<span class="actor-status-pill mine">我台 6折 (${daysLeft}日)</span>`):isRival?`<span class="actor-status-pill rival">${getStationName(station)}旗下</span>`:`<span class="actor-status-pill free">自由身</span>`;
+          return `<button class="actor ${selected.actorIds.includes(a.id)?'chosen':''} ${isRival?'is-rival-actor':''}" data-action="actor" data-value="${a.id}" aria-pressed="${selected.actorIds.includes(a.id)}" ${isRival?'title="對台獨家合約中，無法參演"':''}><span class="avatar">${a.name.slice(0,1)}</span><span><strong>${a.name} ${badge}</strong><small>${a.specialty} · 知名度 ${(talent?.fame??(a.skill-10)).toFixed(1)} · 能力 ${a.skill}</small></span><b>${preciseMoney(fee)}${isMine?'<small class="mine-discount">優惠</small>':''}</b></button>`;
+        }).join('')}</div></div>`:''}</div>
       `:`<div class="field"><div class="field-label"><span>02 / 內容方向</span></div><div class="topic-grid">${format.topics.map(topic=>`<button class="choice ${selected.topic===topic?'chosen':''}" data-action="topic" data-value="${topic}" aria-pressed="${selected.topic===topic}">${topic}</button>`).join('')}</div><p class="actor-note">${selected.kind==='night'?'深夜節目喺 22:00–02:00 有收視加成；日間播映會明顯失利。':selected.kind==='children'?'兒童節目喺放學時段（16:00–18:00）及週末早晨特別受歡迎；深夜時段收視低迷。':oneOff?'大型活動只播一晚，黃金檔尤其週末有收視優勢；播後會影響台口碑或熱度。':`${format.label}節目由製作團隊完成，毋須揀劇集主演。`}</p></div>`}
       <div class="field"><div class="field-label"><span>${isDrama?'05':'03'} / ${oneOff?'活動':'每集'}基礎預算</span><small>時長與方向會改變實際成本</small></div><div class="budget-grid">${BUDGETS.map(b=>`<button class="budget ${selected.budgetId===b.id?'chosen':''}" data-action="budget" data-value="${b.id}" aria-pressed="${selected.budgetId===b.id}"><strong>${b.label}</strong><small>${preciseMoney(Math.round(b.cost*(isDrama?1:format.factor)/1_000)*1_000)}</small></button>`).join('')}</div></div>
       <div class="field"><div class="field-label"><span>${isDrama?'06':'04'} / ${oneOff?'直播':'每集'}時長</span><small>拍完後排播長度固定</small></div><div class="production-choices">${[1,2,3,4].map(hours=>`<button class="choice ${selected.episodeHours===hours?'chosen':''}" data-action="episode-hours" data-value="${hours}" aria-pressed="${selected.episodeHours===hours}">${hours} 小時</button>`).join('')}</div></div>
@@ -296,7 +410,7 @@ function studioView() {
     </section>
     <aside class="side-stack"><section class="panel feed-panel"><div class="panel-heading small"><div><div class="eyebrow muted">NEWSROOM</div><h2>電視台快訊</h2></div></div>${state.log.slice(0,3).map(l=>`<div class="news"><span class="news-dot ${l.type}"></span><div><small>${quarterLabel(l.quarter)}</small><p>${safe(l.text)}</p></div></div>`).join('')}</section>${distributionView()}</aside>
   </div>
-  ${talentAgencyView()}`;
+  ${talentManagementView()}`;
 }
 
 function scheduleHome(){
@@ -337,7 +451,7 @@ function scheduleHome(){
         </button>
       </div>
     `}
-    ${result?`<div class="day-result-strip" role="status"><span>最近 ${result.days} 日營運</span><strong class="${result.net<0?'danger':''}">${result.net>=0?'+':''}${money(result.net)}</strong><span>對台勝出 ${result.wins} / ${24*result.days} 小時</span><button data-action="tab" data-tab="reports">逐套節目成績 →</button></div>`:''}
+    ${result?`<div class="day-result-strip" role="status"><span>最近 ${result.days} 日營運</span><strong class="${result.net<0?'danger':''}">${result.net>=0?'+':''}${money(result.net)}</strong><span>對台勝出 ${result.wins} / ${24*result.days} 小時</span>${state.lastDayResult?.highlights?.top?`<span class="highlight-strip-pill top">🏆 今日焦點：《${safe(state.lastDayResult.highlights.top.title)}》（${state.lastDayResult.highlights.top.rating}分）</span>`:''}<button data-action="tab" data-tab="reports">逐套節目成績 →</button></div>`:''}
     ${completed.length && !dismissedAlerts.completed?`
       <div class="completion-alert has-dismiss" role="status">
         <div class="alert-content">
@@ -362,12 +476,13 @@ function scheduleHome(){
 }
 
 function broadcastResultsView(){
-  const reports=state.broadcastReports?.length?state.broadcastReports:state.lastDayResult?[{day:state.lastDayResult.day,details:state.lastDayResult.details??[]}]:[];
+  const reports=state.broadcastReports?.length?state.broadcastReports:state.lastDayResult?[{day:state.lastDayResult.day,details:state.lastDayResult.details??[],highlights:state.lastDayResult.highlights}]:[];
   if(!reports.length)return '';
   const report=reports.find(item=>item.day===selectedBroadcastDay)??reports[0];
   const entries=[...report.details].sort((a,b)=>a.start-b.start);
   const charity=entries.filter(item=>item.kind==='charity').length;
-  return `<section class="panel broadcast-results" aria-label="逐套節目播映成績"><div class="section-heading"><div><div class="eyebrow gold">ON AIR RESULTS</div><h2>逐套節目成績戰報</h2></div><span class="report-meta-tag">第 ${report.day} 日 · ${entries.length} 個播映時段</span></div><p class="broadcast-results-help">即時播映成效報告：收視指數（0–100）與同時段最強對手比拼，廣告收入即日入帳。</p><div class="broadcast-days" aria-label="選擇播映日">${reports.map(item=>`<button data-action="broadcast-day" data-day="${item.day}" class="${item.day===report.day?'active':''}" aria-pressed="${item.day===report.day}">第 ${item.day} 日</button>`).join('')}</div>${charity?`<p class="charity-summary">累計慈善籌款 ${hourlyMoney(state.charityRaised??0)} · 款項不屬電視台資金</p>`:''}<div class="broadcast-result-grid">${entries.length?entries.map(item=>{const rival=Number.isFinite(item.rivalRating)?item.rivalRating:state.lastDayResult?.day===report.day?Math.max(...(state.lastDayResult.hours??[]).filter(hour=>hour&&hour.title===item.title&&hour.hour>=item.start&&hour.hour<item.start+item.duration).flatMap(hour=>hour.rivals??[0])):null;const won=Number.isFinite(rival)?item.rating>rival:null;const diff=Number.isFinite(rival)?item.rating-rival:0;const diffText=diff>0?`+${diff}`:`${diff}`;const totalRatings=Math.max(1,(item.rating+(rival||0)));const ourShare=Math.min(95,Math.max(5,Math.round((item.rating/totalRatings)*100)));return `<article class="broadcast-result-card ${won===true?'won':won===false?'lost':''}"><div class="broadcast-result-top"><span class="broadcast-time-tag">${hourLabel(item.start)}–${hourLabel(item.start+item.duration)}</span>${item.freshness!==undefined?(()=>{const f=freshnessLabel(item.freshness,item.maxFreshness);return `<span class="freshness-result-pill ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`;})():''}${item.eventMod?`<span class="event-mod-tag ${item.eventMod>0?'boost':'debuff'}">${item.eventMod>0?`▲ 突發 +${item.eventMod}`:`▼ 突發 ${item.eventMod}`}</span>`:''}<b class="battle-badge ${won===true?'won':won===false?'lost':''}">${won===null?'成績':won?`搶贏對台 ${diffText}`:`未能勝出 ${diffText}`}</b></div><div class="broadcast-title-row"><h3>《${safe(item.title)}》</h3><span class="broadcast-cat-tag">${safe(item.category||'節目')}</span></div><p class="broadcast-ep-line">${safe(item.episode||item.category||'節目播映')}</p><div class="battle-bar-box" title="我台 ${item.rating} : 對手 ${Number.isFinite(rival)?rival:'—'}"><div class="battle-bar-labels"><span>我台 <b>${item.rating}</b></span><span>對手 <b>${Number.isFinite(rival)?rival:'—'}</b></span></div><div class="battle-bar-track"><div class="battle-bar-fill" style="width:${ourShare}%"></div></div></div><div class="broadcast-result-stats"><div><small>我台收視</small><strong>${item.rating}</strong></div><div><small>最強對手</small><strong>${Number.isFinite(rival)?rival:'—'}</strong></div><div><small>廣告收入</small><strong class="gold-text">${hourlyMoney(item.revenue??0)}</strong></div></div>${item.effect?`<p class="broadcast-result-effect">★ ${safe(item.effect)}</p>`:''}${item.eventMod&&item.eventTitle?`<p class="event-mod-note">${item.eventMod>0?'🔥':'⚡'} 突發效應【${safe(item.eventTitle)}】：收視 ${item.eventMod>0?`+${item.eventMod}`:item.eventMod} 點</p>`:''}</article>`}).join(''):'<p class="empty">當日冇節目播映，排檔後先有逐套成績。</p>'}</div></section>`;
+  const currentHighlights=report.highlights || (state.lastDayResult?.day===report.day ? state.lastDayResult.highlights : null);
+  return `<section class="panel broadcast-results" aria-label="逐套節目播映成績"><div class="section-heading"><div><div class="eyebrow gold">ON AIR RESULTS</div><h2>逐套節目成績戰報</h2></div><span class="report-meta-tag">第 ${report.day} 日 · ${entries.length} 個播映時段</span></div><p class="broadcast-results-help">即時播映成效報告：收視指數（0–100）與同時段最強對手比拼，廣告收入即日入帳。</p><div class="broadcast-days" aria-label="選擇播映日">${reports.map(item=>`<button data-action="broadcast-day" data-day="${item.day}" class="${item.day===report.day?'active':''}" aria-pressed="${item.day===report.day}">第 ${item.day} 日</button>`).join('')}</div>${dailyHighlightsView(currentHighlights, report.day)}${charity?`<p class="charity-summary">累計慈善籌款 ${hourlyMoney(state.charityRaised??0)} · 款項不屬電視台資金</p>`:''}<div class="broadcast-result-grid">${entries.length?entries.map(item=>{const rival=Number.isFinite(item.rivalRating)?item.rivalRating:state.lastDayResult?.day===report.day?Math.max(...(state.lastDayResult.hours??[]).filter(hour=>hour&&hour.title===item.title&&hour.hour>=item.start&&hour.hour<item.start+item.duration).flatMap(hour=>hour.rivals??[0])):null;const won=Number.isFinite(rival)?item.rating>rival:null;const diff=Number.isFinite(rival)?item.rating-rival:0;const diffText=diff>0?`+${diff}`:`${diff}`;const totalRatings=Math.max(1,(item.rating+(rival||0)));const ourShare=Math.min(95,Math.max(5,Math.round((item.rating/totalRatings)*100)));return `<article class="broadcast-result-card ${won===true?'won':won===false?'lost':''}"><div class="broadcast-result-top"><span class="broadcast-time-tag">${hourLabel(item.start)}–${hourLabel(item.start+item.duration)}</span>${item.freshness!==undefined?(()=>{const f=freshnessLabel(item.freshness,item.maxFreshness);return `<span class="freshness-result-pill ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`;})():''}${item.eventMod?`<span class="event-mod-tag ${item.eventMod>0?'boost':'debuff'}">${item.eventMod>0?`▲ 突發 +${item.eventMod}`:`▼ 突發 ${item.eventMod}`}</span>`:''}<b class="battle-badge ${won===true?'won':won===false?'lost':''}">${won===null?'成績':won?`搶贏對台 ${diffText}`:`未能勝出 ${diffText}`}</b></div><div class="broadcast-title-row"><h3>《${safe(item.title)}》</h3><span class="broadcast-cat-tag">${safe(item.category||'節目')}</span></div><p class="broadcast-ep-line">${safe(item.episode||item.category||'節目播映')}</p><div class="battle-bar-box" title="我台 ${item.rating} : 對手 ${Number.isFinite(rival)?rival:'—'}"><div class="battle-bar-labels"><span>我台 <b>${item.rating}</b></span><span>對手 <b>${Number.isFinite(rival)?rival:'—'}</b></span></div><div class="battle-bar-track"><div class="battle-bar-fill" style="width:${ourShare}%"></div></div></div><div class="broadcast-result-stats"><div><small>我台收視</small><strong>${item.rating}</strong></div><div><small>最強對手</small><strong>${Number.isFinite(rival)?rival:'—'}</strong></div><div><small>廣告收入</small><strong class="gold-text">${hourlyMoney(item.revenue??0)}</strong></div></div>${item.effect?`<p class="broadcast-result-effect">★ ${safe(item.effect)}</p>`:''}${item.eventMod&&item.eventTitle?`<p class="event-mod-note">${item.eventMod>0?'🔥':'⚡'} 突發效應【${safe(item.eventTitle)}】：收視 ${item.eventMod>0?`+${item.eventMod}`:item.eventMod} 點</p>`:''}</article>`}).join(''):'<p class="empty">當日冇節目播映，排檔後先有逐套成績。</p>'}</div></section>`;
 }
 
 function premiereView(){
@@ -665,91 +780,7 @@ function subChannelView() {
 }
 
 function talentAgencyView() {
-  const availableActors = ACTORS.filter(actor => (talentSubTab === 'all' || actor.source === talentSubTab));
-  return `
-    <section class="panel talent-agency-panel" id="talent-agency-section">
-      <div class="panel-heading">
-        <div>
-          <div class="eyebrow gold">TALENT MANAGEMENT & TRAINING ACADEMY</div>
-          <h2>⭐ 旗下藝人經理人部與培訓班</h2>
-          <p class="subtitle">簽約專屬台柱（自製劇片酬 $0 + 每季代言分紅）、訓練大師班提升演技與知名度、調配體力精力避免過勞</p>
-        </div>
-        <div class="actor-filters" aria-label="篩選藝人分類">
-          ${[['viu','ViuTV 藝人'],['all','全部藝人'],['tvb','TVB 藝人']].map(([id,label])=>`
-            <button data-action="talent-filter" data-value="${id}" class="${talentSubTab===id?'active':''}">
-              ${label} <span>${id==='all'?ACTORS.length:ACTORS.filter(a=>a.source===id).length}</span>
-            </button>
-          `).join('')}
-        </div>
-      </div>
-
-      <div class="talent-agency-grid">
-        ${availableActors.map(a => {
-          const t = state.talent[a.id] ?? { skill: a.skill, fame: a.skill - 10, fee: a.fee, stamina: 100, contractType: 'freelance', contractDaysLeft: 0, trainedCount: 0 };
-          const isExclusive = t.contractType === 'exclusive' && (t.contractDaysLeft ?? 0) > 0;
-          const stamina = t.stamina ?? 100;
-          const exclusiveCost90 = Math.round(a.fee * 2.2 / 10_000) * 10_000;
-          const canSign90 = state.cash >= exclusiveCost90;
-          const canTrain = state.cash >= 180_000 && stamina >= 15;
-          const canRest = state.cash >= 50_000 && stamina < 100;
-
-          return `
-            <div class="talent-agency-card ${isExclusive ? 'is-exclusive' : ''}">
-              <div class="talent-card-header">
-                <span class="avatar">${a.name.slice(0, 1)}</span>
-                <div class="talent-info">
-                  <strong>${safe(a.name)}</strong>
-                  <span class="talent-tag">${safe(a.specialty)} · ${a.source === 'viu' ? 'ViuTV' : 'TVB'}</span>
-                </div>
-                <span class="contract-badge ${isExclusive ? 'exclusive' : 'freelance'}">
-                  ${isExclusive ? `⭐ 專屬台柱 (${t.contractDaysLeft}日)` : '自由身散工'}
-                </span>
-              </div>
-
-              <div class="talent-stat-row">
-                <div class="stat-pill"><small>演技能力</small><b>${t.skill ?? a.skill}</b></div>
-                <div class="stat-pill"><small>知名度</small><b class="gold-text">${(t.fame ?? (a.skill - 10)).toFixed(1)}</b></div>
-                <div class="stat-pill"><small>拍劇片酬</small><b>${isExclusive ? '<span class="free-text">$0 (專屬免費)</span>' : preciseMoney(t.fee ?? a.fee)}</b></div>
-              </div>
-
-              <div class="stamina-box">
-                <div class="stamina-label">
-                  <span>體力狀態</span>
-                  <b class="${stamina < 40 ? 'danger' : stamina < 70 ? 'warning' : 'good'}">${stamina}% ${stamina < 40 ? '（過勞！）' : ''}</b>
-                </div>
-                <div class="stamina-track">
-                  <div class="stamina-fill ${stamina < 40 ? 'danger' : stamina < 70 ? 'warning' : 'good'}" style="width: ${stamina}%"></div>
-                </div>
-              </div>
-
-              <div class="talent-agency-actions">
-                ${!isExclusive ? `
-                  <button class="agency-action-btn sign-btn" data-action="sign-exclusive-talent" data-actor-id="${a.id}" data-days="90" ${canSign90 ? '' : 'disabled'}>
-                    ⭐ 簽專屬台柱 90日 (${money(exclusiveCost90)})
-                  </button>
-                ` : `
-                  <div class="exclusive-perk-hint">
-                    ✓ 自製劇片酬 $0 免費參演 · 每季結算獲取商業代言分紅
-                  </div>
-                `}
-                <div class="train-buttons-row">
-                  <button class="agency-action-btn train-btn" data-action="train-talent" data-actor-id="${a.id}" data-type="acting" ${canTrain ? '' : 'disabled'} title="安排演技大師班（$180k，演技+3，體力-10）">
-                    🎭 演技班 ($180k)
-                  </button>
-                  <button class="agency-action-btn train-btn" data-action="train-talent" data-actor-id="${a.id}" data-type="fame" ${canTrain ? '' : 'disabled'} title="安排形象公關訓練（$180k，知名度+4，體力-10）">
-                    🎤 綜藝班 ($180k)
-                  </button>
-                  <button class="agency-action-btn rest-btn" data-action="rest-talent" data-actor-id="${a.id}" ${canRest ? '' : 'disabled'} title="安排休假充電（$50k，體力+50%）">
-                    🌴 休假 ($50k)
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('')}
-      </div>
-    </section>
-  `;
+  return talentManagementView();
 }
 
 function scheduleView() {
@@ -941,7 +972,7 @@ function scheduleView() {
 
 function rivalsView() {
   const live=broadcastNow(state);
-  return `<div class="page-head"><div><div class="eyebrow cyan">CHANNEL INTELLIGENCE</div><h1>兩間對手台嘅每日節目表</h1><p>對手每個遊戲月推出新節目，19:00–21:00 會直接搶走我台觀眾。外購市場搶購作品或收購我台作品後亦會喺 21:00–23:00 播出。</p></div><div class="legend">最近一日勝出 <strong>${state.lastDayResult?`${state.lastDayResult.wins} / 24 小時`:'等待第一日結算'}</strong></div></div>
+  return `<div class="page-head"><div><div class="eyebrow cyan">CHANNEL INTELLIGENCE</div><h1>香港三大商業電視台（翡翠台、ViuTV、HOY TV）嘅每日節目表</h1><p>對手每個遊戲月推出新節目，19:00–21:00 會直接搶走我台觀眾。外購市場搶購作品或收購我台作品後亦會喺 21:00–23:00 播出。</p></div><div class="legend">最近一日勝出 <strong>${state.lastDayResult?`${state.lastDayResult.wins} / 24 小時`:'等待第一日結算'}</strong></div></div>
     <div class="rival-cards">${state.rivals.map(rival=>{
       const now=rivalAtHour(state,rival,live.hour);
       const prime=rivalAtHour(state,rival,19);
@@ -950,7 +981,7 @@ function rivalsView() {
       const deal=(state.distributionDeals??[]).find(d=>d.rivalId===rival.id&&d.startDay<=state.day&&state.day<d.expiresDay);
       const rivalBuy=(state.rivalPurchases??[]).find(r=>r.rivalId===rival.id&&r.startDay<=state.day&&state.day<r.expiresDay);
       return `<article class="panel"><div class="eyebrow cyan">COMPETITOR CHANNEL · 第 ${premiere.month+1} 個月</div><h2>${safe(rival.name)}</h2><p>${safe(rival.profile)}</p><div><small>本月首播</small><strong>《${safe(premiere.title)}》· ${safe(premiere.genre)} · ${premiere.slot}</strong></div><div><small>下月預告</small><strong>《${safe(next.title)}》· ${safe(next.genre)}</strong></div>${deal?`<div><small>買入我台作品</small><strong>《${safe(deal.title)}》· 至第 ${deal.expiresDay-1} 日 (21:00–23:00)</strong></div>`:''}${rivalBuy?`<div><small>外購市場搶購作品</small><strong>《${safe(rivalBuy.title)}》(${safe(rivalBuy.origin||'外購')} · 預測 ${rivalBuy.rating+2} 點) · 21:00–23:00</strong></div>`:''}<div><small>此刻</small><strong>${safe(now.title)} · 預測 ${now.rating}</strong></div><div><small>19:00 對台</small><strong>${safe(prime.title)} · 預測 ${prime.rating}</strong></div></article>`}).join('')}</div>
-    <section class="panel matchup-panel"><div class="section-heading"><h2>逐小時對台</h2><span>我台與兩間對手，各 24 小時</span></div><div class="matchup-scroll"><div class="matchup-table"><div class="matchup-head"><span>時段</span><span>我台節目</span><span>全城電視 · 預測</span><span>本地八台 · 預測</span></div>${Array.from({length:24},(_,hour)=>{const block=programAtHour(state,hour);const program=block&&state.library.find(item=>item.id===block.programId);const event=block?.programId.startsWith('event:')&&state.events.find(e=>`event:${e.id}`===block.programId);const title=program?.title??event?.name??'未排節目';const episode=episodeForBlock(state,block);return `<div class="matchup-row ${hour>=18&&hour<=22?'prime':''}" data-hour="${hour}"><strong>${hourLabel(hour)}</strong><span>${safe(title)}${episode?`<small>${safe(episode)}</small>`:''}</span>${state.rivals.map(rival=>{const show=rivalAtHour(state,rival,hour);return `<span>${safe(show.title)}<b>${show.rating}</b></span>`}).join('')}</div>`}).join('')}</div></div><p class="footnote">對手收視係遊戲預測；按「結算今日」後，實際我台收視同藝人人氣會更新。</p></section>`;
+    <section class="panel matchup-panel"><div class="section-heading"><h2>逐小時對台</h2><span>我台與三間對手，各 24 小時</span></div><div class="matchup-scroll"><div class="matchup-table"><div class="matchup-head"><span>時段</span><span>我台節目</span>${state.rivals.map(r=>`<span>${safe(r.name)} · 預測</span>`).join('')}</div>${Array.from({length:24},(_,hour)=>{const block=programAtHour(state,hour);const program=block&&state.library.find(item=>item.id===block.programId);const event=block?.programId.startsWith('event:')&&state.events.find(e=>`event:${e.id}`===block.programId);const title=program?.title??event?.name??'未排節目';const episode=episodeForBlock(state,block);return `<div class="matchup-row ${hour>=18&&hour<=22?'prime':''}" data-hour="${hour}"><strong>${hourLabel(hour)}</strong><span>${safe(title)}${episode?`<small>${safe(episode)}</small>`:''}</span>${state.rivals.map(rival=>{const show=rivalAtHour(state,rival,hour);return `<span>${safe(show.title)}<b>${show.rating}</b></span>`}).join('')}</div>`}).join('')}</div></div><p class="footnote">對手收視係遊戲預測；按「結算今日」後，實際我台收視同藝人人氣會更新。</p></section>`;
 }
 
 function replayQueueView() {
@@ -1309,9 +1340,8 @@ function sportsView() {
         </section>`;
       }).join(''):'<p class="empty panel">目前未有開放投標或買斷嘅體育版權賽事，請繼續推進季度。</p>'}
     </div>
-    <div class="rivals"><div class="section-heading"><h2>競爭電視台競投風格</h2><span>三間對手會在開標日同時掀開底牌</span></div><div class="rival-grid"><div><span class="rival-icon">01</span><strong>全城電視</strong><small>大型電視網 · 財雄勢大，出價通常高出底價 35%–75%</small></div><div><span class="rival-icon">02</span><strong>本地八台</strong><small>地區台 · 審慎保守，出價通常貼近底價</small></div><div><span class="rival-icon">03</span><strong>視界台</strong><small>小眾台 · 偶爾爆冷高價搶奪特定賽事</small></div></div></div>
-    ${recentList.length?`<section class="panel auction-results-history"><div class="section-heading"><h2>近期賽事開標紀錄</h2><span>揭曉結果</span></div><div class="recent-auctions-grid">${recentList.map(recent=>`<article class="recent-auction-item ${recent.winner==='你的電視台'?'we-won':''}"><div class="recent-auction-header"><strong>${safe(recent.name)}</strong><span class="winner-tag ${recent.winner==='你的電視台'?'gold':''}">得標者：${safe(recent.winner)}</span></div><div class="bid-list">${(recent.bids??[]).sort((a,b)=>b.amount-a.amount).map((b,i)=>`<div class="${b.name==='你的電視台'?'is-our-bid':''}"><span>${String(i+1).padStart(2,'0')} · ${safe(b.name)}</span><strong>${money(b.amount)}</strong></div>`).join('')}</div></article>`).join('')}</div></section>`:''}
-`;
+    <div class="rivals"><div class="section-heading"><h2>競爭電視台競投風格</h2><span>三間對手會在開標日同時掀開底牌</span></div><div class="rival-grid"><div><span class="rival-icon">01</span><strong>翡翠台</strong><small>電視廣播（無綫）· 財雄勢大，出價通常高出底價 35%–75%</small></div><div><span class="rival-icon">02</span><strong>ViuTV</strong><small>香港電視娛樂 · 瞄準青年與國際盛事，出價貼近市場</small></div><div><span class="rival-icon">03</span><strong>HOY TV</strong><small>有線寬頻 · 偶爾爆冷高價搶奪焦點大賽</small></div></div></div>
+    ${recentList.length?`<section class="panel auction-results-history"><div class="section-heading"><h2>近期賽事開標紀錄</h2><span>揭曉結果</span></div><div class="recent-auctions-grid">${recentList.map(recent=>`<article class="recent-auction-item ${recent.winner==='你的電視台'?'we-won':''}"><div class="recent-auction-header"><strong>${safe(recent.name)}</strong><span class="winner-tag ${recent.winner==='你的電視台'?'gold':''}">得標者：${safe(recent.winner)}</span></div><div class="bid-list">${(recent.bids??[]).sort((a,b)=>b.amount-a.amount).map((b,i)=>`<div class="${b.name==='你的電視台'?'is-our-bid':''}"><span>${String(i+1).padStart(2,'0')} · ${safe(b.name)}</span><strong>${money(b.amount)}</strong></div>`).join('')}</div></article>`).join('')}</div></section>`:''}`;
 }
 
 function hourlyComparisonView() {
@@ -1320,11 +1350,11 @@ function hourlyComparisonView() {
   const filters=[['all','全日 24 小時'],['prime','黃金檔 18–22'],['behind','落後時段']];
   return `<section class="panel history-panel comparison-panel">
     <div class="section-heading"><h2>逐小時收視對比</h2><span>我台勝出 ${result.wins} / 24 小時</span></div>
-    <p class="score-explainer">收視指數係遊戲內 0–100 分，唔係收視率百分比。我台分數高過<strong>兩間對手</strong>先算勝出；廣告收入係該小時賺到嘅錢。</p>
+    <p class="score-explainer">收視指數係遊戲內 0–100 分，唔係收視率百分比。我台分數高過<strong>三間對手（翡翠台、ViuTV、HOY TV）</strong>先算勝出；廣告收入係該小時賺到嘅錢。</p>
     <div class="report-filters" role="group" aria-label="篩選收視時段">${filters.map(([id,label])=>`<button data-action="report-filter" data-value="${id}" class="${reportFilter===id?'active':''}" aria-pressed="${reportFilter===id}">${label}</button>`).join('')}</div>
     <div class="hour-report">${visible.length?visible.map(h=>{
       const strongest=Math.max(...h.rivals),outcome=h.rating>strongest?'勝出':h.rating===strongest?'打和':'落後';
-      const stations=[['我台',h.rating,'ours'],[state.rivals[0]?.name??'對手一',h.rivals[0],'city'],[state.rivals[1]?.name??'對手二',h.rivals[1],'local']];
+      const stations=[['我台',h.rating,'ours'],...state.rivals.map((r,idx)=>[r.name,h.rivals[idx]??0,r.id])];
       return `<article class="hour-match ${outcome==='勝出'?'is-win':'is-behind'} ${h.hour>=18&&h.hour<=22?'is-prime':''}">
         <div class="hour-match-title"><strong>${hourLabel(h.hour)}</strong><span>${safe(h.title)}${h.episode?` · ${safe(h.episode)}`:''}${h.freshness!==undefined?(()=>{const f=freshnessLabel(h.freshness,h.maxFreshness);return ` · <small class="match-freshness ${f.tier}">${f.icon} ${f.percent}%</small>`;})():''}</span><b>${outcome}</b></div>
         <div class="score-cards">${stations.map(([name,score,kind])=>`<div class="score-card ${kind}"><div><span>${safe(name)}</span><strong>${score}</strong></div><span class="score-meter" aria-hidden="true"><i style="width:${Math.max(0,Math.min(100,Number(score)||0))}%"></i></span></div>`).join('')}</div>
@@ -1564,8 +1594,141 @@ function boardroomReportView() {
   `;
 }
 
+
+function dailyHighlightsView(highlights, day) {
+  if (!highlights?.top || !highlights?.lowest) return '';
+  const { top, lowest } = highlights;
+  const topDiff = top.diff >= 0 ? `+${top.diff}` : `${top.diff}`;
+  const lowDiff = lowest.diff >= 0 ? `+${lowest.diff}` : `${lowest.diff}`;
+  return `<section class="panel daily-highlights-box">
+    <div class="highlights-head">
+      <div>
+        <div class="eyebrow gold">DAILY BROADCAST HIGHLIGHTS</div>
+        <h2>第 ${day} 日 · 節目收視焦點與警戒</h2>
+      </div>
+      <span class="highlights-legend">收視 vs 最強對手差距</span>
+    </div>
+    <div class="highlights-grid">
+      <div class="highlight-card top-card">
+        <div class="highlight-badge-pill gold">🏆 今日最高收視焦點</div>
+        <div class="highlight-body">
+          <div class="highlight-title-row">
+            <strong>《${safe(top.title)}》</strong>
+            <span class="highlight-time">${hourLabel(top.start)}–${hourLabel(top.start + top.duration)}</span>
+          </div>
+          <div class="highlight-stats-row">
+            <div class="stat-unit">
+              <small>我台收視</small>
+              <strong class="stat-high">${top.rating}</strong>
+            </div>
+            <div class="stat-unit">
+              <small>對手收視</small>
+              <strong>${top.rivalRating}</strong>
+            </div>
+            <div class="stat-unit">
+              <small>領先差距</small>
+              <strong class="${top.won ? 'stat-won' : 'stat-lost'}">${topDiff}</strong>
+            </div>
+            <div class="stat-unit">
+              <small>單日廣告收入</small>
+              <strong class="gold-text">${hourlyMoney(top.revenue || 0)}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="highlight-card low-card">
+        <div class="highlight-badge-pill gray">⚠️ 今日最低收視警戒</div>
+        <div class="highlight-body">
+          <div class="highlight-title-row">
+            <strong>《${safe(lowest.title)}》</strong>
+            <span class="highlight-time">${hourLabel(lowest.start)}–${hourLabel(lowest.start + lowest.duration)}</span>
+          </div>
+          <div class="highlight-stats-row">
+            <div class="stat-unit">
+              <small>我台收視</small>
+              <strong class="stat-low">${lowest.rating}</strong>
+            </div>
+            <div class="stat-unit">
+              <small>對手收視</small>
+              <strong>${lowest.rivalRating}</strong>
+            </div>
+            <div class="stat-unit">
+              <small>勝負差距</small>
+              <strong class="${lowest.won ? 'stat-won' : 'stat-lost'}">${lowDiff}</strong>
+            </div>
+            <div class="stat-unit">
+              <small>單日廣告收入</small>
+              <strong class="gold-text">${hourlyMoney(lowest.revenue || 0)}</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function shopView() {
+  const activeCount = (state.activeTools ?? []).filter(t => t.expiresDay > state.day).length;
+  return `<div class="page-head">
+    <div>
+      <div class="eyebrow cyan">EQUIPMENT & PRODUCTION BOOSTERS</div>
+      <h1>道具與升級商城</h1>
+      <p>租用頂尖拍攝器材、聘請名牌編劇導師或進行跨平台全城宣傳。每項道具租約為期 30 日，全方位強化自製節目、藝人表現與全台指標！</p>
+    </div>
+    <div class="legend">目前生效中道具：<strong>${activeCount} 件</strong></div>
+  </div>
+  ${activeCount ? `
+    <section class="panel active-tools-panel">
+      <div class="section-heading">
+        <h2>⚡ 生效中道具狀態</h2>
+        <span>剩餘租期屆滿後自動失效，可隨時續租延長 30 日</span>
+      </div>
+      <div class="active-tools-grid">
+        ${(state.activeTools ?? []).filter(t => t.expiresDay > state.day).map(t => {
+          const daysLeft = t.expiresDay - state.day;
+          return `<div class="active-tool-chip">
+            <span class="active-tool-icon">${t.icon}</span>
+            <div class="active-tool-info">
+              <strong>${safe(t.name)}</strong>
+              <small class="tool-effect-badge">${safe(t.effectBadge || '')}</small>
+              <span class="tool-timer ${daysLeft <= 5 ? 'urgent' : ''}">尚餘 ${daysLeft} 日（第 ${t.expiresDay} 日到期）</span>
+            </div>
+            <button class="tool-renew-btn" data-action="buy-tool" data-tool-id="${t.id}" ${state.cash < (SHOP_TOOLS.find(st=>st.id===t.id)?.price??0)?'disabled':''}>續租 30 日</button>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>
+  ` : ''}
+  <div class="shop-grid">
+    ${SHOP_TOOLS.map(tool => {
+      const active = isToolActive(state, tool.id);
+      const daysLeft = getToolTimeRemaining(state, tool.id);
+      return `<article class="panel tool-card ${active ? 'is-active' : ''}">
+        <div class="tool-card-head">
+          <span class="tool-card-icon">${tool.icon}</span>
+          <div class="tool-card-titles">
+            <div class="eyebrow cyan">30-DAY LEASE · 有效 30 日</div>
+            <h2>${safe(tool.name)}</h2>
+          </div>
+          <span class="tool-price">${money(tool.price)}</span>
+        </div>
+        <p class="tool-card-desc">${safe(tool.description)}</p>
+        <div class="tool-card-meta">
+          <span class="tool-effect-pill">${safe(tool.effectBadge)}</span>
+          ${active ? `<span class="tool-status-pill active">生效中 · 尚餘 ${daysLeft} 日</span>` : `<span class="tool-status-pill idle">未租用</span>`}
+        </div>
+        <button class="primary-button tool-action-btn ${active ? 'renew-style' : ''}" data-action="buy-tool" data-tool-id="${tool.id}" ${state.cash < tool.price ? 'disabled' : ''}>
+          ${state.cash < tool.price ? `資金不足 (${money(tool.price)})` : active ? `續約延長 30 日 (${money(tool.price)})` : `立即租用 (${money(tool.price)})`}
+        </button>
+      </article>`;
+    }).join('')}
+  </div>`;
+}
+
 function reportsView() {
-  return `<div class="page-head"><div><div class="eyebrow gold">BOARDROOM</div><h1>每日與季度報告</h1><p>每日節目表會逐日播映，每 90 日結算一季；報告按每小時收視計廣告收益。</p></div></div>${state.lastDayResult?`<section class="panel day-report"><div class="section-heading"><h2>最近一日 · ${state.lastDayResult.label}</h2><span>${quarterLabel(state.lastDayResult.quarter)}</span></div><div class="report-total"><div><small>當日廣告收入</small><strong>${hourlyMoney(state.lastDayResult.revenue)}</strong></div><div><small>當日營運開支</small><strong>${hourlyMoney(state.lastDayResult.overhead)}</strong></div><div><small>當日淨額</small><strong>${hourlyMoney(state.lastDayResult.net)}</strong></div></div><div class="day-episodes">${state.lastDayResult.details.filter(d=>d.episode && d.episode!=='每日新一期').map(d=>`<span>${safe(d.title)} · ${safe(d.episode)}</span>`).join('')}</div></section>`:''}<div class="report-grid"><section class="panel"><div class="section-heading"><h2>最近季度結算</h2><span>${state.lastResult?.label??'尚未結算'}</span></div>${state.lastResult?`<div class="report-total"><div><small>90 日節目及廣告收益</small><strong>${money(state.lastResult.revenue)}</strong></div><div><small>營運開支</small><strong>−${money(state.lastResult.overhead)}</strong></div><div><small>季度淨額</small><strong class="${state.lastResult.net<0?'danger':''}">${money(state.lastResult.net)}</strong></div></div>${state.lastResult.sportsPenalty?`<div class="report-row"><span>體育廣告對賭賠付</span><b>−${money(state.lastResult.sportsPenalty)}</b></div>`:''}`:'<p class="empty">結算第一季之後，就會睇到完整數據。</p>'}</section><section class="panel"><div class="section-heading"><h2>電視台紀錄</h2><span>${state.library.length} 套節目入庫</span></div><div class="achievement"><small>已解鎖成就</small>${state.achievements.length?state.achievements.map(a=>`<span>★ ${safe(a)}</span>`).join(''):'<p>仲未解鎖。試吓挑戰危險錯配，或者贏得一場版權暗標。</p>'}</div><div class="achievement"><small>贊助商</small>${state.sponsors.length?state.sponsors.map(s=>`<span>✦ ${safe(s)}</span>`).join(''):'<p>特殊贊助商會喺 Cult 片爆紅後出現。</p>'}</div></section></div>
+  return `<div class="page-head"><div><div class="eyebrow gold">BOARDROOM</div><h1>每日與季度報告</h1><p>每日節目表會逐日播映，每 90 日結算一季；報告按每小時收視計廣告收益。</p></div></div>${state.lastDayResult?`<section class="panel day-report"><div class="section-heading"><h2>最近一日 · ${state.lastDayResult.label}</h2><span>${quarterLabel(state.lastDayResult.quarter)}</span></div><div class="report-total"><div><small>當日廣告收入</small><strong>${hourlyMoney(state.lastDayResult.revenue)}</strong></div><div><small>當日營運開支</small><strong>${hourlyMoney(state.lastDayResult.overhead)}</strong></div><div><small>當日淨額</small><strong>${hourlyMoney(state.lastDayResult.net)}</strong></div></div><div class="day-episodes">${state.lastDayResult.details.filter(d=>d.episode && d.episode!=='每日新一期').map(d=>`<span>${safe(d.title)} · ${safe(d.episode)}</span>`).join('')}</div></section>`:''}
+  ${dailyHighlightsView(state.lastDayResult?.highlights, state.lastDayResult?.day)}
+  <div class="report-grid"><section class="panel"><div class="section-heading"><h2>最近季度結算</h2><span>${state.lastResult?.label??'尚未結算'}</span></div>${state.lastResult?`<div class="report-total"><div><small>90 日節目及廣告收益</small><strong>${money(state.lastResult.revenue)}</strong></div><div><small>營運開支</small><strong>−${money(state.lastResult.overhead)}</strong></div><div><small>季度淨額</small><strong class="${state.lastResult.net<0?'danger':''}">${money(state.lastResult.net)}</strong></div></div>${state.lastResult.sportsPenalty?`<div class="report-row"><span>體育廣告對賭賠付</span><b>−${money(state.lastResult.sportsPenalty)}</b></div>`:''}`:'<p class="empty">結算第一季之後，就會睇到完整數據。</p>'}</section><section class="panel"><div class="section-heading"><h2>電視台紀錄</h2><span>${state.library.length} 套節目入庫</span></div><div class="achievement"><small>已解鎖成就</small>${state.achievements.length?state.achievements.map(a=>`<span>★ ${safe(a)}</span>`).join(''):'<p>仲未解鎖。試吓挑戰危險錯配，或者贏得一場版權暗標。</p>'}</div><div class="achievement"><small>贊助商</small>${state.sponsors.length?state.sponsors.map(s=>`<span>✦ ${safe(s)}</span>`).join(''):'<p>特殊贊助商會喺 Cult 片爆紅後出現。</p>'}</div></section></div>
   ${state.lastDayResult?.talentChanges?.length?`<section class="panel talent-report">
     <div class="section-heading"><h2>主演知名度與片酬變動</h2><span>依照昨日播映收視與市場期待動態調整（有升有跌）</span></div>
     <div class="talent-changes">${state.lastDayResult.talentChanges.map(t=>{
@@ -1587,7 +1750,7 @@ function reportsView() {
   ${monthlyLeaderboardView()}
   ${annualAwardsHistoryView()}
   ${state.lastDayResult?hourlyComparisonView():''}
-  <section class="panel history-panel"><div class="section-heading"><h2>季度帳目</h2><span>最近 12 季</span></div>${state.history.length?state.history.map(h=>`<div class="history-row"><strong>${h.label}</strong><span>收益 ${money(h.revenue)}</span><span>營運 ${money(h.overhead)}</span><b class="${h.net<0?'danger':''}">${money(h.net)}</b></div>`).join(''):'<p class="empty">第一份帳目等待結算。</p>'}</section>`;
+  <section class="panel history-panel"><div class="section-heading"><h2>季度帳目</h2><span>最近 12 季</span></div>${state.history.length?state.history.map(h=>`<div class="history-row"><strong>${h.label}</strong><span>收益 ${money(h.revenue)}</span><span>營運 ${money(h.overhead)}</span><b class="${h.net<0?'danger':''}">${money(h.net)}</b></div>`).join('')}</section>`;
 }
 
 function flash(message){notice=message;render();setTimeout(()=>{if(notice===message){notice='';render();}},3600)}
@@ -1613,9 +1776,25 @@ app.addEventListener('click',e=>{
     if(action==='genre'){selected.genre=value;render();}
     if(action==='theme'){if(selected.themes.includes(value)){if(selected.themes.length>1)selected.themes=selected.themes.filter(t=>t!==value)}else if(selected.themes.length<2)selected.themes.push(value);else selected.themes=[selected.themes[1],value];render();}
     if(action==='topic'){selected.topic=value;render();}
-    if(action==='actor'){if(selected.actorIds.includes(value))selected.actorIds=selected.actorIds.filter(id=>id!==value);else if(selected.actorIds.length<4)selected.actorIds.push(value);else throw Error('一套劇最多 4 位主演。');render();}
+    if(action==='actor'){
+      if(selected.actorIds.includes(value)){
+        selected.actorIds=selected.actorIds.filter(id=>id!==value);
+      } else {
+        const talent=state.talent[value];
+        if(talent?.station&&talent.station!=='player'&&talent.station!=='free'&&Number.isInteger(talent.contractExpiresDay)&&talent.contractExpiresDay>state.day){
+          const actor=ACTORS.find(a=>a.id===value);
+          throw Error(`【${actor?.name}】正與${getStationName(talent.station)}簽署獨家合約中，無法參演！`);
+        }
+        if(selected.actorIds.length<4)selected.actorIds.push(value);
+        else throw Error('一套劇最多 4 位主演。');
+      }
+      render();
+    }
     if(action==='actor-filter'){actorFilter=value;render();}
     if(action==='actor-toggle'){actorPickerOpen=!actorPickerOpen;render();}
+    if(action==='sign-artist'){const t=signArtist(state,button.dataset.actorId);const actor=ACTORS.find(a=>a.id===button.dataset.actorId);flash(`成功與【${actor?.name}】簽下 1 年合約（至第 ${t.contractExpiresDay} 日）！`);return;}
+    if(action==='renew-artist'){const t=renewArtistContract(state,button.dataset.actorId);const actor=ACTORS.find(a=>a.id===button.dataset.actorId);flash(`成功與【${actor?.name}】續約 1 年（至第 ${t.contractExpiresDay} 日）！`);return;}
+    if(action==='buy-tool'){const t=buyShopTool(state,button.dataset.toolId);flash(`成功購入／續租「${t.name}」，有效至第 ${t.expiresDay} 日！`);return;}
     if(action==='budget'){selected.budgetId=value;render();}
     if(action==='episode-hours'){selected.episodeHours=Number(value);render();}
     if(action==='episode-count'){selected.episodeCount=Number(value);render();}

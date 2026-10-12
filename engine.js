@@ -696,11 +696,14 @@ export function catalogForMonth(day) {
 }
 
 const rivalPremierePools={
-  city:[['都會追兇','刑偵劇',84],['豪門暗戰','商戰劇',82],['醫院前線','醫療劇',80],['明日審判','律政劇',86],['深宮密令','古裝劇',83],['海港風雲','年代劇',81]],
-  local:[['街市一家親','處境劇',70],['港島夜行','都市劇',73],['新手爸爸','家庭劇',72],['鄰里食堂','飲食綜藝',69],['午夜談心','清談節目',74],['城市新聲','音樂節目',71]]
+  jade:[['刑偵日記 II','刑偵劇',84],['豪門風雲錄','商戰劇',85],['白色強人 3','律政醫療',86],['金宵怪談新篇','奇幻懸疑',83],['巾幗梟雄風雲','年代史詩',87],['宮心計之深宮鬥','宮廷權謀',84]],
+  viu:[['男排熱血新章','青春運動',76],['二月廿九之約','奇幻愛情',79],['大叔甜蜜愛火','都市喜劇',81],['繩角格鬥王','熱血拳擊',77],['季前熱血單挑','偶像籃球',78],['瑪嘉烈與大衛新篇','都會愛情',76]],
+  hoy:[['星級廚神爭霸','飲食綜藝',70],['空間大改造香港版','家居裝修',72],['美味好煮意','生活美食',69],['再見枕邊人外購篇','外購愛情',73],['老友生活誌','健康長壽',68],['香港秘境遊','本土旅遊',71]],
+  city:[['刑偵日記 II','刑偵劇',84],['豪門風雲錄','商戰劇',85],['白色強人 3','律政醫療',86],['金宵怪談新篇','奇幻懸疑',83],['巾幗梟雄風雲','年代史詩',87],['宮心計之深宮鬥','宮廷權謀',84]],
+  local:[['男排熱血新章','青春運動',76],['二月廿九之約','奇幻愛情',79],['大叔甜蜜愛火','都市喜劇',81],['繩角格鬥王','熱血拳擊',77],['季前熱血單挑','偶像籃球',78],['瑪嘉烈與大衛新篇','都會愛情',76]]
 };
 export function rivalPremiere(rival,day) {
-  const month=marketMonthForDay(day),pool=rivalPremierePools[rival.id]??rivalPremierePools.local;
+  const month=marketMonthForDay(day),pool=rivalPremierePools[rival.id]??rivalPremierePools.jade;
   const [title,genre,rating]=pool[month%pool.length];
   return {title,genre,rating,month,slot:'19:00–21:00'};
 }
@@ -1174,12 +1177,226 @@ function ensureEvents(state) {
   }
 }
 
+export const SHOP_TOOLS = [
+  {
+    id: 'camera_4k',
+    name: '4K RED 電影級攝影器材組',
+    icon: '🎥',
+    price: 350_000,
+    durationDays: 30,
+    description: '荷里活級 4K RED 攝影機與高階燈光組。租用 30 日內開拍的所有自製節目，初始品質 (Quality) +10！',
+    effectBadge: '新片品質 +10'
+  },
+  {
+    id: 'script_workshop',
+    name: '金牌編劇大師工作坊',
+    icon: '✍️',
+    price: 280_000,
+    durationDays: 30,
+    description: '特聘星級編劇導師打磨劇本。30 日內新節目基礎收視 +5，且自製節目全體製作費用享 9 折優惠！',
+    effectBadge: '收視 +5 · 製作費 9 折'
+  },
+  {
+    id: 'artist_coaching',
+    name: '藝人星級特訓培訓班',
+    icon: '🌟',
+    price: 300_000,
+    durationDays: 30,
+    description: '為旗下藝人提供密集演技與舞台訓練。30 日內簽約藝人知名度增長 +50%，每次參演額外增 +6 熱度！',
+    effectBadge: '藝人人氣成長 +50% · 熱度 +6'
+  },
+  {
+    id: 'viral_pr',
+    name: '全城跨平台爆紅宣傳包',
+    icon: '🚀',
+    price: 380_000,
+    durationDays: 30,
+    description: '包攬全港巴士車身、地鐵燈箱與社交網絡廣告。全台節目每日熱度 +20%，節目新鮮度衰退速度減半！',
+    effectBadge: '全台熱度 +20% · 耐看度 2x'
+  },
+  {
+    id: 'crisis_consultant',
+    name: '金牌危機公關智囊團',
+    icon: '🛡️',
+    price: 220_000,
+    durationDays: 30,
+    description: '資深媒體公關團隊 24 小時駐場。全面免疫突發負面事件衝擊，每週自動穩步提升電視台聲譽 +2！',
+    effectBadge: '負面免疫 · 每週口碑 +2'
+  },
+  {
+    id: 'energy_sponsor',
+    name: '機能能量補給贊助箱',
+    icon: '⚡',
+    price: 160_000,
+    durationDays: 30,
+    description: '星級能量飲品無限量供應片場。劇組全體活力滿瀉，首播新節目觀眾滿意度大增，首播口碑 +6！',
+    effectBadge: '首播口碑 +6'
+  }
+];
+
+export function isToolActive(state, toolId) {
+  if (!state?.activeTools?.length) return false;
+  return state.activeTools.some(t => t.id === toolId && t.expiresDay > state.day);
+}
+
+export function getToolTimeRemaining(state, toolId) {
+  const tool = (state.activeTools ?? []).find(t => t.id === toolId && t.expiresDay > state.day);
+  return tool ? Math.max(0, tool.expiresDay - state.day) : 0;
+}
+
+export function buyShopTool(state, toolId) {
+  const tool = SHOP_TOOLS.find(t => t.id === toolId);
+  if (!tool) throw Error('找不到該項道具。');
+  if (state.cash < tool.price) throw Error(`資金不足！需要 ${money(tool.price)}。`);
+  state.cash -= tool.price;
+  state.activeTools ??= [];
+  const existing = state.activeTools.find(t => t.id === toolId);
+  if (existing && existing.expiresDay > state.day) {
+    existing.expiresDay += tool.durationDays;
+    existing.price = tool.price;
+    note(state, `【道具續期】${tool.name} 租期已延長 30 日（至第 ${existing.expiresDay} 日）！`, 'good');
+    return existing;
+  } else {
+    const record = {
+      id: tool.id,
+      name: tool.name,
+      icon: tool.icon,
+      price: tool.price,
+      boughtDay: state.day,
+      expiresDay: state.day + tool.durationDays,
+      effectBadge: tool.effectBadge
+    };
+    if (existing) {
+      existing.boughtDay = state.day;
+      existing.expiresDay = record.expiresDay;
+      existing.price = tool.price;
+    } else {
+      state.activeTools.push(record);
+    }
+    note(state, `【道具購入】成功購入「${tool.name}」（有效 30 日，至第 ${record.expiresDay} 日）！`, 'good');
+    return record;
+  }
+}
+
+export const ARTIST_CONTRACT_DAYS = 360; // 1 year = 360 game days
+
+export function getStationName(stationId) {
+  if (stationId === 'player') return '你的電視台';
+  if (stationId === 'jade' || stationId === 'city') return '翡翠台';
+  if (stationId === 'viu' || stationId === 'local') return 'ViuTV';
+  if (stationId === 'hoy') return 'HOY TV';
+  return '自由身';
+}
+
+export function initTalentContracts(state) {
+  state.talent ??= {};
+  state.lastAiredDays ??= {};
+  const playerInitial = new Set(['edaan', 'anson_lo', 'wong_tak_bun']);
+  const jadeInitial = new Set(['kenneth', 'moses', 'samantha', 'hera', 'vincent', 'shaun']);
+  const viuInitial = new Set(['lokman', 'an_ck', 'kaki_sham', 'hanna_chan', 'ling_man_lung', 'tiger_yau']);
+  const hoyInitial = new Set(['lawrence', 'kan_mo_wah', 'lam', 'chi']);
+
+  for (const actor of ACTORS) {
+    const station = playerInitial.has(actor.id) ? 'player'
+      : jadeInitial.has(actor.id) ? 'jade'
+      : viuInitial.has(actor.id) ? 'viu'
+      : hoyInitial.has(actor.id) ? 'hoy'
+      : 'free';
+    state.talent[actor.id] = {
+      skill: actor.skill,
+      fame: actor.skill - 10,
+      fee: actor.fee,
+      stamina: 100,
+      contractType: 'freelance',
+      contractDaysLeft: 0,
+      trainedCount: 0,
+      station,
+      contractExpiresDay: station === 'free' ? null : 360
+    };
+    state.lastAiredDays[actor.id] = 1;
+  }
+}
+
+export function artistSignCost(talent, actor) {
+  return Math.round(((talent?.fee ?? actor?.fee ?? 500_000) * 1.5) / 10_000) * 10_000;
+}
+
+export function artistRenewCost(talent, actor) {
+  return Math.round(((talent?.fee ?? actor?.fee ?? 500_000) * 1.2) / 10_000) * 10_000;
+}
+
+export function signArtist(state, actorId, station = 'player') {
+  const actor = ACTORS.find(a => a.id === actorId);
+  if (!actor) throw Error('找不到該位演員。');
+  state.talent ??= {};
+  state.talent[actorId] ??= { fame: actor.skill - 10, fee: actor.fee, station: 'free', contractExpiresDay: null };
+  const talent = state.talent[actorId];
+
+  if (talent.station !== 'free' && Number.isInteger(talent.contractExpiresDay) && talent.contractExpiresDay > state.day) {
+    if (talent.station === station) throw Error(`【${actor.name}】已是旗下簽約藝人，如欲延期請點擊「續約」。`);
+    throw Error(`【${actor.name}】目前受聘於${getStationName(talent.station)}（合約尚餘 ${talent.contractExpiresDay - state.day} 日），無法簽約！`);
+  }
+
+  const cost = artistSignCost(talent, actor);
+  if (station === 'player') {
+    if (state.cash < cost) throw Error(`資金不足！簽下【${actor.name}】1 年合約需要 ${money(cost)}。`);
+    state.cash -= cost;
+  }
+  talent.station = station;
+  talent.contractExpiresDay = state.day + ARTIST_CONTRACT_DAYS;
+  talent.renewPromptSent = false;
+  if (station === 'player') {
+    note(state, `【藝人簽約】成功與【${actor.name}】簽下 1 年獨家藝人合約（簽約金 ${money(cost)}，合約期至第 ${talent.contractExpiresDay} 日）！`, 'good');
+  }
+  return talent;
+}
+
+export function renewArtistContract(state, actorId, charge = true) {
+  const actor = ACTORS.find(a => a.id === actorId);
+  if (!actor) throw Error('找不到該位演員。');
+  state.talent ??= {};
+  const talent = state.talent[actorId];
+  if (!talent || talent.station !== 'player') throw Error(`【${actor.name}】不是我台旗下簽約藝人，無法續約。`);
+
+  const cost = artistRenewCost(talent, actor);
+  if (charge) {
+    if (state.cash < cost) throw Error(`資金不足！為【${actor.name}】續約 1 年需要 ${money(cost)}。`);
+    state.cash -= cost;
+  }
+  const baseDay = (Number.isInteger(talent.contractExpiresDay) && talent.contractExpiresDay > state.day) ? talent.contractExpiresDay : state.day;
+  talent.contractExpiresDay = baseDay + ARTIST_CONTRACT_DAYS;
+  talent.station = 'player';
+  talent.renewPromptSent = false;
+  note(state, `【合約續期】成功與【${actor.name}】續約 1 年（合約期延長至第 ${talent.contractExpiresDay} 日${charge ? `，花費 ${money(cost)}` : ''}）！`, 'good');
+  return talent;
+}
+
+export function checkCompetitorArtistSignings(state, rng = Math.random) {
+  state.talent ??= {};
+  const freeActors = ACTORS.filter(a => (state.talent[a.id]?.station ?? 'free') === 'free');
+  if (!freeActors.length) return;
+
+  const rivals = state.rivals ?? [{ id: 'jade', name: '翡翠台' }, { id: 'viu', name: 'ViuTV' }, { id: 'hoy', name: 'HOY TV' }];
+  for (const rival of rivals) {
+    if (rng() < 0.50) {
+      const pool = freeActors.filter(a => (state.talent[a.id]?.station ?? 'free') === 'free');
+      if (!pool.length) break;
+      const pick = pool[Math.floor(rng() * pool.length)];
+      if (pick) {
+        state.talent[pick.id].station = rival.id;
+        state.talent[pick.id].contractExpiresDay = state.day + ARTIST_CONTRACT_DAYS;
+        note(state, `【藝人轉會動態】${rival.name} 宣佈簽下自由身藝人【${pick.name}】1 年獨家合約！`, 'neutral');
+      }
+    }
+  }
+}
+
 export function refreshMarketRivalBuys(state, rng = Math.random) {
   state.rivalPurchases ??= [];
   state.rivalPurchases = state.rivalPurchases.filter(r => r.expiresDay > state.day);
   const currentMonth = marketMonthForDay(state.day);
   const activeThisMonth = state.rivalPurchases.filter(r => r.marketMonth === currentMonth);
-  if (activeThisMonth.length >= 2) return state.rivalPurchases;
+  if (activeThisMonth.length >= 3) return state.rivalPurchases;
 
   const currentListings = catalogForMonth(state.day);
   const ownedTitles = new Set(state.library.map(p => p.title));
@@ -1194,56 +1411,84 @@ export function refreshMarketRivalBuys(state, rng = Math.random) {
 
   if (!candidates.length) return state.rivalPurchases;
 
-  // City TV buys 1 blockbuster
-  const cityExisting = state.rivalPurchases.find(r => r.rivalId === 'city' && r.marketMonth === currentMonth);
-  if (!cityExisting) {
-    const cityCandidates = [...candidates].sort((a, b) => (b.rating + b.buzz) - (a.rating + a.buzz));
-    const cityPick = cityCandidates[0];
-    if (cityPick) {
+  // 1. Jade TV (翡翠台 / city) buys 1 blockbuster
+  const jadeExisting = state.rivalPurchases.find(r => (r.rivalId === 'jade' || r.rivalId === 'city') && r.marketMonth === currentMonth);
+  if (!jadeExisting) {
+    const jadeCandidates = [...candidates].sort((a, b) => (b.rating + b.buzz) - (a.rating + a.buzz));
+    const jadePick = jadeCandidates[0];
+    if (jadePick) {
       const buyRecord = {
-        id: `rival-buy-${state.day}-${cityPick.id}`,
-        marketItemId: cityPick.id,
+        id: `rival-buy-${state.day}-${jadePick.id}`,
+        marketItemId: jadePick.id,
         marketMonth: currentMonth,
-        title: cityPick.title,
-        rivalId: 'city',
-        rivalName: '全城電視',
-        origin: cityPick.origin || '外購',
-        category: cityPick.category,
-        rating: cityPick.rating,
-        cost: cityPick.cost,
+        title: jadePick.title,
+        rivalId: 'jade',
+        rivalName: '翡翠台',
+        origin: jadePick.origin || '外購',
+        category: jadePick.category,
+        rating: jadePick.rating,
+        cost: jadePick.cost,
         startDay: state.day,
         expiresDay: (currentMonth + 1) * DAYS_PER_MARKET_MONTH + 1
       };
       state.rivalPurchases.push(buyRecord);
-      rivalOwnedTitles.add(cityPick.title);
-      note(state, `【對手動向】全城電視豪擲 ${money(cityPick.cost)} 搶購${cityPick.origin}話題作《${cityPick.title}》獨家播映權！`, 'neutral');
+      rivalOwnedTitles.add(jadePick.title);
+      note(state, `【對手動向】翡翠台豪擲 ${money(jadePick.cost)} 搶購${jadePick.origin}話題作《${jadePick.title}》獨家播映權！`, 'neutral');
     }
   }
 
-  // Local 8 buys 1 distinctive/charming title
-  const localExisting = state.rivalPurchases.find(r => r.rivalId === 'local' && r.marketMonth === currentMonth);
-  if (!localExisting) {
-    const localCandidates = candidates.filter(c => !rivalOwnedTitles.has(c.title));
-    const preferred = localCandidates.filter(c => ['日本', '台灣'].includes(c.origin));
-    const pool = preferred.length ? preferred : localCandidates;
-    const localPick = pool[Math.floor(rng() * pool.length)];
-    if (localPick) {
+  // 2. ViuTV (viu / local) buys 1 trendy/youth/mystery title
+  const viuExisting = state.rivalPurchases.find(r => (r.rivalId === 'viu' || r.rivalId === 'local') && r.marketMonth === currentMonth);
+  if (!viuExisting) {
+    const viuCandidates = candidates.filter(c => !rivalOwnedTitles.has(c.title));
+    const preferred = viuCandidates.filter(c => ['日本', '韓國'].includes(c.origin));
+    const pool = preferred.length ? preferred : viuCandidates;
+    const viuPick = pool[Math.floor(rng() * pool.length)];
+    if (viuPick) {
       const buyRecord = {
-        id: `rival-buy-${state.day}-${localPick.id}`,
-        marketItemId: localPick.id,
+        id: `rival-buy-${state.day}-${viuPick.id}`,
+        marketItemId: viuPick.id,
         marketMonth: currentMonth,
-        title: localPick.title,
-        rivalId: 'local',
-        rivalName: '本地八台',
-        origin: localPick.origin || '外購',
-        category: localPick.category,
-        rating: localPick.rating,
-        cost: localPick.cost,
+        title: viuPick.title,
+        rivalId: 'viu',
+        rivalName: 'ViuTV',
+        origin: viuPick.origin || '外購',
+        category: viuPick.category,
+        rating: viuPick.rating,
+        cost: viuPick.cost,
         startDay: state.day,
         expiresDay: (currentMonth + 1) * DAYS_PER_MARKET_MONTH + 1
       };
       state.rivalPurchases.push(buyRecord);
-      note(state, `【對手動向】本地八台以 ${money(localPick.cost)} 買入${localPick.origin}口碑作《${localPick.title}》播映權！`, 'neutral');
+      rivalOwnedTitles.add(viuPick.title);
+      note(state, `【對手動向】ViuTV 以 ${money(viuPick.cost)} 買入${viuPick.origin}潮流作《${viuPick.title}》播映權！`, 'neutral');
+    }
+  }
+
+  // 3. HOY TV (hoy) buys 1 lifestyle/comfort drama
+  const hoyExisting = state.rivalPurchases.find(r => r.rivalId === 'hoy' && r.marketMonth === currentMonth);
+  if (!hoyExisting) {
+    const hoyCandidates = candidates.filter(c => !rivalOwnedTitles.has(c.title));
+    const preferred = hoyCandidates.filter(c => ['台灣', '日本', '內地'].includes(c.origin));
+    const pool = preferred.length ? preferred : hoyCandidates;
+    const hoyPick = pool[Math.floor(rng() * pool.length)];
+    if (hoyPick) {
+      const buyRecord = {
+        id: `rival-buy-${state.day}-${hoyPick.id}`,
+        marketItemId: hoyPick.id,
+        marketMonth: currentMonth,
+        title: hoyPick.title,
+        rivalId: 'hoy',
+        rivalName: 'HOY TV',
+        origin: hoyPick.origin || '外購',
+        category: hoyPick.category,
+        rating: hoyPick.rating,
+        cost: hoyPick.cost,
+        startDay: state.day,
+        expiresDay: (currentMonth + 1) * DAYS_PER_MARKET_MONTH + 1
+      };
+      state.rivalPurchases.push(buyRecord);
+      note(state, `【對手動向】HOY TV 以 ${money(hoyPick.cost)} 買入${hoyPick.origin}精選作《${hoyPick.title}》播映權！`, 'neutral');
     }
   }
 
@@ -1252,20 +1497,9 @@ export function refreshMarketRivalBuys(state, rng = Math.random) {
 
 export function newGame() {
   const state = new StationState();
-  state.lastAiredDays = {};
+  initTalentContracts(state);
+  state.activeTools = [];
   state.adContractsMarket = AD_CONTRACT_TEMPLATES.map(t => ({ ...t, daysElapsed: 0, ratings: [] }));
-  for (const actor of ACTORS) {
-    state.talent[actor.id] = {
-      skill: actor.skill,
-      fame: actor.skill - 10,
-      fee: actor.fee,
-      stamina: 100,
-      contractType: 'freelance',
-      contractDaysLeft: 0,
-      trainedCount: 0
-    };
-    state.lastAiredDays[actor.id] = 1;
-  }
   ensureEvents(state);
   refreshMarketRivalBuys(state, () => 0.5);
   return state;
@@ -1276,11 +1510,14 @@ export function productionQuote(state,{kind='drama',actorIds=[],budgetId='standa
   if (!format||!budget||!style||!hook||!Number.isInteger(episodeHours)||episodeHours<1||episodeHours>4||!isDailyFormat(kind)&&!isOneOffEvent(kind)&&(!Number.isInteger(episodeCount)||!EPISODE_COUNTS.includes(episodeCount))) throw Error('請選擇有效嘅每集時長、集數、製作預算同拍攝方向。');
   const cast=kind==='drama'?actorIds.map(id=>ACTORS.find(actor=>actor.id===id)):[];
   if (cast.some(actor=>!actor)||new Set(actorIds).size!==actorIds.length) throw Error('演員名單有誤。');
-  const perEpisode=Math.round(budget.cost*(kind==='drama'?1:format.factor)*(1+(episodeHours-1)*.45)*style.factor/1_000)*1_000;
+  let perEpisode=Math.round(budget.cost*(kind==='drama'?1:format.factor)*(1+(episodeHours-1)*.45)*style.factor/1_000)*1_000;
+  if (isToolActive(state, 'script_workshop')) perEpisode = Math.round(perEpisode * 0.90);
   const fees=cast.reduce((sum,actor)=>{
     const t = state.talent[actor.id];
     if (t?.contractType === 'exclusive' && (t?.contractDaysLeft ?? 0) > 0) return sum;
-    return sum + (t?.fee ?? actor.fee);
+    const isOurContract = t?.station === 'player' && t?.contractExpiresDay > state.day;
+    const effectiveFee = isOurContract ? Math.round(actor.fee * 0.6) : (t?.fee ?? actor.fee);
+    return sum + effectiveFee;
   }, 0);
   const episodes=isDailyFormat(kind)?0:isOneOffEvent(kind)?1:episodeCount;
   return {perEpisode,episodes,fees,total:perEpisode*(episodes||1)+fees+hook.cost,style,budget,cast,hook};
@@ -1293,7 +1530,7 @@ export function rivalAtHour(state,rival,hour,day=state.day) {
   const deal=hour>=21&&hour<23?(state.distributionDeals??[]).find(item=>item.rivalId===rival.id&&item.startDay<=day&&day<item.expiresDay):null;
   const rivalMarketBuy=hour>=21&&hour<23&&!deal?(state.rivalPurchases??[]).find(item=>item.rivalId===rival.id&&item.startDay<=day&&day<item.expiresDay):null;
   const title=deal?.title??rivalMarketBuy?.title??premiere?.title??block.rotation?.[state.quarter%block.rotation.length]??block.title;
-  const wave=(day*11+hour*3+(rival.id==='city'?0:2))%7-3;
+  const wave=(day*11+hour*3+(rival.id==='jade'||rival.id==='city'?0:rival.id==='viu'||rival.id==='local'?2:4))%7-3;
   const base=deal?.rating??(rivalMarketBuy?rivalMarketBuy.rating+2:null)??premiere?.rating??block.rating;
   let eventMod = 0;
   if (state.breakingEvent) {
@@ -1378,6 +1615,12 @@ export function produce(state,{kind='drama',genre,themes=[],actorIds=[],topic=''
     if (!GENRES.includes(genre) || !Array.isArray(themes) || themes.length<1 || themes.length>2 || new Set(themes).size!==themes.length || !themes.every(t=>THEMES.includes(t))) throw Error('請選擇劇種同一至兩個不同題材。');
     if (!Array.isArray(actorIds) || actorIds.length<2 || actorIds.length>4 || new Set(actorIds).size!==actorIds.length) throw Error('一套劇必須揀 2 至 4 位不同主演。');
     cast=quote.cast;
+    for (const actor of cast) {
+      const talent = state.talent[actor.id];
+      if (talent?.station && talent.station !== 'player' && talent.station !== 'free' && Number.isInteger(talent.contractExpiresDay) && talent.contractExpiresDay > state.day) {
+        throw Error(`【${actor.name}】現正與${getStationName(talent.station)}簽署獨家合約中，無法參演我台自製劇！`);
+      }
+    }
     tier=compatibility(genre,themes); key=exactKey(genre,themes);
     const average=cast.reduce((sum,actor)=>sum+actor.skill,0)/cast.length;
     const fame=cast.reduce((sum,actor)=>sum+(state.talent[actor.id]?.fame??actor.skill-10),0)/cast.length;
@@ -1462,6 +1705,11 @@ export function produce(state,{kind='drama',genre,themes=[],actorIds=[],topic=''
   review=clamp(review+hook.quality,0,100);
   rating=clamp(rating+hook.rating,1,100);
   buzz=clamp(buzz+hook.buzz,1,400);
+  // Tool Shop bonuses:
+  if(isToolActive(state,'camera_4k')){quality=clamp(quality+10,0,100);filmingStory+=' [4K RED攝影組：畫質大幅提升，品質 +10]';}
+  if(isToolActive(state,'script_workshop')){rating=clamp(rating+5,1,100);filmingStory+=' [金牌編劇工作坊：劇情吸引力強，收視 +5]';}
+  if(isToolActive(state,'energy_sponsor')){review=clamp(review+6,0,100);filmingStory+=' [機能能量贊助：全體狀態神勇，口碑 +6]';}
+  if(isToolActive(state,'artist_coaching')){buzz=clamp(buzz+6,1,400);filmingStory+=' [藝人星級培訓：演員表現搶眼，熱度 +6]';}
   const fulfilled=state.audienceBrief && topic===state.audienceBrief;
   if(fulfilled){rating=clamp(rating+6,1,100);buzz=clamp(buzz+8,1,400);state.audienceBrief=null;note(state,`觀眾點名想睇「${topic}」，新節目回應咗來信，預測收視 +6。`,'good');}
   if(state.giftBoost){quality=clamp(quality+state.giftBoost,0,100);review=clamp(review+state.giftBoost,0,100);note(state,'觀眾寄來嘅道具用咗喺新節目，品質提升。','good');state.giftBoost=0;}
@@ -1563,7 +1811,6 @@ export function migrateLegacyLicenses(state) {
   state.lastAiredDays??={};
   state.viralShowBoost??=null;
   state.rivalPurchases??=[];
-  state.lastFanMeetingDay??=-999;
   // Initialize new systems for existing saves
   state.adPricingStrategy ??= 'standard';
   state.activeAdContracts ??= [];
@@ -1576,6 +1823,21 @@ export function migrateLegacyLicenses(state) {
   state.boardHistory ??= [];
   state.subChannelUnlocked ??= false;
   state.subChannelSchedule ??= [];
+  state.activeTools ??= [];
+  if (!state.rivals || state.rivals.length < 3 || state.rivals.some(r => r.id === 'city' || r.id === 'local')) {
+    const freshState = new StationState();
+    state.rivals = freshState.rivals;
+  }
+  if (!state.talent || Object.keys(state.talent).length === 0 || !Object.values(state.talent)[0]?.station) {
+    const prevTalent = state.talent || {};
+    initTalentContracts(state);
+    for (const [id, t] of Object.entries(prevTalent)) {
+      if (state.talent[id]) {
+        state.talent[id].fame = t.fame ?? state.talent[id].fame;
+        state.talent[id].fee = t.fee ?? state.talent[id].fee;
+      }
+    }
+  }
   for (const actor of ACTORS) {
     if (state.talent[actor.id]) {
       state.talent[actor.id].skill ??= actor.skill;
@@ -1700,6 +1962,9 @@ export function replyToLetter(state,id,choiceId=null) {
       if(choice.effects.giftBoost) state.giftBoost=(state.giftBoost??0)+choice.effects.giftBoost;
       if(choice.effects.actorId&&choice.effects.fame&&state.talent[choice.effects.actorId]){
         state.talent[choice.effects.actorId].fame=clamp(state.talent[choice.effects.actorId].fame+choice.effects.fame,15,100);
+      }
+      if(choice.effects.renewActorId&&state.talent[choice.effects.renewActorId]){
+        renewArtistContract(state,choice.effects.renewActorId,false);
       }
     }
     letter.resolved=true;
@@ -1965,7 +2230,7 @@ export function resolveAuction(state,event,rng) {
   const giant=Math.round(event.floor*(1.38+rng()*.38)/100_000)*100_000;
   const local=Math.round(event.floor*(1.06+rng()*.28)/100_000)*100_000;
   const niche=Math.round(event.floor*(.96+rng()*.55)/100_000)*100_000;
-  const bids=[{name:'全城電視',amount:giant},{name:'本地八台',amount:local},{name:'視界台',amount:niche}];
+  const bids=[{name:'翡翠台',amount:giant},{name:'ViuTV',amount:local},{name:'HOY TV',amount:niche}];
   if (event.playerBid!==null) bids.push({name:'你的電視台',amount:event.playerBid});
   // Stable tie order favors the earlier submitted rival; player needs to beat a rival outright.
   const winner=bids.reduce((best,b)=>b.amount>best.amount?b:best,bids[0]);
@@ -2174,19 +2439,22 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
   // 1. 年度最佳劇集
   const dramas = state.library.filter(p => p.kind === 'drama' && p.runs > 0);
   const bestOurDrama = [...dramas].sort((a, b) => (b.quality + b.review + b.rating) - (a.quality + a.review + a.rating))[0];
-  const cityDramaScore = 78 + Math.floor(rng() * 10);
-  const localDramaScore = 68 + Math.floor(rng() * 12);
+  const jadeDramaScore = 78 + Math.floor(rng() * 10);
+  const viuDramaScore = 74 + Math.floor(rng() * 10);
+  const hoyDramaScore = 68 + Math.floor(rng() * 10);
   const ourDramaScore = bestOurDrama ? Math.round((bestOurDrama.quality * 0.4 + bestOurDrama.review * 0.3 + bestOurDrama.rating * 0.3)) : 50;
 
   let dramaWinner;
-  if (bestOurDrama && ourDramaScore >= cityDramaScore && ourDramaScore >= localDramaScore) {
+  if (bestOurDrama && ourDramaScore >= jadeDramaScore && ourDramaScore >= viuDramaScore && ourDramaScore >= hoyDramaScore) {
     dramaWinner = { title: `《${bestOurDrama.title}》`, station: '你的電視台', score: ourDramaScore, isOurs: true };
     ourWins++;
     totalPrize += 1_500_000;
-  } else if (cityDramaScore >= localDramaScore) {
-    dramaWinner = { title: '《深宮密令》', station: '全城電視', score: cityDramaScore, isOurs: false };
+  } else if (jadeDramaScore >= viuDramaScore && jadeDramaScore >= hoyDramaScore) {
+    dramaWinner = { title: '《黃金旗艦大劇》', station: '翡翠台', score: jadeDramaScore, isOurs: false };
+  } else if (viuDramaScore >= hoyDramaScore) {
+    dramaWinner = { title: '《Viu 原創旗艦劇》', station: 'ViuTV', score: viuDramaScore, isOurs: false };
   } else {
-    dramaWinner = { title: '《街市一家親》', station: '本地八台', score: localDramaScore, isOurs: false };
+    dramaWinner = { title: '《外購強檔韓劇》', station: 'HOY TV', score: hoyDramaScore, isOurs: false };
   }
   awards.push({
     category: '年度最佳劇集',
@@ -2209,7 +2477,7 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
     ourWins++;
     totalPrize += 1_000_000;
   } else {
-    bestActorWinner = { name: rng() < 0.5 ? '陳豪（全城電視）' : '黃宗澤（全城電視）', station: '全城電視', isOurs: false };
+    bestActorWinner = { name: rng() < 0.5 ? '陳豪（翡翠台）' : '黃宗澤（翡翠台）', station: '翡翠台', isOurs: false };
   }
   awards.push({
     category: '最佳男主角（視帝）',
@@ -2232,7 +2500,7 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
     ourWins++;
     totalPrize += 1_000_000;
   } else {
-    bestActressWinner = { name: rng() < 0.5 ? '佘詩曼（全城電視）' : '宣萱（全城電視）', station: '全城電視', isOurs: false };
+    bestActressWinner = { name: rng() < 0.5 ? '佘詩曼（翡翠台）' : '宣萱（翡翠台）', station: '翡翠台', isOurs: false };
   }
   awards.push({
     category: '最佳女主角（視后）',
@@ -2252,7 +2520,7 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
     ourWins++;
     totalPrize += 1_000_000;
   } else {
-    varietyWinner = { title: '《百萬挑戰》', station: '全城電視', isOurs: false };
+    varietyWinner = { title: '《東張西望時事》', station: '翡翠台', isOurs: false };
   }
   awards.push({
     category: '最佳綜藝資訊節目',
@@ -2271,7 +2539,7 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
       highestProg = lb.champion;
     }
   }
-  const ratingWinner = highestProg ?? { title: '七點直播', station: '全城電視', peakRating: 84 };
+  const ratingWinner = highestProg ?? { title: '東張西望時事', station: '翡翠台', peakRating: 84 };
   const isRatingOurs = ratingWinner.station === '你的電視台';
   if (isRatingOurs) {
     ourWins++;
@@ -2295,8 +2563,8 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
   awards.push({
     category: '年度傑出電視台大獎',
     icon: '🎖️',
-    winner: isBroadcasterOurs ? '你的電視台' : '全城電視',
-    station: isBroadcasterOurs ? '你的電視台' : '全城電視',
+    winner: isBroadcasterOurs ? '你的電視台' : '翡翠台',
+    station: isBroadcasterOurs ? '你的電視台' : '翡翠台',
     isOurs: isBroadcasterOurs,
     description: '綜合全年度節目質素、社會口碑與商業影響力'
   });
@@ -2316,7 +2584,7 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
   state.pendingCeremony = ceremony;
   state.awardCeremonies ??= [];
   state.awardCeremonies.unshift(ceremony);
-  note(state, `【年度頒獎典禮】第 ${year} 屆全城電視大獎圓滿落幕！我台榮獲 ${ourWins} 項大獎，獲得台慶獎金 ${money(totalPrize)}，口碑 +${ourWins * 3}、熱度 +${ourWins * 4}！`, 'good');
+  note(state, `【年度頒獎典禮】第 ${year} 屆香港電視大獎圓滿落幕！我台榮獲 ${ourWins} 項大獎，獲得台慶獎金 ${money(totalPrize)}，口碑 +${ourWins * 3}、熱度 +${ourWins * 4}！`, 'good');
   return ceremony;
 }
 
@@ -2478,6 +2746,8 @@ export function advanceDay(state,rng=Math.random) {
         // PR Dept Level 3 protects actor fame drops by 50%
         if (fameDelta < 0 && (state.facilities?.prDept ?? 1) >= 3) fameDelta *= 0.5;
 
+        if (fameDelta > 0 && isToolActive(state, 'artist_coaching')) fameDelta *= 1.5;
+
         fameDelta = clamp(fameDelta, -0.6, 0.6);
         talent.fame = clamp(Math.round((talent.fame + fameDelta) * 10) / 10, 15, 100);
         talent.fee = Math.round(actor.fee * clamp(1 + (talent.fame - (actor.skill - 10)) * 0.015, 0.4, 2.0) / 10_000) * 10_000;
@@ -2554,7 +2824,7 @@ export function advanceDay(state,rng=Math.random) {
   }
   for (const rival of state.rivals) {
     const topRivalHour = hours.filter(Boolean).reduce((best, h) => {
-      const rivalIdx = rival.id === 'city' ? 0 : 1;
+      const rivalIdx = state.rivals.findIndex(r => r.id === rival.id);
       const score = h.rivals?.[rivalIdx] ?? 0;
       return score > (best?.score ?? -1) ? { hour: h.hour, score } : best;
     }, null);
@@ -2747,7 +3017,107 @@ export function advanceDay(state,rng=Math.random) {
     state.mailbox=state.mailbox.slice(0,18);
     note(state,`觀眾信箱收到特殊突發事件【${letterData.title}】！`,'good');
   }
-  const daily={day:gameDay,quarter:state.quarter,label:`第 ${gameDay} 日`,hours,details,revenue,overhead,net:revenue-overhead,sportsRevenue,sportsPenalty,wins,talentChanges,completed};
+  // Tool effects and lifecycle
+  if (isToolActive(state, 'viral_pr')) buzz = Math.round(buzz * 1.20);
+  if (gameDay % 7 === 0 && isToolActive(state, 'crisis_consultant')) {
+    state.reputation = clamp(state.reputation + 2, 0, 100);
+    note(state, '【金牌危機公關】公關智囊維護形象，本週電視台口碑 +2。', 'good');
+  }
+  if (state.activeTools?.length) {
+    state.activeTools = state.activeTools.filter(tool => {
+      if (gameDay >= tool.expiresDay) {
+        note(state, `【道具期滿】「${tool.name}」租約期滿失效。`, 'neutral');
+        return false;
+      }
+      return true;
+    });
+  }
+
+  // Artist contract expiration and 30-day renewal warnings
+  for (const [actorId, talent] of Object.entries(state.talent ?? {})) {
+    if (talent.station === 'player' && Number.isInteger(talent.contractExpiresDay)) {
+      const remaining = talent.contractExpiresDay - gameDay;
+      if (remaining <= 30 && remaining > 0 && !talent.renewPromptSent) {
+        talent.renewPromptSent = true;
+        const actor = ACTORS.find(a => a.id === actorId);
+        const renewCost = artistRenewCost(talent, actor);
+        state.mailbox ??= [];
+        state.mailbox.unshift({
+          id: `renew-${actorId}-${gameDay}`,
+          day: gameDay,
+          type: 'contract_renew',
+          actorId,
+          title: `旗下藝人【${actor.name}】合約即將屆滿！`,
+          text: `【${actor.name}】嘅 1 年獨家合約尚餘 ${remaining} 日（第 ${talent.contractExpiresDay} 日屆滿）。對台（翡翠台、ViuTV、HOY TV）正虎視眈眈，請儘快決定是否續約 1 年！續約金為 ${money(renewCost)}。`,
+          options: [
+            {
+              id: 'renew',
+              label: `即時續約 1 年（${money(renewCost)}）`,
+              desc: '合約延長 360 日（1 年）',
+              cost: renewCost,
+              effects: { renewActorId: actorId },
+              feedback: `成功為【${actor.name}】續約 1 年！`
+            },
+            {
+              id: 'ignore',
+              label: '暫不續約（約滿後回復自由身）',
+              desc: '不花費資金',
+              cost: 0,
+              feedback: `【${actor.name}】若在第 ${talent.contractExpiresDay} 日未續約，將回復自由身。`
+            }
+          ],
+          resolved: false
+        });
+        note(state, `【藝人合約預警】旗下藝人【${actor.name}】合約尚餘 ${remaining} 日！請到信箱或藝人頁面處理續約。`, 'neutral');
+      } else if (gameDay >= talent.contractExpiresDay) {
+        const actor = ACTORS.find(a => a.id === actorId);
+        talent.station = 'free';
+        talent.contractExpiresDay = null;
+        talent.renewPromptSent = false;
+        note(state, `【合約期滿】旗下藝人【${actor?.name ?? actorId}】合約已屆滿，現已回復自由身！`, 'bad');
+      }
+    } else if (talent.station !== 'player' && talent.station !== 'free' && Number.isInteger(talent.contractExpiresDay)) {
+      if (gameDay >= talent.contractExpiresDay) {
+        const actor = ACTORS.find(a => a.id === actorId);
+        const stationName = getStationName(talent.station);
+        talent.station = 'free';
+        talent.contractExpiresDay = null;
+        note(state, `【對台動態】${stationName}旗下藝人【${actor?.name ?? actorId}】合約期滿，重返自由身市場！`, 'neutral');
+      }
+    }
+  }
+
+  // Daily Highlights calculation
+  let topHighlight = null;
+  let lowestHighlight = null;
+  if (details.length) {
+    const sorted = [...details].sort((a, b) => b.rating - a.rating);
+    const top = sorted[0];
+    const lowest = sorted[sorted.length - 1];
+    topHighlight = {
+      title: top.title,
+      start: top.start,
+      duration: top.duration,
+      rating: top.rating,
+      rivalRating: top.rivalRating,
+      won: top.won,
+      diff: top.rating - top.rivalRating,
+      revenue: top.revenue
+    };
+    lowestHighlight = {
+      title: lowest.title,
+      start: lowest.start,
+      duration: lowest.duration,
+      rating: lowest.rating,
+      rivalRating: lowest.rivalRating,
+      won: lowest.won,
+      diff: lowest.rating - lowest.rivalRating,
+      revenue: lowest.revenue
+    };
+  }
+  const highlights = { top: topHighlight, lowest: lowestHighlight };
+
+  const daily={day:gameDay,quarter:state.quarter,label:`第 ${gameDay} 日`,hours,details,revenue,overhead,net:revenue-overhead,sportsRevenue,sportsPenalty,wins,talentChanges,completed,highlights};
   state.lastDayResult=daily;
   state.broadcastReports??=[];
   state.broadcastReports.unshift({day:gameDay,details});
@@ -2769,6 +3139,7 @@ export function advanceDay(state,rng=Math.random) {
   if(marketRefresh) {
     note(state,`外購市場第 ${marketMonthForDay(state.day)+1} 個月新片單上架；原有播映權照常有效。`,'good');
     refreshMarketRivalBuys(state, rng);
+    checkCompetitorArtistSignings(state, rng);
   }
   const newlyExpired = [];
   for (const p of state.library) {
@@ -2866,7 +3237,7 @@ export function advanceQuarter(state,rng=Math.random) {
   let daily;
   while (state.quarter===current) {
     daily=advanceDay(state,rng);
-    if (daily.completed.length || daily.expired.length || daily.marketRefresh || state.pendingPremieres?.length || state.pendingCeremony || state.lastMonthResult?.isNew) break;
+    if (daily.completed.length || daily.expired.length || daily.marketRefresh || state.pendingPremieres?.length || state.pendingCeremony || state.lastMonthResult?.isNew || state.mailbox?.some(m => m.type === 'contract_renew' && !m.resolved)) break;
   }
   return daily;
 }

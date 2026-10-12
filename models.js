@@ -29,25 +29,35 @@ export class StationState {
     this.reputation = 55;
     this.fans = 24;
     this.talent = {};
-    // Two competing channels. Each line-up fills all 24 hourly slots.
+    // Three competing Hong Kong commercial channels: Jade TV, ViuTV, HOY TV. Each line-up fills all 24 hourly slots.
     this.rivals = [
-      {id:'city',name:'全城電視',profile:'大台：黃金檔劇集、新聞',schedule:[
-        {start:0,duration:3,title:'午夜戲院',rating:49},{start:3,duration:3,title:'舊劇重溫',rating:43},
-        {start:6,duration:3,title:'全城早晨',rating:62},{start:9,duration:2,title:'財經追蹤',rating:58},
-        {start:11,duration:2,title:'廚房之王',rating:55},{start:13,duration:2,title:'午間劇場',rating:61},
-        {start:15,duration:2,title:'青春劇場',rating:57},{start:17,duration:1,title:'傍晚新聞',rating:70},
-        {start:18,duration:1,title:'七點直播',rating:74},
-        {start:19,duration:2,title:'年代風雲',rotation:['年代風雲','商界內幕','律政風暴'],rating:82},
-        {start:21,duration:2,title:'百萬挑戰',rating:77},{start:23,duration:1,title:'夜線檔案',rating:60}
+      {id:'jade',name:'翡翠台',profile:'電視廣播（無綫）：黃金檔大劇、處境劇、東張西望與合家歡綜藝',schedule:[
+        {start:0,duration:3,title:'無綫午夜劇場',rating:50},{start:3,duration:3,title:'舊劇重溫經典',rating:44},
+        {start:6,duration:3,title:'香港早晨',rating:65},{start:9,duration:2,title:'開市財經直擊',rating:57},
+        {start:11,duration:2,title:'流行都市生活',rating:55},{start:13,duration:2,title:'午間經典劇場',rating:62},
+        {start:15,duration:2,title:'下午合家歡',rating:57},{start:17,duration:1,title:'六點半新聞報道',rating:72},
+        {start:18,duration:1,title:'東張西望時事',rating:76},
+        {start:19,duration:2,title:'愛·回家之開心速遞',rotation:['愛·回家之開心速遞','年代商戰風雲','律政強人重聚'],rating:82},
+        {start:21,duration:2,title:'黃金旗艦大劇',rating:80},{start:23,duration:1,title:'晚間新聞與夜線',rating:62}
       ]},
-      {id:'local',name:'本地八台',profile:'社區台：民生節目、娛樂',schedule:[
-        {start:0,duration:2,title:'午夜電影',rating:52},{start:2,duration:3,title:'經典金曲',rating:42},
-        {start:5,duration:2,title:'社區早點',rating:48},{start:7,duration:2,title:'早晨香港',rating:55},
-        {start:9,duration:2,title:'理財教室',rating:50},{start:11,duration:2,title:'家常料理',rating:52},
-        {start:13,duration:3,title:'午後劇場',rating:53},{start:16,duration:2,title:'城市交通',rating:58},
-        {start:18,duration:1,title:'社區新聞',rating:60},
-        {start:19,duration:2,title:'街坊日記',rotation:['街坊日記','鄰里合拍','屋企有人'],rating:67},
-        {start:21,duration:2,title:'明星歌廳',rating:70},{start:23,duration:1,title:'今日話題',rating:53}
+      {id:'viu',name:'ViuTV',profile:'香港電視娛樂：偶像劇、真人騷綜藝、ERROR/MIRROR 潮流熱話',schedule:[
+        {start:0,duration:2,title:'深夜 Chill Club 音樂',rating:55},{start:2,duration:4,title:'音樂漫遊與重播',rating:42},
+        {start:6,duration:3,title:'早晨新聞透視',rating:53},{start:9,duration:3,title:'智富通開市資訊',rating:51},
+        {start:12,duration:2,title:'亞洲精選人氣劇',rating:56},{start:14,duration:2,title:'潮流生活指南',rating:50},
+        {start:16,duration:2,title:'放學青年天地',rating:52},{start:18,duration:1,title:'傍晚新聞報導',rating:60},
+        {start:19,duration:1,title:'人氣自製偶像劇',rating:72},
+        {start:20,duration:1,title:'爆笑真人實況騷',rotation:['膠戰極限','全員逃走衝擊','ERROR大冒險'],rating:76},
+        {start:21,duration:2,title:'Viu 原創旗艦劇',rotation:['大叔的愛甜蜜蜜','社內大激戰','IT狂人奮鬥記'],rating:78},
+        {start:23,duration:1,title:'晚吹深度清談',rating:68}
+      ]},
+      {id:'hoy',name:'HOY TV',profile:'有線寬頻旗下：生活資訊、星級名廚美食、外購高質日韓劇',schedule:[
+        {start:0,duration:3,title:'深夜滋味重溫',rating:46},{start:3,duration:3,title:'經典懷舊影院',rating:40},
+        {start:6,duration:3,title:'HOY 早晨快訊',rating:50},{start:9,duration:3,title:'財經開市直擊',rating:48},
+        {start:12,duration:2,title:'星級大廚煮意',rating:58},{start:14,duration:2,title:'悠閒生活劇場',rating:52},
+        {start:16,duration:2,title:'健康養生指南',rating:51},{start:18,duration:1,title:'七點新聞透視',rating:59},
+        {start:19,duration:1,title:'開飯喇滋味行',rating:65},
+        {start:20,duration:1,title:'外購強檔韓劇',rotation:['宮廷秘辛','豪門恩怨風雲','都市浪漫曲'],rating:71},
+        {start:21,duration:2,title:'一線生活搜查',rating:68},{start:23,duration:1,title:'晚間新聞夜話',rating:52}
       ]}
     ];
     this.library = [
