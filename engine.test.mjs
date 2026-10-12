@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -1443,5 +1443,311 @@ test('three authentic Hong Kong TV competitors have exact user profile mottos, c
     }
   }
 });
+
+test('TV production project creation defines format-specific stages, target audience, budget and 10 attributes', () => {
+  const state = newGame();
+  const dramaStages = getFormatStages('drama');
+  const newsStages = getFormatStages('news');
+  const talkStages = getFormatStages('talkshow');
+
+  assert.equal(dramaStages.length, 8, 'Drama must have all 8 stages');
+  assert.ok(newsStages.length < dramaStages.length, 'News workflow must omit rehearsal/set stages');
+  assert.ok(!talkStages.includes('set_preparation'), 'Talkshow workflow omits set_preparation');
+
+  const proj = createProductionProject(state, {
+    title: '大時代風雲',
+    genre: '商戰風雲',
+    themes: ['商業情仇', '家族鬥爭'],
+    format: 'drama',
+    episodesCount: 4,
+    episodeHours: 2,
+    targetAudience: 'working',
+    budgetId: 'grand',
+    assignedStudioId: 'studio_1',
+    strategy: 'balanced',
+    actorIds: ['bosco', 'sheren'],
+    crew: { directorId: 'dir_wai', writerId: 'wri_cheung' }
+  });
+
+  assert.equal(proj.title, '大時代風雲');
+  assert.equal(proj.episodes.length, 4);
+  assert.equal(proj.status, 'in_production');
+  assert.equal(proj.targetAudience, 'working');
+  assert.equal(proj.cast.length, 2);
+
+  const ep1 = proj.episodes[0];
+  // Verify all 10 tracked attributes
+  assert.ok(typeof ep1.fun === 'number');
+  assert.ok(typeof ep1.originality === 'number');
+  assert.ok(typeof ep1.direction === 'number');
+  assert.ok(typeof ep1.acting === 'number');
+  assert.ok(typeof ep1.technical === 'number');
+  assert.ok(typeof ep1.errors === 'number');
+  assert.ok(typeof ep1.cost === 'number');
+  assert.ok(typeof ep1.days === 'number');
+  assert.ok(typeof ep1.morale === 'number');
+  assert.ok(typeof ep1.expectations === 'number');
+});
+
+test('casting availability check prevents double-booking actors across active filming projects', () => {
+  const state = newGame();
+  const proj1 = createProductionProject(state, {
+    title: '第一套大劇',
+    genre: '刑偵懸疑',
+    themes: ['警匪對決'],
+    format: 'drama',
+    episodesCount: 2,
+    actorIds: ['bosco', 'sheren']
+  });
+
+  // Actively filming/pre-production: bosco should NOT be available for another project
+  assert.equal(checkPerformerAvailability(state, 'bosco').available, false);
+  assert.equal(checkPerformerAvailability(state, 'sheren').available, false);
+  assert.equal(checkPerformerAvailability(state, 'jessica').available, true);
+
+  // Attempting to create another project with bosco must throw an error
+  assert.throws(() => {
+    createProductionProject(state, {
+      title: '重疊撞期新劇',
+      genre: '時裝恩怨',
+      themes: ['家族恩怨'],
+      format: 'drama',
+      episodesCount: 2,
+      actorIds: ['bosco', 'jessica']
+    });
+  }, /重疊衝突/);
+});
+
+test('production stages advance concurrently up to studio capacity with strategy speed and error rates', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '急速綜藝大作',
+    format: 'variety',
+    episodesCount: 4,
+    strategy: 'fast',
+    assignedStudioId: 'studio_2',
+    actorIds: ['edaan', 'anson_lo']
+  });
+
+  const studio = state.studios.find(s => s.id === 'studio_2');
+  assert.equal(studio.capacity, 2);
+
+  // Initial: episode 1 & episode 2 should be in_progress
+  advanceProduction(state, 1, () => 0.01);
+
+  const activeEps = proj.episodes.filter(e => e.status === 'in_progress');
+  assert.equal(activeEps.length, 2, 'Must run concurrent episodes matching studio capacity (2)');
+  assert.ok(activeEps[0].stageProgress > 0, 'Stage progress must advance');
+  assert.ok(activeEps[0].cost > 0, 'Daily cost must accumulate');
+});
+
+test('interactive filming events trigger during filming and choices persist consequences', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '片場風雲',
+    format: 'drama',
+    episodesCount: 1,
+    actorIds: ['bosco', 'jessica']
+  });
+
+  const ep = proj.episodes[0];
+  ep.stage = 'filming';
+  ep.status = 'in_progress';
+  ep.stageProgress = 50;
+
+  // Advance production with rng returning high probability to trigger filming event
+  advanceProduction(state, 1, () => 0.05);
+
+  assert.ok(ep.pendingEvent, 'Filming event should trigger');
+  assert.ok(state.activeFilmingEvents.length > 0, 'State should track active filming events');
+
+  const initialActing = ep.acting;
+  const initialCost = ep.cost;
+  const eventId = ep.pendingEvent.id;
+  const choiceId = ep.pendingEvent.choices[0].id;
+
+  handleFilmingEventChoice(state, proj.id, ep.episodeNumber, choiceId, () => 0.5);
+
+  assert.equal(ep.pendingEvent, null, 'Pending event must be resolved');
+  assert.equal(ep.eventsHandled.length, 1);
+  assert.equal(ep.eventsHandled[0].eventId, eventId);
+});
+
+test('quality control report generation and player decisions (release, fix, re-edit, reshoot)', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '金牌審片劇',
+    format: 'drama',
+    episodesCount: 1,
+    actorIds: ['bosco', 'sheren']
+  });
+
+  const ep = proj.episodes[0];
+  ep.stage = 'post_production';
+  ep.stageProgress = 99;
+  ep.errors = 2;
+
+  // Advance to reach quality_control
+  advanceProduction(state, 1, () => 0.5);
+
+  assert.equal(ep.status, 'qc_ready');
+  assert.ok(ep.qcReport, 'QC report must be generated');
+  assert.equal(ep.qcReport.choices.length, 4, 'Must have 4 choices: release_as_is, fix_errors, re_edit, reshoot');
+
+  // Choose fix_errors
+  const initialCash = state.cash;
+  handleQualityControlDecision(state, proj.id, ep.episodeNumber, 'fix_errors');
+
+  assert.equal(ep.status, 'delivered');
+  assert.equal(ep.errors, 0, 'fix_errors should clear production errors');
+  assert.equal(proj.deliveredEpisodesCount, 1);
+  assert.ok(state.cash < initialCash, 'Cost should be deducted for fixing errors');
+});
+
+test('multi-episode concurrent progression allows broadcasting delivered episodes while later ones are in production', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '邊拍邊播長劇',
+    format: 'drama',
+    episodesCount: 3,
+    actorIds: ['bosco', 'sheren']
+  });
+
+  // Manually deliver episode 1 only (episode 2 and 3 are still in production)
+  proj.episodes[0].status = 'delivered';
+  proj.episodes[0].stage = 'delivery';
+  deliverEpisode(state, proj, proj.episodes[0]);
+
+  assert.equal(proj.deliveredEpisodesCount, 1);
+  assert.equal(proj.episodes[1].status, 'pending');
+
+  const libItem = state.library.find(p => p.projectId === proj.id);
+  assert.ok(libItem, 'Show must enter broadcast library once at least 1 episode is delivered');
+  assert.equal(libItem.deliveredEpisodes, 1);
+  assert.equal(libItem.episodes, 3);
+
+  // Schedule show in evening slot
+  scheduleProgram(state, 20, libItem.id, 2);
+
+  // Broadcast Day 1: Episode 1 should air successfully!
+  const day1 = advanceDay(state, () => 0.5);
+  assert.equal(libItem.runs, 1, 'Episode 1 should have aired');
+  assert.equal(proj.episodes[0].status, 'aired');
+  assert.ok(proj.ratingsHistory.length >= 1, 'ratingsHistory must record Episode 1');
+  assert.equal(proj.ratingsHistory[0].episodeNumber, 1);
+});
+
+test('broadcasting handles schedule gaps (脫期空檔) when later episodes are not yet ready without freezing or advancing runs', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '脫期空檔劇',
+    format: 'drama',
+    episodesCount: 3,
+    actorIds: ['bosco', 'sheren']
+  });
+
+  // Deliver only episode 1
+  proj.episodes[0].status = 'delivered';
+  deliverEpisode(state, proj, proj.episodes[0]);
+
+  const libItem = state.library.find(p => p.projectId === proj.id);
+  scheduleProgram(state, 20, libItem.id, 2);
+
+  // Day 1: Episode 1 airs
+  advanceDay(state, () => 0.5);
+  assert.equal(libItem.runs, 1);
+
+  // Day 2: Episode 2 is NOT delivered yet! (deliveredEpisodes is 1, but run wants 2)
+  const day2 = advanceDay(state, () => 0.5);
+
+  // Must detect schedule gap (脫期空檔)
+  assert.equal(libItem.runs, 1, 'Run count must NOT advance when episode is delayed');
+  assert.ok(day2.details.some(d => d.title.includes('脫期') || d.effect?.includes('脫期')), 'Must report schedule gap filler');
+  assert.ok(state.log.some(n => n.text.includes('排播脫期')), 'Must log schedule gap warning to notifications');
+
+  // Now deliver Episode 2!
+  proj.episodes[1].status = 'delivered';
+  deliverEpisode(state, proj, proj.episodes[1]);
+  assert.equal(libItem.deliveredEpisodes, 2);
+
+  // Day 3: Episode 2 airs for real!
+  advanceDay(state, () => 0.5);
+  assert.equal(libItem.runs, 2, 'Now Episode 2 should legitimately air');
+  assert.equal(proj.episodes[1].status, 'aired');
+});
+
+test('independent per-episode ratings calculation and per-episode ratingsHistory tracking', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '品質起伏劇',
+    format: 'drama',
+    episodesCount: 2,
+    actorIds: ['bosco', 'sheren']
+  });
+
+  // Episode 1 has high quality attributes
+  proj.episodes[0].acting = 95;
+  proj.episodes[0].direction = 90;
+  proj.episodes[0].errors = 0;
+  proj.episodes[0].status = 'delivered';
+  deliverEpisode(state, proj, proj.episodes[0]);
+
+  // Episode 2 has low quality attributes and high errors
+  proj.episodes[1].acting = 40;
+  proj.episodes[1].direction = 40;
+  proj.episodes[1].errors = 5;
+  proj.episodes[1].status = 'delivered';
+  deliverEpisode(state, proj, proj.episodes[1]);
+
+  const libItem = state.library.find(p => p.projectId === proj.id);
+  scheduleProgram(state, 20, libItem.id, 2);
+
+  advanceDay(state, () => 0.5); // Airs Episode 1
+  const r1 = proj.ratingsHistory.find(h => h.episodeNumber === 1).rating;
+
+  advanceDay(state, () => 0.5); // Airs Episode 2
+  const r2 = proj.ratingsHistory.find(h => h.episodeNumber === 2).rating;
+
+  assert.ok(r1 > r2, `High quality episode rating (${r1}) must surpass flawed episode rating (${r2})`);
+});
+
+test('long-term development: season 2 sequels and spin-offs inherit audience expectations and momentum', () => {
+  const state = newGame();
+  const parent = createProductionProject(state, {
+    title: '尋秦記',
+    format: 'drama',
+    episodesCount: 1,
+    actorIds: ['bosco', 'sheren']
+  });
+
+  parent.status = 'completed';
+  for (const ep of parent.episodes) ep.status = 'delivered';
+  parent.ratingsHistory = [{ episodeNumber: 1, rating: 88, won: true }];
+
+  const s2 = createSeasonOrSpinOff(state, parent.id, 'next_season');
+  assert.equal(s2.title, '尋秦記 II');
+  assert.equal(s2.seasonNumber, 2);
+  assert.ok(s2.episodes[0].expectations > 50, 'Season 2 must inherit higher audience expectations');
+
+  const spinoff = createSeasonOrSpinOff(state, parent.id, 'spin_off', { subtitle: '項少龍前傳', actorIds: ['selena', 'venus'] });
+  assert.equal(spinoff.title, '尋秦記 外傳：項少龍前傳');
+  assert.equal(spinoff.franchiseId, parent.franchiseId);
+});
+
+test('studio facility upgrade increases concurrent episode capacity and production efficiency', () => {
+  const state = newGame();
+  const studio = state.studios.find(s => s.id === 'studio_1');
+  assert.equal(studio.level, 1);
+  assert.equal(studio.capacity, 2);
+
+  const initialCash = state.cash;
+  upgradeStudioFacility(state, 'studio_1');
+
+  assert.equal(studio.level, 2);
+  assert.equal(studio.capacity, 3, 'Capacity should increase to 3');
+  assert.ok(studio.efficiency > 1.0, 'Efficiency should increase');
+  assert.equal(state.cash, initialCash - 1_500_000);
+});
+
 
 

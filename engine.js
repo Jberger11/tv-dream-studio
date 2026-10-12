@@ -1,4 +1,151 @@
-import { Actor, Program, BiddingEvent, StationState } from './models.js';
+import { Actor, Program, BiddingEvent, StationState, Episode, ProductionProject, DEFAULT_STUDIOS, DEFAULT_CREWS } from './models.js';
+
+export { DEFAULT_STUDIOS, DEFAULT_CREWS };
+
+export const TARGET_AUDIENCES = [
+  { id: 'family', label: '👨‍👩‍👧‍👦 合家歡（家庭觀眾）', preferredGenres: ['處境劇','家庭','喜劇'], preferredHours: [19, 20], appealBonus: 1.15, desc: '香港晚飯黃金檔基本盤，重視溫馨笑料與共鳴處境' },
+  { id: 'youth', label: '🎓 青年族群（學生潮流）', preferredGenres: ['青春','科幻','奇幻','偶像'], preferredHours: [21, 22, 23], appealBonus: 1.20, desc: '社交媒體討論熱潮主力，偏愛新穎高概念與年輕偶像' },
+  { id: 'working', label: '💼 上班族（白領社群）', preferredGenres: ['商戰','刑偵','律政','醫療'], preferredHours: [21, 22, 23], appealBonus: 1.18, desc: '偏好節奏緊湊、職場鬥爭及專業劇真實質感' },
+  { id: 'silver', label: '👵 銀髮族（長者觀眾）', preferredGenres: ['歷史','武俠','家庭','社會寫實'], preferredHours: [11, 12, 13, 14, 15], appealBonus: 1.12, desc: '午後與清晨忠實觀眾，喜愛懷舊情義、武俠及大河長劇' }
+];
+
+export const PRODUCTION_STRATEGIES = [
+  { id: 'fast', label: '⚡ 速戰速決（低成本快拍）', speedMult: 1.5, costMult: 0.75, errorRate: 0.25, qualityMod: -6, desc: '推進速度 +50%，成本節省 25%，但失誤穿崩率偏高' },
+  { id: 'balanced', label: '⚖️ 平衡推進（標準工業化）', speedMult: 1.0, costMult: 1.0, errorRate: 0.10, qualityMod: 0, desc: '標準製作節奏與預算，兼顧進度與品質，各項指標穩定' },
+  { id: 'quality', label: '⭐ 追求極致（慢工出細貨）', speedMult: 0.7, costMult: 1.35, errorRate: 0.03, qualityMod: 12, desc: '耗時多 30%，成本高 35%，失誤率極低，全體屬性大幅提升' }
+];
+
+export const PRODUCTION_STAGES = [
+  { id: 'pre_production', name: '前期策劃', icon: '📝', desc: '確立核心大綱、分配預算、搭建工作組' },
+  { id: 'script_writing', name: '劇本編寫', icon: '✍️', desc: '分集劇本圍讀、對白精修、情節分鏡' },
+  { id: 'set_preparation', name: '搭景置景', icon: '🔨', desc: '搭建影棚布景、服裝道具定裝準備' },
+  { id: 'rehearsal', name: '排練試演', icon: '🎭', desc: '演員走位、讀本排戲、培養合作默契' },
+  { id: 'filming', name: '拍攝錄製', icon: '🎥', desc: '現場實景實拍、主組與B組捕捉關鍵鏡頭' },
+  { id: 'post_production', name: '後期製作', icon: '✂️', desc: '粗剪精剪、調色混音、配樂及視覺特效' },
+  { id: 'quality_control', name: '質量把關', icon: '🔍', desc: '審片室質檢、排查穿崩、評估重拍修復' },
+  { id: 'delivery', name: '交付入庫', icon: '📦', desc: '母帶完成驗收，隨時可排入頻道播出' }
+];
+
+export const FILMING_EVENTS_POOL = [
+  {
+    id: 'outstanding_acting',
+    title: '🌟 演員超水準臨場發揮',
+    description: '主演在關鍵重頭戲中入戲至深，真情流露令全場劇組人員屏息靜氣！',
+    choices: [
+      { id: 'a', text: '順勢加戲，延長特寫鏡頭 (+演技 +趣味 +1日)', acting: 8, fun: 6, days: 1 },
+      { id: 'b', text: '精準點到即止，保持原劇本節奏 (+演技)', acting: 6 }
+    ]
+  },
+  {
+    id: 'improvised_dialogue',
+    title: '💡 靈光一閃即興對白',
+    description: '演員現場靈感迸發，爆出一句極具香港特色的幽默絕妙金句！',
+    choices: [
+      { id: 'a', text: '採納即興對白並納入正式正片 (+原創性 +趣味)', originality: 8, fun: 8 },
+      { id: 'b', text: '堅持編審原著，避免偏離主線 (-瑕疵 +執導力)', errors: -1, direction: 4 }
+    ]
+  },
+  {
+    id: 'director_disagreement',
+    title: '⚡ 導演與編審創作分歧',
+    description: '導演主張運用破格蒙太奇與長鏡頭，編審則堅持台詞對白推動情節，現場氣氛緊張。',
+    choices: [
+      { id: 'a', text: '全力支持導演視角 (+執導力 -團隊士氣)', direction: 10, morale: -8 },
+      { id: 'b', text: '尊重編劇故事原著 (+原創性 -團隊士氣)', originality: 10, morale: -8 },
+      { id: 'c', text: '監製親自協調折衷 (-$20k +團隊士氣 +執導力)', cost: 20_000, morale: 10, direction: 4 }
+    ]
+  },
+  {
+    id: 'script_rewrite',
+    title: '📝 拍攝中途飛紙仔改戲',
+    description: '主創團隊認為中段轉折不夠震撼，決定緊急「飛紙仔」重構高潮戲碼！',
+    choices: [
+      { id: 'a', text: '漏夜通宵修改劇本 (+原創性 -士氣 +瑕疵風險)', originality: 10, morale: -10, errors: 1 },
+      { id: 'b', text: '重金聘請金牌編審團隊即日支援 (-$40k +原創性 +執導力)', cost: 40_000, originality: 12, direction: 6 }
+    ]
+  },
+  {
+    id: 'equipment_failure',
+    title: '⚠️ 核心攝影機與主燈光故障',
+    description: '片場 4K RED 攝影機感光元件過熱警報，多組高階燈光跳掣停電！',
+    choices: [
+      { id: 'a', text: '火速向器材公司調用後備頂級設備 (-$35k 零延誤 +技術)', cost: 35_000, technical: 4 },
+      { id: 'b', text: '片場工程師自行搶修 (+延誤1日 +瑕疵風險)', days: 1, errors: 1 }
+    ]
+  },
+  {
+    id: 'actor_absence',
+    title: '🤒 主演藝人因病請假',
+    description: '第一主角突發重感冒失聲，今日重要通告無法親自出鏡。',
+    choices: [
+      { id: 'a', text: '調整通告，先拍B組配角群戲 (+延誤1日 保持水準)', days: 1, morale: 4 },
+      { id: 'b', text: '召集替身演員遠景借位代拍 (零延誤 +瑕疵風險)', errors: 2 }
+    ]
+  },
+  {
+    id: 'filming_delays',
+    title: '🌧️ 暴雨襲港外景封路延誤',
+    description: '香港天文台發出黃色暴雨警告，尖沙咀實景外景被逼暫停。',
+    choices: [
+      { id: 'a', text: '緊急移師影視城室內搭景補拍 (-$30k 零延誤 +技術)', cost: 30_000, technical: 4 },
+      { id: 'b', text: '全劇組原地待命等候雨過天晴 (+延誤1日)', days: 1 }
+    ]
+  },
+  {
+    id: 'budget_overrun',
+    title: '💸 特效與服裝道具超支預警',
+    description: '美術指導為追求極致年代感，服裝與道具開支已超出分集限額。',
+    choices: [
+      { id: 'a', text: '批准追加特別製作經費 (-$50k +技術規格 +期待值)', cost: 50_000, technical: 10, expectations: 8 },
+      { id: 'b', text: '嚴格削減後續場次預算 (+瑕疵風險 -技術規格)', errors: 1, technical: -5 }
+    ]
+  },
+  {
+    id: 'unexpected_breakthrough',
+    title: '✨ 劇組意外創作靈感爆發',
+    description: '全體主創在走位時碰撞出前所未有的神級情節反轉！',
+    choices: [
+      { id: 'a', text: '加碼拍攝大場面配合 (-$25k +趣味 +期待值)', cost: 25_000, fun: 12, expectations: 12 },
+      { id: 'b', text: '點到即止，融入對白細節 (+執導力)', direction: 8 }
+    ]
+  },
+  {
+    id: 'audience_excitement',
+    title: '🔥 探班路透引發全城洗版',
+    description: '外景拍攝期間大量粉絲及市民圍觀，路透照片在網絡爆紅瘋傳！',
+    choices: [
+      { id: 'a', text: '順勢發布官方高清花絮炒熱話題 (+期待值 +趣味)', expectations: 15, fun: 5 },
+      { id: 'b', text: '全面收緊現場保密，保持大結局神秘感 (+執導張力)', direction: 6, expectations: 5 }
+    ]
+  },
+  {
+    id: 'staff_fatigue',
+    title: '☕ 連續通宵趕戲劇組過勞',
+    description: '連續三日通宵趕拍大結局群戲，燈光師、收音師及劇組人員體力透支。',
+    choices: [
+      { id: 'a', text: '安排休整半天並發放星級宵夜補貼 (-$20k +團隊士氣)', cost: 20_000, morale: 15 },
+      { id: 'b', text: '發放趕工獎金，一鼓作氣殺青 (-$30k -士氣 +推進速度)', cost: 30_000, morale: -8, days: -1 }
+    ]
+  },
+  {
+    id: 'production_accidents',
+    title: '💥 特技爆破道具布景受損',
+    description: '追逐打鬥場面中道具車輛碰撞失控，部分背景牆損壞，幸無人受傷。',
+    choices: [
+      { id: 'a', text: '全面停工安檢並重置道具布景 (-$35k +延誤1日 +士氣)', cost: 35_000, days: 1, morale: 5 },
+      { id: 'b', text: '現場應急修補遮蓋，繼續搶拍 (+瑕疵風險 -士氣)', errors: 2, morale: -10 }
+    ]
+  },
+  {
+    id: 'successful_location',
+    title: '🏙️ 香港地標實景拍攝大成功',
+    description: '維港夜景與中環摩天大樓實景鏡頭光影完美，電影質感濃厚！',
+    choices: [
+      { id: 'a', text: '重點將地標鏡頭剪入片頭與預告片 (+期待值 +技術規格)', expectations: 10, technical: 8 },
+      { id: 'b', text: '融入劇集核心高潮段落 (+執導力 +趣味)', direction: 8, fun: 6 }
+    ]
+  }
+];
 
 export const GENRES = ['刑偵','處境劇','宮鬥','科幻','歷史','青春','律政','醫療','家庭','商戰','武俠','奇幻','社會寫實'];
 export const THEMES = ['懸疑','喜劇','愛情','恐怖','冒險','家庭','復仇','職場','友情','時空','成長','權力'];
@@ -1643,6 +1790,603 @@ export function generateSuggestedTitles(kind, genre = '刑偵', topic = '', them
   return [`${topic || '新節目'}特備`, `${topic || '節目'}精選`, `探索${topic || '前線'}`, `${topic || '熱門'}新觀察`];
 }
 
+export function getFormatStages(format) {
+  if (format === 'drama' || format === 'sitcom') {
+    return ['pre_production', 'script_writing', 'set_preparation', 'rehearsal', 'filming', 'post_production', 'quality_control', 'delivery'];
+  }
+  if (format === 'variety' || format === 'reality' || format === 'music') {
+    return ['pre_production', 'set_preparation', 'rehearsal', 'filming', 'post_production', 'delivery'];
+  }
+  if (format === 'documentary') {
+    return ['pre_production', 'script_writing', 'filming', 'post_production', 'quality_control', 'delivery'];
+  }
+  if (format === 'talkshow' || format === 'night') {
+    return ['pre_production', 'script_writing', 'filming', 'post_production', 'delivery'];
+  }
+  if (format === 'news' || format === 'finance') {
+    return ['pre_production', 'filming', 'delivery'];
+  }
+  if (format === 'charity' || format === 'contest' || format === 'pageant') {
+    return ['pre_production', 'rehearsal', 'filming', 'delivery'];
+  }
+  return ['pre_production', 'script_writing', 'filming', 'post_production', 'delivery'];
+}
+
+export function checkPerformerAvailability(state, actorId, currentProjectId = null) {
+  const actor = ACTORS.find(a => a.id === actorId);
+  if (!actor) return { available: false, reason: '找不到該藝人資料。' };
+
+  const talent = state.talent[actorId];
+  if (talent?.station && talent.station !== 'player' && talent.station !== 'free' && Number.isInteger(talent.contractExpiresDay) && talent.contractExpiresDay > state.day) {
+    return { available: false, reason: `【${actor.name}】已與${getStationName(talent.station)}簽署獨家合約，無法參演我台自製劇！` };
+  }
+
+  // Check if actor is currently on set in another active project in filming or earlier
+  const conflictingProject = (state.productionProjects ?? []).find(p =>
+    p.id !== currentProjectId &&
+    p.status === 'in_production' &&
+    (p.cast ?? []).some(c => c.actorId === actorId) &&
+    p.episodes.some(ep => ['pre_production', 'script_writing', 'set_preparation', 'rehearsal', 'filming'].includes(ep.stage) && ep.status !== 'delivered' && ep.status !== 'aired')
+  );
+
+  if (conflictingProject) {
+    return {
+      available: false,
+      reason: `【${actor.name}】現正忙於《${conflictingProject.title}》實景通告拍攝，檔期重疊衝突！`
+    };
+  }
+
+  return { available: true };
+}
+
+export function checkTargetAudienceMatch(targetAudience, hour, weekday) {
+  if (targetAudience === 'family') {
+    return (hour >= 19 && hour <= 21) ? 1.25 : (hour >= 18 && hour <= 22) ? 1.10 : 0.88;
+  }
+  if (targetAudience === 'youth') {
+    return (hour >= 21 && hour <= 23) || (weekday >= 5 && hour >= 18) ? 1.25 : (hour >= 12 && hour <= 18) ? 1.05 : 0.82;
+  }
+  if (targetAudience === 'working') {
+    return (hour >= 20 && hour <= 24) ? 1.25 : (hour >= 7 && hour <= 9) ? 1.05 : 0.85;
+  }
+  if (targetAudience === 'silver') {
+    return (hour >= 11 && hour <= 16) || (hour >= 6 && hour <= 9) ? 1.25 : (hour >= 22) ? 0.70 : 1.0;
+  }
+  return 1.0;
+}
+
+export function createProductionProject(state, {
+  title = '',
+  genre = '時裝恩怨',
+  themes = ['愛情'],
+  format = 'drama',
+  episodesCount = 8,
+  episodeHours = 2,
+  targetAudience = 'family',
+  budgetId = 'standard',
+  assignedStudioId = 'studio_1',
+  strategy = 'balanced',
+  plannedStartDate = state.day,
+  intendedBroadcastPeriod = 'prime',
+  actorIds = [],
+  crew = { directorId: 'dir_lee', writerId: 'wri_cheung' },
+  franchiseId = null,
+  seasonNumber = 1,
+  parentProjectId = null
+}, rng = Math.random) {
+  if (!Number.isInteger(episodesCount) || episodesCount < 1 || episodesCount > 100) {
+    throw Error('請輸入有效總集數（1 至 100 集）。');
+  }
+  if (!Number.isInteger(episodeHours) || episodeHours < 1 || episodeHours > 4) {
+    throw Error('請輸入有效每集時長（1 至 4 小時）。');
+  }
+
+  const budgetTemplate = BUDGETS.find(b => b.id === budgetId) || BUDGETS[1];
+  const perEpisodeBudget = Math.round(budgetTemplate.cost * (format === 'drama' ? 1 : 0.85) * (1 + (episodeHours - 1) * 0.45));
+  const totalCost = perEpisodeBudget * episodesCount;
+
+  // Upfront pre-production commitment: 25% of total budget
+  let upfrontCost = Math.round(totalCost * 0.25);
+  if (isToolActive(state, 'script_workshop')) upfrontCost = Math.round(upfrontCost * 0.90);
+
+  if (state.cash < upfrontCost) {
+    throw Error(`可用資金不足以啟動前期製作。啟動準備金需 ${money(upfrontCost)}，現有資金 ${money(state.cash)}。`);
+  }
+
+  // Casting checks
+  if (format === 'drama') {
+    if (actorIds.length < 2 || actorIds.length > 4) {
+      throw Error('劇集製作須挑選 2 至 4 位主演。');
+    }
+    for (const actorId of actorIds) {
+      const avail = checkPerformerAvailability(state, actorId);
+      if (!avail.available) throw Error(avail.reason);
+    }
+  }
+
+  state.cash -= upfrontCost;
+
+  const projectTitle = title.trim() || generateSuggestedTitles(format, genre, '', themes)[0] || `新劇開拍 ${state.day}日`;
+  const projectId = `proj-${state.day}-${Math.floor(rng() * 100000)}`;
+
+  const director = DEFAULT_CREWS.find(c => c.id === crew.directorId) || DEFAULT_CREWS[0];
+  const writer = DEFAULT_CREWS.find(c => c.id === crew.writerId) || DEFAULT_CREWS[4];
+  const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === assignedStudioId) || DEFAULT_STUDIOS[0];
+  const strat = PRODUCTION_STRATEGIES.find(s => s.id === strategy) || PRODUCTION_STRATEGIES[1];
+
+  const castList = actorIds.map((id, idx) => {
+    const actor = ACTORS.find(a => a.id === id);
+    const talent = state.talent[id];
+    const isMine = talent?.station === 'player' && talent?.contractExpiresDay > state.day;
+    const fee = isMine ? Math.round((actor?.fee ?? 50000) * 0.6) : (talent?.fee ?? actor?.fee ?? 50000);
+    return {
+      actorId: id,
+      name: actor?.name ?? id,
+      role: idx === 0 ? 'lead_1' : idx === 1 ? 'lead_2' : 'supporting',
+      fee
+    };
+  });
+
+  const avgActorSkill = castList.length ? castList.reduce((sum, c) => {
+    const a = ACTORS.find(act => act.id === c.actorId);
+    return sum + (a?.skill ?? 70);
+  }, 0) / castList.length : 70;
+
+  let baseActing = clamp(Math.round(avgActorSkill * 0.80 + director.skill * 0.20 + strat.qualityMod), 40, 95);
+  let baseDirection = clamp(Math.round(director.skill * 0.85 + studio.bonus + strat.qualityMod), 40, 95);
+  let baseOriginality = clamp(Math.round(writer.skill * 0.85 + (themes.length >= 2 ? 6 : 0) + strat.qualityMod), 40, 95);
+  let baseTechnical = clamp(Math.round(55 + budgetTemplate.bonus * 1.5 + studio.bonus + (studio.level - 1) * 6 + strat.qualityMod), 35, 95);
+  let baseFun = clamp(Math.round((baseActing + baseOriginality + baseDirection) / 3 + strat.qualityMod), 40, 95);
+  let baseExpectations = clamp(Math.round(50 + (castList.length ? 15 : 5) + (franchiseId ? 15 : 0)), 30, 95);
+
+  if (isToolActive(state, 'camera_4k')) baseTechnical = clamp(baseTechnical + 10, 1, 99);
+  if (isToolActive(state, 'artist_coaching')) baseActing = clamp(baseActing + 8, 1, 99);
+
+  const formatStages = getFormatStages(format);
+  const initialStage = formatStages[0];
+
+  const episodes = Array.from({ length: episodesCount }, (_, i) => {
+    const num = i + 1;
+    return new Episode({
+      id: `ep-${projectId}-${num}`,
+      projectId,
+      episodeNumber: num,
+      stage: initialStage,
+      stageProgress: 0,
+      status: num === 1 ? 'in_progress' : 'pending',
+      fun: baseFun,
+      originality: baseOriginality,
+      direction: baseDirection,
+      acting: baseActing,
+      technical: baseTechnical,
+      errors: 0,
+      cost: Math.round(upfrontCost / episodesCount),
+      days: 0,
+      morale: 80,
+      expectations: baseExpectations
+    });
+  });
+
+  const project = new ProductionProject({
+    id: projectId,
+    title: projectTitle,
+    genre,
+    themes,
+    format,
+    episodesCount,
+    episodeHours,
+    targetAudience,
+    budgetPerEpisode: perEpisodeBudget,
+    budgetId,
+    assignedStudioId,
+    strategy,
+    plannedStartDate,
+    intendedBroadcastPeriod,
+    cast: castList,
+    crew,
+    episodes,
+    status: 'in_production',
+    createdDay: state.day,
+    deliveredEpisodesCount: 0,
+    totalCostSpent: upfrontCost,
+    ratingsHistory: [],
+    franchiseId,
+    seasonNumber,
+    parentProjectId
+  });
+
+  state.productionProjects ??= [];
+  state.productionProjects.unshift(project);
+  state.productionCount = (state.productionCount ?? 0) + 1;
+
+  note(state, `【影視製作立項】《${projectTitle}》（共 ${episodesCount} 集）正式進入前期策劃階段！分集製作正同步展開。`, 'good');
+
+  return project;
+}
+
+export function advanceProduction(state, days = 1, rng = Math.random) {
+  const activeProjects = (state.productionProjects ?? []).filter(p => p.status === 'in_production');
+  if (!activeProjects.length) return;
+
+  for (const project of activeProjects) {
+    const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === project.assignedStudioId) || DEFAULT_STUDIOS[0];
+    const strat = PRODUCTION_STRATEGIES.find(s => s.id === project.strategy) || PRODUCTION_STRATEGIES[1];
+    const stages = getFormatStages(project.format);
+
+    const maxConcurrent = studio.capacity ?? 2;
+    let activeEpisodes = project.episodes.filter(ep => ep.status === 'in_progress');
+
+    if (activeEpisodes.length < maxConcurrent) {
+      const pendingEpisodes = project.episodes.filter(ep => ep.status === 'pending');
+      for (let i = 0; i < Math.min(pendingEpisodes.length, maxConcurrent - activeEpisodes.length); i++) {
+        pendingEpisodes[i].status = 'in_progress';
+        activeEpisodes.push(pendingEpisodes[i]);
+      }
+    }
+
+    const hoursFactor = project.episodeHours === 1 ? 1.25 : project.episodeHours === 2 ? 1.0 : project.episodeHours === 3 ? 0.85 : 0.70;
+    const baseProgressDelta = Math.round(38 * strat.speedMult * studio.efficiency * hoursFactor);
+
+    for (const ep of activeEpisodes) {
+      if (ep.pendingEvent || ep.status === 'qc_ready') {
+        continue;
+      }
+
+      ep.days += days;
+      ep.stageProgress += baseProgressDelta;
+
+      const dailyCost = Math.round((project.budgetPerEpisode * 0.75 / (stages.length * 2.5)) * strat.costMult);
+      ep.cost += dailyCost;
+      project.totalCostSpent += dailyCost;
+      state.cash = Math.max(0, state.cash - dailyCost);
+
+      if (rng() < strat.errorRate) {
+        ep.errors += 1;
+      }
+
+      if (ep.stage === 'filming' && !ep.pendingEvent && ep.eventsHandled.length < 2 && rng() < 0.25) {
+        const availableEvents = FILMING_EVENTS_POOL.filter(ev =>
+          !ep.eventsHandled.some(h => h.eventId === ev.id)
+        );
+        if (availableEvents.length) {
+          const chosenEv = availableEvents[Math.floor(rng() * availableEvents.length)];
+          ep.pendingEvent = {
+            id: chosenEv.id,
+            title: chosenEv.title,
+            description: chosenEv.description,
+            choices: chosenEv.choices,
+            day: state.day,
+            projectId: project.id,
+            episodeNumber: ep.episodeNumber
+          };
+          state.activeFilmingEvents ??= [];
+          state.activeFilmingEvents.push({
+            ...ep.pendingEvent,
+            projectTitle: project.title
+          });
+          note(state, `【片場突發事件】《${project.title}》第 ${ep.episodeNumber} 集：${chosenEv.title}！請前往節目製作台做決策。`, 'neutral');
+        }
+      }
+
+      if (ep.stageProgress >= 100) {
+        const curIdx = stages.indexOf(ep.stage);
+        if (curIdx >= 0 && curIdx < stages.length - 1) {
+          const nextStage = stages[curIdx + 1];
+          ep.stage = nextStage;
+          ep.stageProgress = 0;
+
+          if (nextStage === 'quality_control') {
+            ep.status = 'qc_ready';
+            ep.qcReport = generateQCReport(ep, project);
+            note(state, `【審片就緒】《${project.title}》第 ${ep.episodeNumber} 集已完成剪輯，質量把關審片報告已出爐！`, 'good');
+          } else if (nextStage === 'delivery') {
+            ep.status = 'delivered';
+            deliverEpisode(state, project, ep);
+          }
+        } else if (ep.stage === 'delivery') {
+          ep.status = 'delivered';
+          deliverEpisode(state, project, ep);
+        }
+      }
+    }
+  }
+}
+
+export function deliverEpisode(state, project, episode) {
+  if (episode.status !== 'delivered') {
+    episode.status = 'delivered';
+    episode.stage = 'delivery';
+  }
+  project.deliveredEpisodesCount = project.episodes.filter(e => e.status === 'delivered' || e.status === 'aired').length;
+
+  if (project.deliveredEpisodesCount >= project.episodesCount) {
+    project.status = 'completed';
+    note(state, `【全劇殺青】《${project.title}》全部 ${project.episodesCount} 集已圓滿製作完成並交付入庫！`, 'good');
+  } else {
+    note(state, `【單集交付】《${project.title}》第 ${episode.episodeNumber} 集成功交付（已交付 ${project.deliveredEpisodesCount} / ${project.episodesCount} 集），可排入頻道播放！`, 'good');
+  }
+
+  syncProjectToLibrary(state, project);
+}
+
+export function syncProjectToLibrary(state, project) {
+  let prog = state.library.find(p => p.projectId === project.id || (project.programId && p.id === project.programId));
+  const deliveredEps = project.episodes.filter(e => e.status === 'delivered' || e.status === 'aired');
+  if (!deliveredEps.length) return null;
+
+  const avgQuality = Math.round(deliveredEps.reduce((s, e) => {
+    return s + (e.fun * 0.25 + e.acting * 0.30 + e.direction * 0.25 + e.technical * 0.20 - e.errors * 2.5);
+  }, 0) / deliveredEps.length);
+
+  const avgRating = Math.round(clamp(avgQuality * 0.72 + 10, 15, 95));
+  const avgBuzz = Math.round(clamp(avgQuality * 0.68 + (project.franchiseId ? 15 : 0), 10, 100));
+
+  if (!prog) {
+    const progId = `prog-${project.id}`;
+    project.programId = progId;
+    prog = new Program({
+      id: progId,
+      title: project.title,
+      kind: project.format,
+      quality: avgQuality,
+      review: avgQuality,
+      rating: avgRating,
+      buzz: avgBuzz,
+      cost: project.totalCostSpent,
+      genre: project.genre,
+      themes: project.themes,
+      cast: project.cast.map(c => c.name),
+      castIds: project.cast.map(c => c.actorId),
+      topic: project.themes[0] || project.genre,
+      category: project.format === 'drama' ? '旗艦劇集' : project.format === 'variety' ? '自製綜藝' : '原創節目',
+      runs: 0,
+      episodes: project.episodesCount,
+      episodeHours: project.episodeHours,
+      episodeCost: Math.round(project.budgetPerEpisode),
+      deliveredEpisodes: project.deliveredEpisodesCount,
+      projectId: project.id,
+      freshness: 100,
+      maxFreshness: 100
+    });
+    state.library.unshift(prog);
+  } else {
+    prog.deliveredEpisodes = project.deliveredEpisodesCount;
+    prog.quality = avgQuality;
+    prog.rating = avgRating;
+    prog.buzz = avgBuzz;
+  }
+
+  return prog;
+}
+
+export function generateQCReport(episode, project) {
+  const discoveredErrors = [];
+  if (episode.errors >= 3) {
+    discoveredErrors.push('第4場主戲室內光影穿崩且收音有嚴重底噪');
+    discoveredErrors.push('重頭打鬥場面綠幕扣像邊緣出現瑕疵光暈');
+    discoveredErrors.push('中段情節節奏拖沓，對白過於冗長');
+  } else if (episode.errors === 2) {
+    discoveredErrors.push('第3場鏡頭轉場光影不連戲');
+    discoveredErrors.push('部分配角演員走位遮擋焦點視線');
+  } else if (episode.errors === 1) {
+    discoveredErrors.push('背景道具擺設與年代時間線略有不符之小瑕疵');
+  } else {
+    discoveredErrors.push('全片製作工整嚴謹，音畫質素優秀，未發現重大穿崩');
+  }
+
+  const fixCost = Math.round(project.budgetPerEpisode * 0.10 / 1000) * 1000;
+  const reEditCost = Math.round(project.budgetPerEpisode * 0.25 / 1000) * 1000;
+  const reshootCost = Math.round(project.budgetPerEpisode * 0.45 / 1000) * 1000;
+
+  return {
+    episodeNumber: episode.episodeNumber,
+    errorsCount: episode.errors,
+    discoveredErrors,
+    choices: [
+      {
+        id: 'release_as_is',
+        label: '原樣直接交付（不作修改）',
+        cost: 0,
+        days: 0,
+        desc: '維持現有狀態即時入庫交付。殘留的穿崩失誤將在播出時直接扣減收視與口碑。'
+      },
+      {
+        id: 'fix_errors',
+        label: `消除檢驗瑕疵（修復穿崩，需 ${money(fixCost)}，耗時 1 日）`,
+        cost: fixCost,
+        days: 1,
+        clearErrors: true,
+        technical: 4,
+        desc: '動用後期修片組逐幀擦除穿崩瑕疵，失誤數歸零，畫面技術規格 +4。'
+      },
+      {
+        id: 're_edit',
+        label: `劇本重剪與節奏重構（需 ${money(reEditCost)}，耗時 2 日）`,
+        cost: reEditCost,
+        days: 2,
+        clearErrors: true,
+        direction: 8,
+        fun: 6,
+        desc: '金牌剪輯師重新剪輯節奏，清除瑕疵，執導張力 +8，劇集娛樂性 +6。'
+      },
+      {
+        id: 'reshoot',
+        label: `補拍焦點高潮鏡頭（精益求精，需 ${money(reshootCost)}，耗時 3 日）`,
+        cost: reshootCost,
+        days: 3,
+        clearErrors: true,
+        acting: 10,
+        technical: 10,
+        expectations: 8,
+        desc: '召集主演重回片場補拍關鍵鏡頭，清除瑕疵，演員演出 +10，聲光特效 +10，觀眾期待 +8！'
+      }
+    ]
+  };
+}
+
+export function handleFilmingEventChoice(state, projectId, episodeNumber, choiceId, rng = Math.random) {
+  const project = (state.productionProjects ?? []).find(p => p.id === projectId);
+  if (!project) throw Error('找不到企劃。');
+  const ep = project.episodes.find(e => e.episodeNumber === episodeNumber);
+  if (!ep || !ep.pendingEvent) throw Error('此集數沒有等待決策的突發事件。');
+
+  const eventDef = FILMING_EVENTS_POOL.find(ev => ev.id === ep.pendingEvent.id);
+  const choice = eventDef?.choices?.find(c => c.id === choiceId);
+  if (!choice) throw Error('無效的決策選項。');
+
+  if (choice.cost) {
+    state.cash = Math.max(0, state.cash - choice.cost);
+    ep.cost += choice.cost;
+    project.totalCostSpent += choice.cost;
+  }
+  if (choice.acting) ep.acting = clamp(ep.acting + choice.acting, 10, 100);
+  if (choice.direction) ep.direction = clamp(ep.direction + choice.direction, 10, 100);
+  if (choice.originality) ep.originality = clamp(ep.originality + choice.originality, 10, 100);
+  if (choice.fun) ep.fun = clamp(ep.fun + choice.fun, 10, 100);
+  if (choice.technical) ep.technical = clamp(ep.technical + choice.technical, 10, 100);
+  if (choice.expectations) ep.expectations = clamp(ep.expectations + choice.expectations, 10, 100);
+  if (choice.morale) ep.morale = clamp(ep.morale + choice.morale, 0, 100);
+  if (choice.errors) ep.errors = Math.max(0, ep.errors + choice.errors);
+  if (choice.days) ep.days += choice.days;
+
+  ep.eventsHandled.push({
+    eventId: ep.pendingEvent.id,
+    choiceId,
+    choiceText: choice.text,
+    day: state.day
+  });
+
+  state.activeFilmingEvents = (state.activeFilmingEvents ?? []).filter(e =>
+    !(e.projectId === projectId && e.episodeNumber === episodeNumber)
+  );
+
+  const eventTitle = ep.pendingEvent.title;
+  ep.pendingEvent = null;
+
+  note(state, `【片場決策】《${project.title}》第 ${episodeNumber} 集：針對「${eventTitle}」選擇了「${choice.text}」，製作繼續推進！`, 'good');
+  return ep;
+}
+
+export function handleQualityControlDecision(state, projectId, episodeNumber, decisionId, rng = Math.random) {
+  const project = (state.productionProjects ?? []).find(p => p.id === projectId);
+  if (!project) throw Error('找不到企劃。');
+  const ep = project.episodes.find(e => e.episodeNumber === episodeNumber);
+  if (!ep || ep.status !== 'qc_ready') throw Error('該集數未就緒審片或已完成審片。');
+
+  const report = ep.qcReport;
+  const choice = report?.choices?.find(c => c.id === decisionId);
+  if (!choice) throw Error('無效的審片決策。');
+
+  if (choice.cost > 0) {
+    if (state.cash < choice.cost) throw Error(`資金不足以執行此審片修正。需 ${money(choice.cost)}，現有 ${money(state.cash)}。`);
+    state.cash -= choice.cost;
+    ep.cost += choice.cost;
+    project.totalCostSpent += choice.cost;
+  }
+
+  if (choice.clearErrors) ep.errors = 0;
+  if (choice.acting) ep.acting = clamp(ep.acting + choice.acting, 10, 100);
+  if (choice.direction) ep.direction = clamp(ep.direction + choice.direction, 10, 100);
+  if (choice.technical) ep.technical = clamp(ep.technical + choice.technical, 10, 100);
+  if (choice.fun) ep.fun = clamp(ep.fun + choice.fun, 10, 100);
+  if (choice.expectations) ep.expectations = clamp(ep.expectations + choice.expectations, 10, 100);
+  if (choice.days) ep.days += choice.days;
+
+  ep.qcDecision = decisionId;
+  ep.status = 'delivered';
+  ep.stage = 'delivery';
+
+  deliverEpisode(state, project, ep);
+
+  note(state, `【審片驗收完成】《${project.title}》第 ${episodeNumber} 集以「${choice.label}」完成質量把關，正式交付母帶！`, 'good');
+  return ep;
+}
+
+export function createSeasonOrSpinOff(state, parentProjectId, type = 'next_season', overrideParams = {}) {
+  const parent = (state.productionProjects ?? []).find(p => p.id === parentProjectId);
+  if (!parent) throw Error('找不到原劇企劃。');
+
+  const franchiseId = parent.franchiseId || `fran-${parent.id}`;
+  parent.franchiseId = franchiseId;
+
+  const avgParentRating = parent.ratingsHistory?.length
+    ? Math.round(parent.ratingsHistory.reduce((s, r) => s + r.rating, 0) / parent.ratingsHistory.length)
+    : 70;
+
+  let newTitle = '';
+  let seasonNumber = 1;
+
+  if (type === 'next_season') {
+    seasonNumber = (parent.seasonNumber || 1) + 1;
+    newTitle = `${parent.title.replace(/\s*(II|III|IV|\d+|第\d+季)$/, '')} II`;
+    if (seasonNumber === 3) newTitle = `${parent.title.replace(/\s*(II|III|IV|\d+|第\d+季)$/, '')} III`;
+    if (seasonNumber > 3) newTitle = `${parent.title.replace(/\s*(II|III|IV|\d+|第\d+季)$/, '')} 第${seasonNumber}季`;
+  } else if (type === 'spin_off') {
+    seasonNumber = 1;
+    newTitle = `${parent.title} 外傳：${overrideParams.subtitle || '前傳風雲'}`;
+  }
+
+  const projectParams = {
+    title: overrideParams.title || newTitle,
+    genre: overrideParams.genre || parent.genre,
+    themes: overrideParams.themes || [...parent.themes],
+    format: overrideParams.format || parent.format,
+    episodesCount: overrideParams.episodesCount || parent.episodesCount,
+    episodeHours: overrideParams.episodeHours || parent.episodeHours,
+    targetAudience: overrideParams.targetAudience || parent.targetAudience,
+    budgetId: overrideParams.budgetId || parent.budgetId,
+    assignedStudioId: overrideParams.assignedStudioId || parent.assignedStudioId,
+    strategy: overrideParams.strategy || parent.strategy,
+    actorIds: overrideParams.actorIds || parent.cast.map(c => c.actorId),
+    crew: overrideParams.crew || { ...parent.crew },
+    franchiseId,
+    seasonNumber,
+    parentProjectId: parent.id
+  };
+
+  const newProject = createProductionProject(state, projectParams);
+
+  const expectationBonus = Math.round(Math.max(0, (avgParentRating - 50) * 0.35));
+  for (const ep of newProject.episodes) {
+    ep.expectations = clamp(ep.expectations + expectationBonus + 10, 30, 99);
+  }
+
+  note(state, `【續集立項】延續《${parent.title}》（前作均值 ${avgParentRating}點）的輝煌，續作《${newProject.title}》正式立項！承襲高觀眾期待值！`, 'good');
+
+  return newProject;
+}
+
+export function cancelProductionProject(state, projectId) {
+  const project = (state.productionProjects ?? []).find(p => p.id === projectId);
+  if (!project) throw Error('找不到該企劃。');
+  project.status = 'cancelled';
+  for (const ep of project.episodes) {
+    if (ep.status !== 'delivered' && ep.status !== 'aired') {
+      ep.status = 'cancelled';
+    }
+  }
+  note(state, `已腰斬及取消《${project.title}》未完成之製作。`, 'neutral');
+  return project;
+}
+
+export function upgradeStudioFacility(state, studioId) {
+  const studio = (state.studios ?? []).find(s => s.id === studioId);
+  if (!studio) throw Error('找不到該片廠設施。');
+  if (studio.level >= 3) throw Error('該片廠已達最高等級（Level 3）。');
+
+  const cost = studio.level === 1 ? 1_500_000 : 3_500_000;
+  if (state.cash < cost) throw Error(`擴建升級需要 ${money(cost)}，資金不足。`);
+
+  state.cash -= cost;
+  studio.level += 1;
+  studio.capacity += 1;
+  studio.efficiency += 0.20;
+  studio.bonus += 5;
+
+  note(state, `【影城升級】${studio.name} 成功擴建至 Level ${studio.level}！容納並行集數擴大至 ${studio.capacity} 集，製作效率大幅提升！`, 'good');
+  return studio;
+}
+
 export function produce(state,{kind='drama',genre,themes=[],actorIds=[],topic='',budgetId,episodeHours=2,episodeCount=8,styleId='mainstream',hookId='none',customTitle=''},rng=Math.random) {
   const format=CONTENT_TYPES.find(item=>item.id===kind), budget=BUDGETS.find(item=>item.id===budgetId);
   if (!format || !budget) throw Error('請揀節目類型同製作預算。');
@@ -1765,6 +2509,24 @@ export function produce(state,{kind='drama',genre,themes=[],actorIds=[],topic=''
   }
   const program=new Program({id,title,kind,quality,review,rating,buzz,cost,genre:kind==='drama'?genre:'',themes:kind==='drama'?themes:[],cast:cast.map(actor=>actor.name),castIds:cast.map(actor=>actor.id),topic:kind==='drama'?'':topic,category:format.label,tier,outcome,episodes:quote.episodes,episodeHours,episodeCost:quote.perEpisode,style:style.label});
   program.filmingStory=filmingStory;
+  program.deliveredEpisodes=program.episodes;
+  const proj = new ProductionProject({
+    id: `proj-${program.id}`,
+    title: program.title,
+    genre: program.genre,
+    themes: program.themes,
+    format: program.kind,
+    episodesCount: program.episodes || 1,
+    episodeHours: program.episodeHours || 1,
+    budgetPerEpisode: program.episodeCost || Math.round(cost / Math.max(1, program.episodes || 1)),
+    status: 'delivered',
+    deliveredEpisodesCount: program.episodes || 1,
+    programId: program.id,
+    createdDay: state.day
+  });
+  program.projectId = proj.id;
+  state.productionProjects ??= [];
+  state.productionProjects.push(proj);
   state.library.push(program);
   state.lastProduction={...program,roll,cooldownUntil:state.cooldowns[key]??null};
   return program;
@@ -2180,6 +2942,9 @@ export function episodeForBlock(state,block,day=state.day) {
   const run=program.runs+earlier;
   const current=run-(program.replayStartRuns??0)+1;
   const replay=Number.isInteger(program.replayCount)&&program.replayCount>0?program.replayCount:0;
+  if (program.projectId && program.deliveredEpisodes !== null && program.deliveredEpisodes !== undefined && current > program.deliveredEpisodes) {
+    return `第 ${current} 集（製作中 · 暫未交付）`;
+  }
   if(program.kind==='catalog') {
     if(program.category==='香港電影') return `電影 · 第 ${run+1} 次播映${replay?` · 重映第 ${replay} 輪`:''}`;
     return `第 ${current} / ${program.episodes} 集${replay?` · 重播第 ${replay} 輪`:''}`;
@@ -2633,6 +3398,9 @@ export function dismissCeremony(state) {
 }
 
 export function advanceDay(state,rng=Math.random) {
+  // Advance television production projects across all studios
+  advanceProduction(state, 1, rng);
+
   // Handle breaking event lifecycle
   if (state.breakingEvent) {
     state.breakingEvent.daysLeft--;
@@ -2677,6 +3445,92 @@ export function advanceDay(state,rng=Math.random) {
     const run=p?p.runs+(todayRuns.get(p.id)??0):0;
     const runLimit = (p && Number.isInteger(p.replayCount) && p.replayCount > 0 && Number.isInteger(p.replayEndRuns)) ? p.replayEndRuns : p?.episodes;
     if (!special && (isUnavailable(p,gameDay) || (p.episodes && run>=runLimit))) continue;
+
+    const project = p?.projectId ? (state.productionProjects ?? []).find(pr => pr.id === p.projectId) : null;
+    const isScheduleGap = Boolean(
+      project &&
+      project.status === 'in_production' &&
+      p.episodes > 0 &&
+      p.deliveredEpisodes !== null &&
+      p.deliveredEpisodes !== undefined &&
+      run >= p.deliveredEpisodes &&
+      p.deliveredEpisodes < p.episodes
+    );
+
+    if (isScheduleGap) {
+      if (!todayRuns.has(p.id)) {
+        note(state, `⚠️【排播脫期】《${p.title}》第 ${run + 1} 集尚未完成交付！時段出現脫期空檔，被迫緊急墊播重溫，收視受挫！`, 'bad');
+      }
+      const gapEpisode = `第 ${run + 1} 集（製作未完 · 脫期空檔）`;
+      let gapBlockRevenue = 0, gapRatingTotal = 0;
+      for (const hour of times) {
+        const prime = hour >= 18 && hour <= 22;
+        const factor = prime ? 1.15 : (hour >= 7 && hour <= 17 ? 0.9 : 0.6);
+        const rivals = state.rivals.map(rival => rivalAtHour(state, rival, hour, gameDay));
+        const strongest = Math.max(...rivals.map(item => item.rating));
+        const pressure = Math.round(Math.max(0, strongest - 55) * 0.16);
+        const gapRating = clamp(Math.round(18 * factor - pressure), 5, 32);
+        const gapAds = Math.round(60 * gapRating * 0.25);
+        hours[hour] = {
+          hour,
+          title: `《${p.title}》精彩回顧（脫期空檔）`,
+          episode: gapEpisode,
+          rating: gapRating,
+          revenue: gapAds,
+          decay: 1,
+          freshness: 40,
+          maxFreshness: 100,
+          special: false,
+          rivals: rivals.map(item => item.rating),
+          eventMod: 0,
+          eventTitle: state.breakingEvent?.title
+        };
+        gapBlockRevenue += gapAds;
+        gapRatingTotal += gapRating;
+        revenue += gapAds;
+        audience += gapRating;
+        buzz += 4;
+      }
+      const gapBlockRating = Math.round(gapRatingTotal / times.length);
+      const gapRivalRating = Math.round(times.reduce((sum, hour) => sum + Math.max(...hours[hour].rivals), 0) / times.length);
+      details.push({
+        programId: p.id,
+        kind: p.kind,
+        category: p.category,
+        start: block.start,
+        duration: block.duration,
+        title: `《${p.title}》精彩回顧（脫期空檔）`,
+        episode: gapEpisode,
+        rating: gapBlockRating,
+        rivalRating: gapRivalRating,
+        won: false,
+        decay: 1,
+        freshness: 40,
+        maxFreshness: 100,
+        revenue: gapBlockRevenue,
+        special: false,
+        effect: '排播脫期墊播',
+        eventMod: 0,
+        eventTitle: state.breakingEvent?.title
+      });
+      state.monthBroadcastLog ??= [];
+      state.monthBroadcastLog.push({
+        programId: p.id,
+        title: `《${p.title}》脫期墊播`,
+        station: '你的電視台',
+        kind: p.kind,
+        category: p.category,
+        rating: gapBlockRating,
+        day: gameDay,
+        start: block.start,
+        duration: block.duration
+      });
+      continue;
+    }
+
+    const currentEpNum = run + 1;
+    const epObj = project?.episodes.find(e => e.episodeNumber === currentEpNum);
+
     const episode=episodeForBlock(state,block,gameDay);
     // Each complete pass makes a licensed programme less fresh; cap the decline.
     const decay=p?.kind==='catalog' ? Math.max(.72,Math.pow(p.episodes===1?.96:.90,Number.isInteger(p.replayCount)&&p.replayCount>0?p.replayCount:Math.floor(run/Math.max(1,p.episodes)))) : 1;
@@ -2711,11 +3565,26 @@ export function advanceDay(state,rng=Math.random) {
         eventMod = Math.round(eventMod * fleetBonus);
       }
       const freshFactor = p ? getFreshnessFactor(p) : 1;
+
+      let epRatingMod = 0;
+      if (epObj && project) {
+        const epQuality = Math.round(
+          (epObj.acting ?? 50) * 0.28 +
+          (epObj.direction ?? 50) * 0.24 +
+          (epObj.fun ?? 50) * 0.24 +
+          (epObj.technical ?? 50) * 0.24 -
+          (epObj.errors ?? 0) * 2.5
+        );
+        const audMatch = checkTargetAudienceMatch(project.targetAudience, hour, weekday);
+        const audMod = audMatch === 'double-o' ? 4 : audMatch === 'o' ? 1 : -3;
+        epRatingMod = Math.round((epQuality - 50) * 0.35 + ((epObj.expectations ?? 50) - 50) * 0.15 + audMod);
+      }
+
       const rating=special
         ?(cfg?.type==='racing'
             ?(isLiveSports?clamp(63+Math.round(rng()*3),61,66):clamp(Math.round(44+rng()*6),40,50))
             :(isLiveSports?clamp(95+Math.round(rng()*4),90,99):clamp(Math.round(72*factor),40,85)))
-        :clamp(Math.round(p.rating*decay*factor*freshFactor-pressure+eventMod),1,100);
+        :clamp(Math.round((p.rating + epRatingMod)*decay*factor*freshFactor-pressure+eventMod),1,100);
       let ads;
       if (special) {
         const target=blockEvent?.adTarget??8_000_000;
@@ -2760,6 +3629,28 @@ export function advanceDay(state,rng=Math.random) {
       start: block.start,
       duration: block.duration
     });
+
+    if (epObj && project) {
+      epObj.status = 'aired';
+      epObj.airedDay = gameDay;
+      epObj.rating = blockRating;
+      epObj.revenue = blockRevenue;
+      project.ratingsHistory ??= [];
+      if (!project.ratingsHistory.some(h => h.episodeNumber === currentEpNum && h.day === gameDay)) {
+        project.ratingsHistory.push({
+          episodeNumber: currentEpNum,
+          day: gameDay,
+          rating: blockRating,
+          rivalRating,
+          won,
+          revenue: blockRevenue
+        });
+      }
+      if (won) {
+        epObj.morale = clamp((epObj.morale ?? 80) + 3, 0, 100);
+        p.buzz = clamp(p.buzz + 2, 0, 100);
+      }
+    }
     if (p) {
       if(!p.id.startsWith('start-') && p.runs===0 && !todayRuns.has(p.id)) {
         firstAirings.push({id:`premiere-${gameDay}-${p.id}`,programId:p.id,title:p.title,kind:p.kind,category:p.category,day:gameDay,start:block.start,rating:blockRating,rivalRating,won});

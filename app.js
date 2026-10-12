@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost } from './engine.js?v=20261012-horseracing-hkrivals-v1';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261012-tvproduction-engine-v2';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -6,7 +6,16 @@ function loadGame(){
     const raw=localStorage.getItem(SAVE_KEY);
     if(raw){
       const value=JSON.parse(raw);
-      if(value&&Number.isInteger(value.day)&&value.day>0&&Number.isInteger(value.quarter)&&value.quarter>=0&&Number.isFinite(value.cash)&&Array.isArray(value.schedule)&&Array.isArray(value.library)&&Array.isArray(value.rivals)&&value.talent&&typeof value.talent==='object'&&Array.isArray(value.events)&&Array.isArray(value.log)&&Array.isArray(value.history)&&Array.isArray(value.achievements)&&Array.isArray(value.sponsors)&&value.cooldowns&&value.quarterLedger&&Number.isInteger(value.productionCount)){migrateLegacyLicenses(value);clearCompletedPrograms(value);return value;}
+      if(value&&Number.isInteger(value.day)&&value.day>0&&Number.isInteger(value.quarter)&&value.quarter>=0&&Number.isFinite(value.cash)&&Array.isArray(value.schedule)&&Array.isArray(value.library)&&Array.isArray(value.rivals)&&value.talent&&typeof value.talent==='object'&&Array.isArray(value.events)&&Array.isArray(value.log)&&Array.isArray(value.history)&&Array.isArray(value.achievements)&&Array.isArray(value.sponsors)&&value.cooldowns&&value.quarterLedger&&Number.isInteger(value.productionCount)){
+        migrateLegacyLicenses(value);
+        clearCompletedPrograms(value);
+        value.productionProjects ??= [];
+        value.studios ??= [...DEFAULT_STUDIOS];
+        value.crews ??= [...DEFAULT_CREWS];
+        value.franchises ??= [];
+        value.activeFilmingEvents ??= [];
+        return value;
+      }
     }
   } catch {}
   return newGame();
@@ -47,6 +56,24 @@ let showReset=false;
 let showTransfer=false;
 let selectedLeaderboardMonth=null;
 let rivalsTab='all';
+let studioSubTab='active'; // 'active' | 'create' | 'studios' | 'franchises' | 'talent'
+let activeEventModal=null; // { projectId, episodeNumber }
+let activeQCModal=null; // { projectId, episodeNumber }
+let newProjState={
+  title: '',
+  format: 'drama',
+  genre: '時裝恩怨',
+  themes: ['愛情'],
+  targetAudience: 'family',
+  episodesCount: 8,
+  episodeHours: 2,
+  budgetId: 'standard',
+  assignedStudioId: 'studio_1',
+  strategy: 'balanced',
+  directorId: 'dir_lee',
+  writerId: 'wri_cheung',
+  actorIds: []
+};
 const app=document.getElementById('app');
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hourlyMoney=n=>{const amount=Math.abs(n),sign=n<0?'−':'';return amount>=1_000_000?`${sign}${money(amount)}`:amount>=1_000?`${sign}$${(amount/1_000).toFixed(amount<10_000?1:0)}k`:`${sign}$${Math.round(amount).toLocaleString()}`};
@@ -211,7 +238,10 @@ function render() {
       <div class="game-hud"><div class="hud-stats"><span>資金 <b class="${state.cash<0?'danger':''}">${money(state.cash)}</b></span><span>口碑 <b>${state.reputation}</b></span><span>熱度 <b>${state.fans}</b></span></div><div class="hud-broadcast"><span class="broadcast-clock"><span class="broadcast-clock-line"><i></i> <span id="broadcast-status">${live.finished?'今日播畢':'正在播映'}</span> <b id="live-clock">${live.clock}</b></span><small class="clock-rate">現實 30 秒＝遊戲 1 小時</small></span><strong id="now-title">${safe(live.title)}</strong><small id="now-episode">${safe(live.episode||'每日時段')}</small><small>下一節目 <b id="next-title"></b></small></div></div>
       ${breakingEventBannerView()}
       <nav class="tabs" aria-label="遊戲功能">
-        ${[['schedule','排播'],['studio','製作'],['ads','招商'],['facilities','大樓'],['catalog','片庫'],['sports','體育'],['shop','道具'],['rivals','對手'],['reports','戰報']].map(([id,label])=>`<button data-action="tab" data-tab="${id}" class="tab ${tab===id?'active':''}" ${tab===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}</button>`).join('')}
+        ${[['schedule','排播'],['studio','製作'],['ads','招商'],['facilities','大樓'],['catalog','片庫'],['sports','體育'],['shop','道具'],['rivals','對手'],['reports','戰報']].map(([id,label])=>{
+          const pendingAlert = id==='studio' && (state.productionProjects??[]).some(p => p.episodes?.some(e => e.pendingEvent || e.status === 'qc_ready'));
+          return `<button data-action="tab" data-tab="${id}" class="tab ${tab===id?'active':''}" ${tab===id?'aria-current="page"':''}><span aria-hidden="true">${icon[id]}</span>${label}${pendingAlert ? '<span class="studio-sub-tab-badge" style="margin-left:4px; font-size:0.65rem; padding:1px 5px;">!</span>' : ''}</button>`;
+        }).join('')}
       </nav>
       <main>
         ${tab==='schedule'?scheduleHome():tab==='studio'?studioView():tab==='ads'?adsView():tab==='facilities'?facilitiesView():tab==='rivals'?rivalsView():tab==='catalog'?catalogView():tab==='sports'?sportsView():tab==='shop'?shopView():reportsView()}
@@ -221,6 +251,8 @@ function render() {
       ${premiereView()}
       ${monthResultModalView()}
       ${ceremonyModalView()}
+      ${activeEventModal ? renderFilmingEventModal() : ''}
+      ${activeQCModal ? renderQCModal() : ''}
       ${showReset?`<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="reset-title"><h2 id="reset-title">重新開局？</h2><p>目前電視台嘅進度會清除。</p><div class="modal-actions"><button class="soft-button" data-action="reset-cancel">取消</button><button class="danger-button" data-action="reset-confirm">重新開局</button></div></div></div>`:''}
       ${showTransfer?transferModalView():''}
     </div>`;
@@ -360,58 +392,621 @@ function talentManagementView() {
   </section>`;
 }
 
+const STAGE_NAMES = {
+  pre_production: '前期籌備',
+  script_writing: '劇本編審',
+  set_preparation: '置景道具',
+  rehearsal: '排練試戲',
+  filming: '實景拍攝',
+  post_production: '後期剪輯',
+  quality_control: '質量把關',
+  delivery: '母帶交付'
+};
+
+const STATUS_NAMES = {
+  pending: '排隊入棚',
+  in_progress: '製作推進中',
+  qc_ready: '🔍 審片就緒',
+  delivered: '✓ 母帶已交付',
+  aired: '📺 已播映',
+  cancelled: '已腰斬'
+};
+
 function studioView() {
-  const isDrama=selected.kind==='drama';
-  const dailyFormat=isDailyFormat(selected.kind);
-  const oneOff=isOneOffEvent(selected.kind);
-  const format=CONTENT_TYPES.find(item=>item.id===selected.kind);
-  const tier=isDrama?compatibility(selected.genre,selected.themes):'o';
-  const cooldown=(state.cooldowns[exactKey(selected.genre,selected.themes)]??-1)>=state.quarter;
-  const quote=productionQuote(state,selected);
-  const cast=ACTORS.filter(actor=>selected.actorIds.includes(actor.id));
-  const availableActors=ACTORS.filter(actor=>{
-    const talent=state.talent[actor.id];
-    const station=talent?.station??'free';
-    const matchesFilter = actorFilter==='all' || (actorFilter==='mine' ? station==='player' : actorFilter==='free' ? station==='free' : actor.source===actorFilter);
-    return matchesFilter && actor.name.includes(actorSearch.trim());
-  });
-  const cost=quote.total;
-  const ready=!isDrama||cast.length>=2;
-  const suggestedTitles=generateSuggestedTitles(selected.kind,selected.genre,selected.topic,selected.themes);
-  return `<div class="game-grid production-layout">
-    <section class="panel studio-panel">
-      <div class="panel-heading"><div><div class="eyebrow gold">PRODUCTION DESK</div><h1>節目製作</h1></div><span class="quota">今季已製作 ${state.productionCount} 套 · 資金足夠即可繼續</span></div>
-      <div class="field"><div class="field-label"><span>01 / 節目類型</span></div><div class="format-grid">${CONTENT_TYPES.filter(item=>!isOneOffEvent(item.id)).map(item=>`<button class="choice ${selected.kind===item.id?'chosen':''}" data-action="kind" data-value="${item.id}" aria-pressed="${selected.kind===item.id}">${item.label}</button>`).join('')}</div><div class="event-format-title">★ 自製大型活動 <small>一晚限定 · 燒錢換收視、熱度或口碑</small></div><div class="format-grid event-format-grid">${CONTENT_TYPES.filter(item=>isOneOffEvent(item.id)).map(item=>`<button class="choice event-choice ${selected.kind===item.id?'chosen':''}" data-action="kind" data-value="${item.id}" aria-pressed="${selected.kind===item.id}">${item.label}</button>`).join('')}</div></div>
-      <div class="field"><div class="field-label"><span>節目片名</span><small>可自行輸入或挑選以下靈感</small></div><input class="custom-title-input" data-action="custom-title" type="text" placeholder="自訂片名（如留空將自動生成）" value="${safe(selected.customTitle||'')}" maxlength="24" /><div class="title-suggestions-chips" role="group" aria-label="片名建議">${suggestedTitles.map(t=>`<button class="title-chip ${selected.customTitle===t?'chosen':''}" data-action="pick-title" data-value="${safe(t)}" type="button">${safe(t)}</button>`).join('')}</div></div>
-      ${isDrama?`
-        <div class="field"><div class="field-label"><span>02 / 劇種</span></div><div class="choice-grid">${GENRES.map(g=>`<button class="choice ${selected.genre===g?'chosen':''}" data-action="genre" data-value="${g}" aria-pressed="${selected.genre===g}">${g}</button>`).join('')}</div></div>
-        <div class="field"><div class="field-label"><span>03 / 題材</span><small>選 1 至 2 個</small></div><div class="choice-grid">${THEMES.map(t=>`<button class="choice ${selected.themes.includes(t)?'chosen':''}" data-action="theme" data-value="${t}" aria-pressed="${selected.themes.includes(t)}">${t}</button>`).join('')}</div></div>
-        <div class="field"><div class="field-label"><span>04 / 主演</span><small>已選 ${cast.length} / 4 位，最少 2 位</small></div><div class="cast-summary">已選：${cast.length?cast.map(a=>safe(a.name)).join('、'):'未揀主演'}</div><button class="actor-toggle" data-action="actor-toggle" aria-expanded="${actorPickerOpen}">${actorPickerOpen?'收起演員名單':'選擇／更換主演'} <span>${ACTORS.length} 位 ▾</span></button>${actorPickerOpen?`<div class="actor-picker"><p class="actor-note">我台旗下簽約藝人享 40% 單集片酬優惠；對台獨家簽約藝人不可參演。</p><div class="actor-filters" aria-label="篩選演員">${[['mine','我台旗下'],['free','自由身'],['viu','ViuTV 劇集'],['tvb','TVB 劇集'],['all','全部']].map(([id,label])=>`<button data-action="actor-filter" data-value="${id}" class="${actorFilter===id?'active':''}" aria-pressed="${actorFilter===id}">${label} <span>${id==='all'?ACTORS.length:id==='mine'?ACTORS.filter(a=>state.talent[a.id]?.station==='player').length:id==='free'?ACTORS.filter(a=>(state.talent[a.id]?.station??'free')==='free').length:ACTORS.filter(a=>a.source===id).length}</span></button>`).join('')}</div><input class="actor-search" data-action="actor-search" type="search" placeholder="搜尋演員姓名" aria-label="搜尋演員姓名" value="${safe(actorSearch)}" /><div class="actor-grid">${availableActors.map(a=>{
-          const talent=state.talent[a.id];
-          const station=talent?.station??'free';
-          const isMine=station==='player';
-          const isRival=station!=='player'&&station!=='free';
-          const daysLeft=talent?.contractExpiresDay?Math.max(0,talent.contractExpiresDay-state.day):null;
-          const isExpiring=isMine&&daysLeft!==null&&daysLeft<=30;
-          const fee=isMine?Math.round(a.fee*0.6):(talent?.fee??a.fee);
-          const badge=isMine?(isExpiring?`<span class="actor-status-pill exp">⚠️ 約滿在即 (${daysLeft}日)</span>`:`<span class="actor-status-pill mine">我台 6折 (${daysLeft}日)</span>`):isRival?`<span class="actor-status-pill rival">${getStationName(station)}旗下</span>`:`<span class="actor-status-pill free">自由身</span>`;
-          return `<button class="actor ${selected.actorIds.includes(a.id)?'chosen':''} ${isRival?'is-rival-actor':''}" data-action="actor" data-value="${a.id}" aria-pressed="${selected.actorIds.includes(a.id)}" ${isRival?'title="對台獨家合約中，無法參演"':''}><span class="avatar">${a.name.slice(0,1)}</span><span><strong>${a.name} ${badge}</strong><small>${a.specialty} · 知名度 ${(talent?.fame??(a.skill-10)).toFixed(1)} · 能力 ${a.skill}</small></span><b>${preciseMoney(fee)}${isMine?'<small class="mine-discount">優惠</small>':''}</b></button>`;
-        }).join('')}</div></div>`:''}</div>
-      `:`<div class="field"><div class="field-label"><span>02 / 內容方向</span></div><div class="topic-grid">${format.topics.map(topic=>`<button class="choice ${selected.topic===topic?'chosen':''}" data-action="topic" data-value="${topic}" aria-pressed="${selected.topic===topic}">${topic}</button>`).join('')}</div><p class="actor-note">${selected.kind==='night'?'深夜節目喺 22:00–02:00 有收視加成；日間播映會明顯失利。':selected.kind==='children'?'兒童節目喺放學時段（16:00–18:00）及週末早晨特別受歡迎；深夜時段收視低迷。':oneOff?'大型活動只播一晚，黃金檔尤其週末有收視優勢；播後會影響台口碑或熱度。':`${format.label}節目由製作團隊完成，毋須揀劇集主演。`}</p></div>`}
-      <div class="field"><div class="field-label"><span>${isDrama?'05':'03'} / ${oneOff?'活動':'每集'}基礎預算</span><small>時長與方向會改變實際成本</small></div><div class="budget-grid">${BUDGETS.map(b=>`<button class="budget ${selected.budgetId===b.id?'chosen':''}" data-action="budget" data-value="${b.id}" aria-pressed="${selected.budgetId===b.id}"><strong>${b.label}</strong><small>${preciseMoney(Math.round(b.cost*(isDrama?1:format.factor)/1_000)*1_000)}</small></button>`).join('')}</div></div>
-      <div class="field"><div class="field-label"><span>${isDrama?'06':'04'} / ${oneOff?'直播':'每集'}時長</span><small>拍完後排播長度固定</small></div><div class="production-choices">${[1,2,3,4].map(hours=>`<button class="choice ${selected.episodeHours===hours?'chosen':''}" data-action="episode-hours" data-value="${hours}" aria-pressed="${selected.episodeHours===hours}">${hours} 小時</button>`).join('')}</div></div>
-      ${dailyFormat?`<p class="actor-note">${format.label}每日製作新一期，毋須設定總集數；首期預算即時支付，其後每播一期再支付一集成本。</p>`:oneOff?`<p class="event-note">一晚限定，只製作一次。首播後即落畫；慈善籌款不計入電視台現金。</p>`:`<div class="field"><div class="field-label"><span>${isDrama?'07':'05'} / 總集數</span><small>集數越多，總投資越大</small></div><div class="production-choices">${EPISODE_COUNTS.map(episodes=>`<button class="choice ${selected.episodeCount===episodes?'chosen':''}" data-action="episode-count" data-value="${episodes}" aria-pressed="${selected.episodeCount===episodes}">${episodes} 集</button>`).join('')}</div></div>`}
-      <div class="field"><div class="field-label"><span>${isDrama?'08':dailyFormat?'05':'06'} / 拍攝方向</span></div><div class="style-grid">${PRODUCTION_STYLES.map(style=>`<button class="style-choice ${selected.styleId===style.id?'chosen':''}" data-action="style" data-value="${style.id}" aria-pressed="${selected.styleId===style.id}"><strong>${style.label}</strong><small>${style.description}</small></button>`).join('')}</div></div>
-      <div class="field"><div class="field-label"><span>企劃橋段</span><small>加錢換不同效果；大膽特技可能出事</small></div><div class="hook-grid">${PRODUCTION_HOOKS.map(hook=>`<button class="style-choice ${selected.hookId===hook.id?'chosen':''}" data-action="hook" data-value="${hook.id}" aria-pressed="${selected.hookId===hook.id}"><strong>${hook.label}</strong><small>${hook.description}</small></button>`).join('')}</div></div>
-      ${state.audienceBrief?`<p class="audience-brief">觀眾委託：拍一套「${safe(state.audienceBrief)}」內容，預測收視 +6、話題 +8。</p>`:''}
-      <div class="production-quote"><span>${oneOff?'一晚直播':`每集 ${preciseMoney(quote.perEpisode)} × ${dailyFormat?'首期':`${quote.episodes} 集`}`}${oneOff?` · 基礎 ${preciseMoney(quote.perEpisode)}`:''}</span><span>${isDrama?`主演簽約 ${money(quote.fees)}`:'製作團隊負責'}</span><strong>${dailyFormat?'首期投入':'總投資'} ${preciseMoney(cost)}</strong></div>
-      <div class="decision ${isDrama&&tier==='x'?'risk':''}"><div><span class="tier-symbol">${isDrama?(tier==='double-o'?'◎':tier==='o'?'○':'×'):oneOff?'★':'◈'}</span><div><strong>${isDrama?(tier==='double-o'?'完美相性':tier==='o'?'良好相性':'危險錯配'):`${format.label} · ${selected.topic}`}</strong><small>${isDrama?(tier==='double-o'?'品質加成 30%，口碑最低 75':tier==='o'?'品質加成 10%':`90% 暴死 · 10% Cult 劇逆襲${cooldown?' · 冷卻中，成功率 1%':''}`):oneOff?'單晚高投入，黃金檔同週末較有利':'新節目可安排到每日節目表'} · ${quote.style.label}</small></div></div><span>${selected.episodeHours} 小時${oneOff?'直播':'／集'}</span></div>
-      <button class="primary-button" data-action="produce" ${state.cash<cost||!ready?'disabled':''}>${!ready?'最少揀 2 位主演':state.cash<cost?'資金不足':`製作${format.label}節目`} <span>↗</span></button>
-      ${state.lastProduction?productionResult():''}
-    </section>
-    <aside class="side-stack"><section class="panel feed-panel"><div class="panel-heading small"><div><div class="eyebrow muted">NEWSROOM</div><h2>電視台快訊</h2></div></div>${state.log.slice(0,3).map(l=>`<div class="news"><span class="news-dot ${l.type}"></span><div><small>${quarterLabel(l.quarter)}</small><p>${safe(l.text)}</p></div></div>`).join('')}</section>${distributionView()}</aside>
-  </div>
-  ${talentManagementView()}`;
+  const pendingEventsCount = (state.activeFilmingEvents ?? []).length;
+  const qcReadyCount = (state.productionProjects ?? []).flatMap(p => (p.episodes || []).filter(e => e.status === 'qc_ready')).length;
+  const activeProjsCount = (state.productionProjects ?? []).filter(p => p.status === 'in_production').length;
+  const completedProjsCount = (state.productionProjects ?? []).filter(p => p.status === 'completed' || p.status === 'delivered').length;
+
+  return `<div class="studio-main-container">
+    <div class="studio-sub-tabs">
+      <button class="studio-sub-tab-btn ${studioSubTab==='active'?'active':''}" data-action="studio-subtab" data-value="active">
+        🎬 製作中企劃 (${activeProjsCount})
+        ${(pendingEventsCount + qcReadyCount) > 0 ? `<span class="studio-sub-tab-badge">${pendingEventsCount + qcReadyCount} 待決策</span>` : ''}
+      </button>
+      <button class="studio-sub-tab-btn ${studioSubTab==='create'?'active':''}" data-action="studio-subtab" data-value="create">
+        ➕ 影視企劃立項
+      </button>
+      <button class="studio-sub-tab-btn ${studioSubTab==='studios'?'active':''}" data-action="studio-subtab" data-value="studios">
+        🏢 影視城片廠與主創 (${(state.studios??DEFAULT_STUDIOS).length}廠)
+      </button>
+      <button class="studio-sub-tab-btn ${studioSubTab==='franchises'?'active':''}" data-action="studio-subtab" data-value="franchises">
+        🏆 歷年系列與續集 (${completedProjsCount})
+      </button>
+      <button class="studio-sub-tab-btn ${studioSubTab==='talent'?'active':''}" data-action="studio-subtab" data-value="talent">
+        👥 藝人經理人管理 (${Object.values(state.talent??{}).filter(t=>t.station==='player').length}人)
+      </button>
+    </div>
+
+    ${studioSubTab === 'active' ? renderActiveProjectsView()
+      : studioSubTab === 'create' ? renderCreateProjectView()
+      : studioSubTab === 'studios' ? renderStudiosCrewView()
+      : studioSubTab === 'franchises' ? renderFranchisesView()
+  </div>`;
+}
+
+function renderActiveProjectsView() {
+  const active = (state.productionProjects ?? []).filter(p => p.status === 'in_production');
+  if (!active.length) {
+    return `<div class="panel" style="text-align: center; padding: 48px 24px;">
+      <div style="font-size: 2.5rem; margin-bottom: 12px;">🎬</div>
+      <h2>目前沒有製作中之影視企劃</h2>
+      <p style="color: #94a3b8; max-width: 500px; margin: 8px auto 20px;">
+        立即開啟全新企劃！自訂劇種、主創編導、演出陣容、片廠與製作策略，體驗多集並行製作與質量把關。
+      </p>
+      <button class="primary-button" style="width: auto; margin: 0 auto; padding: 10px 24px;" data-action="studio-subtab" data-value="create">
+        ➕ 前往影視企劃立項
+      </button>
+    </div>`;
+  }
+
+  return `<div class="projects-container">
+    ${active.map(proj => {
+      const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === proj.assignedStudioId);
+      const strat = PRODUCTION_STRATEGIES.find(s => s.id === proj.strategy);
+      const aud = TARGET_AUDIENCES.find(a => a.id === proj.targetAudience);
+      const dir = (state.crews ?? DEFAULT_CREWS).find(c => c.id === proj.crew?.directorId);
+      const wri = (state.crews ?? DEFAULT_CREWS).find(c => c.id === proj.crew?.writerId);
+
+      return `<div class="project-card">
+        <div class="project-header">
+          <div class="project-title-area">
+            <div class="project-title">
+              《${safe(proj.title)}》
+              ${proj.seasonNumber > 1 ? `<span style="font-size:0.75rem; background:#3b82f630; color:#60a5fa; padding:2px 8px; border-radius:10px;">Season ${proj.seasonNumber}</span>` : ''}
+              <span class="project-format-pill">${{ drama: '旗艦劇集', variety: '自製綜藝', news: '新聞即時', documentary: '深度紀錄', talkshow: '清談節目', live: '大型直播' }[proj.format] || proj.format}</span>
+            </div>
+            <div class="project-meta-pills">
+              <span class="project-meta-tag">片廠：${safe(studio?.name || '專用影棚')}</span>
+              <span class="project-meta-tag">策略：${safe(strat?.name || '平衡')}</span>
+              <span class="project-meta-tag">受眾：${safe(aud?.name || '全家歡')}</span>
+              <span class="project-meta-tag">導演：${safe(dir?.name || '自聘')}</span>
+              <span class="project-meta-tag">編審：${safe(wri?.name || '自聘')}</span>
+              <span class="project-meta-tag">時長：${proj.episodeHours}小時/集</span>
+            </div>
+          </div>
+          <div class="project-cost-summary">
+            <span class="project-cost-label">累積花費 / 每集預算</span>
+            <span class="project-cost-val">${money(proj.totalCostSpent)} <small style="font-size:0.75rem; color:#94a3b8;">/ 每集 ${money(proj.budgetPerEpisode)}</small></span>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;">
+              <span style="font-size:0.78rem; font-weight:700; color:#10b981;">已交付 ${proj.deliveredEpisodesCount} / ${proj.episodesCount} 集</span>
+              <button class="remove-button" data-action="cancel-project" data-project-id="${proj.id}">腰斬</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="ep-stage-strip">
+          ${proj.episodes.map(ep => {
+            const hasEvent = Boolean(ep.pendingEvent);
+            const isQC = ep.status === 'qc_ready';
+            const isDelivered = ep.status === 'delivered';
+            const isAired = ep.status === 'aired';
+
+            return `<div class="ep-stage-card ${hasEvent ? 'has-event' : ''} ${isQC ? 'qc-ready' : ''} ${isDelivered || isAired ? 'delivered' : ''}">
+              <div class="ep-card-header">
+                <span class="ep-card-title">第 ${ep.episodeNumber} 集</span>
+                <span class="ep-stage-badge ${ep.stage}">${STAGE_NAMES[ep.stage] || ep.stage}</span>
+              </div>
+              <div class="ep-progress-bar">
+                <div class="ep-progress-fill" style="width: ${Math.min(100, isDelivered || isAired ? 100 : ep.stageProgress)}%;"></div>
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:0.7rem;">
+                <span style="color:#94a3b8;">進度 ${ep.stageProgress}%</span>
+                <span style="font-weight:700; color:${isAired ? '#38bdf8' : isDelivered ? '#10b981' : isQC ? '#f59e0b' : '#cbd5e1'};">
+                  ${STATUS_NAMES[ep.status] || ep.status}
+                </span>
+              </div>
+
+              <div class="attr-mini-grid">
+                <div class="attr-mini-col"><span>趣味</span><strong>${ep.fun}</strong></div>
+                <div class="attr-mini-col"><span>演技</span><strong>${ep.acting}</strong></div>
+                <div class="attr-mini-col"><span>執導</span><strong>${ep.direction}</strong></div>
+                <div class="attr-mini-col"><span>特效</span><strong>${ep.technical}</strong></div>
+                <div class="attr-mini-col ${ep.errors > 0 ? 'danger' : ''}"><span>瑕疵</span><strong>${ep.errors}</strong></div>
+                <div class="attr-mini-col"><span>士氣</span><strong>${ep.morale}</strong></div>
+                <div class="attr-mini-col"><span>期待</span><strong>${ep.expectations}</strong></div>
+                <div class="attr-mini-col"><span>天數</span><strong>${ep.days}日</strong></div>
+                <div class="attr-mini-col" style="grid-column: span 2;"><span>成本</span><strong>${money(ep.cost)}</strong></div>
+              </div>
+
+              ${hasEvent ? `
+                <div class="ep-card-action">
+                  <button class="ep-action-btn event-btn" data-action="open-event-modal" data-project-id="${proj.id}" data-episode="${ep.episodeNumber}">
+                    ⚡ 片場突發：${safe(ep.pendingEvent.title)}
+                  </button>
+                </div>
+              ` : ''}
+
+              ${isQC ? `
+                <div class="ep-card-action">
+                  <button class="ep-action-btn qc-btn" data-action="open-qc-modal" data-project-id="${proj.id}" data-episode="${ep.episodeNumber}">
+                    🔍 審片報告就緒 · 把關決策
+                  </button>
+                </div>
+              ` : ''}
+
+              ${isDelivered ? `
+                <div style="font-size:0.7rem; color:#10b981; font-weight:700; text-align:center; padding:3px 0;">
+                  ✓ 母帶已交，可於排播表播出
+                </div>
+              ` : ''}
+
+              ${isAired ? `
+                <div style="font-size:0.7rem; color:#38bdf8; font-weight:700; text-align:center; padding:3px 0;">
+                  📺 已播映 · 收視 ${ep.rating}點
+                </div>
+              ` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+
+        ${proj.ratingsHistory?.length ? `
+          <div style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #1e293b;">
+            <div style="font-size:0.78rem; font-weight:800; color:#f8fafc; margin-bottom:8px;">
+              📊 已播集數收視戰報（獨立核算）：
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+              ${proj.ratingsHistory.map(h => `
+                <span class="ep-rating-pill">
+                  第 ${h.episodeNumber} 集：<strong>${h.rating}點</strong> (對手 ${h.rivalRating}點 · ${h.won ? '🏆 勝出' : '持平/落後'} · 廣告 ${money(h.revenue || 0)})
+                </span>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderCreateProjectView() {
+  const isDrama = newProjState.format === 'drama';
+  const formatObj = CONTENT_TYPES.find(c => c.id === newProjState.format) || CONTENT_TYPES[0];
+  const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === newProjState.assignedStudioId) || DEFAULT_STUDIOS[0];
+  const strat = PRODUCTION_STRATEGIES.find(s => s.id === newProjState.strategy) || PRODUCTION_STRATEGIES[1];
+  const budgetTier = BUDGETS.find(b => b.id === newProjState.budgetId) || BUDGETS[1];
+  const suggestedTitles = generateSuggestedTitles(newProjState.format, newProjState.genre, '', newProjState.themes);
+
+  const minCast = isDrama ? 2 : 1;
+  const maxCast = isDrama ? 4 : 2;
+  const canSubmit = state.cash >= 300_000 && newProjState.actorIds.length >= minCast;
+
+  return `<div class="create-proj-form">
+    <div class="panel-heading">
+      <div>
+        <div class="eyebrow gold">PROGRAMME PRODUCTION ENGINE</div>
+        <h1>影視企劃立項</h1>
+      </div>
+      <span class="quota">全深度製作流程 · 支持多集並行、片場決策與審片驗收</span>
+    </div>
+
+    <!-- Title -->
+    <div class="form-group">
+      <label class="form-label">節目片名</label>
+      <div class="title-input-row">
+        <input class="form-input" style="flex:1;" type="text" placeholder="輸入企劃片名（如留空將自動生成）" value="${safe(newProjState.title)}" data-action="new-proj-title-input" />
+        <button class="suggest-title-btn" data-action="new-proj-suggest-title">🎲 劇名靈感</button>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+        ${suggestedTitles.map(t => `<button class="title-chip ${newProjState.title === t ? 'chosen' : ''}" data-action="new-proj-pick-title" data-value="${safe(t)}">${safe(t)}</button>`).join('')}
+      </div>
+    </div>
+
+    <!-- Format -->
+    <div class="form-group">
+      <label class="form-label">節目類型與形態</label>
+      <div class="choice-grid" style="grid-template-columns: repeat(6, 1fr);">
+        ${[
+          { id: 'drama', label: '旗艦劇集' },
+          { id: 'variety', label: '自製綜藝' },
+          { id: 'news', label: '新聞資訊' },
+          { id: 'documentary', label: '深度紀錄' },
+          { id: 'talkshow', label: '夜間清談' },
+          { id: 'live', label: '直播盛事' }
+        ].map(fmt => `
+          <button class="choice ${newProjState.format === fmt.id ? 'chosen' : ''}" data-action="new-proj-format" data-value="${fmt.id}">
+            ${fmt.label}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
+    ${isDrama ? `
+      <!-- Genre & Themes -->
+      <div class="form-grid-2col">
+        <div class="form-group">
+          <label class="form-label">核心劇種</label>
+          <div class="choice-grid" style="grid-template-columns: repeat(4, 1fr);">
+            ${GENRES.slice(0, 12).map(g => `
+              <button class="choice ${newProjState.genre === g ? 'chosen' : ''}" data-action="new-proj-genre" data-value="${g}">
+                ${g}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">搭配題材 (選 1 至 2 個)</label>
+          <div class="choice-grid" style="grid-template-columns: repeat(4, 1fr);">
+            ${THEMES.slice(0, 12).map(t => `
+              <button class="choice ${newProjState.themes.includes(t) ? 'chosen' : ''}" data-action="new-proj-theme" data-value="${t}">
+                ${t}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    ` : ''}
+
+    <!-- Target Audience & Strategy -->
+    <div class="form-grid-2col">
+      <div class="form-group">
+        <label class="form-label">定位目標受眾</label>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${TARGET_AUDIENCES.map(aud => `
+            <button class="style-choice ${newProjState.targetAudience === aud.id ? 'chosen' : ''}" data-action="new-proj-audience" data-value="${aud.id}">
+              <strong>${aud.name}</strong>
+              <small>${aud.desc}</small>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">製作管理策略</label>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${PRODUCTION_STRATEGIES.map(st => `
+            <button class="style-choice ${newProjState.strategy === st.id ? 'chosen' : ''}" data-action="new-proj-strategy" data-value="${st.id}">
+              <strong>${st.name}</strong>
+              <small>${st.desc}</small>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Episodes, Runtime, Budget, Studio -->
+    <div class="form-grid-2col">
+      <div class="form-group">
+        <label class="form-label">集數規劃與每集時長</label>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <span style="font-size:0.75rem; color:#94a3b8; align-self:center;">總集數：</span>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            ${[1, 2, 4, 8, 12, 15, 20, 25, 30].map(cnt => `
+              <button class="choice ${newProjState.episodesCount === cnt ? 'chosen' : ''}" style="min-width:44px;" data-action="new-proj-ep-count" data-value="${cnt}">
+                ${cnt}集
+              </button>
+            `).join('')}
+          </div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <span style="font-size:0.75rem; color:#94a3b8; align-self:center;">每集時長：</span>
+          <div style="display:flex; gap:6px;">
+            ${[1, 2, 3, 4].map(h => `
+              <button class="choice ${newProjState.episodeHours === h ? 'chosen' : ''}" style="min-width:44px;" data-action="new-proj-ep-hours" data-value="${h}">
+                ${h}小時
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">預算級別與指派片廠</label>
+        <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+          ${BUDGETS.map(b => `
+            <button class="choice ${newProjState.budgetId === b.id ? 'chosen' : ''}" data-action="new-proj-budget" data-value="${b.id}">
+              ${b.label} (${money(b.cost)})
+            </button>
+          `).join('')}
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          ${(state.studios ?? DEFAULT_STUDIOS).map(s => `
+            <button class="choice ${newProjState.assignedStudioId === s.id ? 'chosen' : ''}" data-action="new-proj-studio" data-value="${s.id}">
+              ${s.name} (Lv${s.level} · 容納${s.capacity}集)
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Crew: Director & Writer -->
+    <div class="form-grid-2col">
+      <div class="form-group">
+        <label class="form-label">監製／執導導演</label>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${(state.crews ?? DEFAULT_CREWS).filter(c => c.role === 'director').map(d => `
+            <button class="style-choice ${newProjState.directorId === d.id ? 'chosen' : ''}" data-action="new-proj-director" data-value="${d.id}">
+              <strong>${d.name} (${d.title}) · 能力 ${d.skill}</strong>
+              <small>擅長：${d.specialty} · 執導費 ${money(d.fee)} · ${d.desc}</small>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">編審／金牌編劇</label>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+          ${(state.crews ?? DEFAULT_CREWS).filter(c => c.role === 'writer').map(w => `
+            <button class="style-choice ${newProjState.writerId === w.id ? 'chosen' : ''}" data-action="new-proj-writer" data-value="${w.id}">
+              <strong>${w.name} (${w.title}) · 能力 ${w.skill}</strong>
+              <small>擅長：${w.specialty} · 編審費 ${money(w.fee)} · ${w.desc}</small>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Casting Selection with Conflict Checks -->
+    <div class="form-group">
+      <label class="form-label">
+        演出陣容挑選 (已選 ${newProjState.actorIds.length} / ${maxCast} 位，最少 ${minCast} 位)
+      </label>
+      <div class="cast-select-container">
+        ${ACTORS.map(a => {
+          const avail = checkPerformerAvailability(state, a.id);
+          const isSelected = newProjState.actorIds.includes(a.id);
+          const talent = state.talent[a.id];
+          const isMine = talent?.station === 'player';
+
+          return `<div class="cast-pick-card ${isSelected ? 'selected' : ''} ${!avail.available ? 'busy' : ''}" data-action="new-proj-actor" data-value="${a.id}">
+            <div>
+              <div class="cast-pick-name">${a.name} ${isMine ? '<span style="color:#10b981; font-size:0.65rem;">(旗下)</span>' : ''}</div>
+              <div style="font-size:0.68rem; color:#94a3b8;">知名度 ${(talent?.fame ?? (a.skill - 10)).toFixed(1)} · 演技 ${a.skill}</div>
+            </div>
+            <div>
+              ${!avail.available ? `
+                <span class="cast-pick-status busy" title="${safe(avail.reason)}">⚠️ 衝突</span>
+              ` : isSelected ? `
+                <span class="cast-pick-status free">✓ 已選</span>
+              ` : `
+                <span style="font-size:0.7rem; color:#f59e0b; font-weight:700;">+ 挑選</span>
+              `}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <button class="primary-button" data-action="new-proj-submit" ${!canSubmit ? 'disabled' : ''}>
+      ${!canSubmit ? (newProjState.actorIds.length < minCast ? `最少挑選 ${minCast} 位演出演員` : '資金不足') : `正式開機立項《${safe(newProjState.title || (isDrama ? `${newProjState.genre}新劇` : '精選節目'))}》`} ↗
+    </button>
+  </div>`;
+}
+
+function renderStudiosCrewView() {
+  const studios = state.studios ?? DEFAULT_STUDIOS;
+  const crews = state.crews ?? DEFAULT_CREWS;
+
+  return `<div class="studios-crew-grid">
+    <div class="studios-list">
+      <div class="panel-heading small">
+        <div>
+          <div class="eyebrow gold">PRODUCTION FACILITIES</div>
+          <h2>電視影城各片廠設施</h2>
+        </div>
+      </div>
+      ${studios.map(s => {
+        const canUpgrade = s.level < 3;
+        const upgradeCost = s.level === 1 ? 1_500_000 : 3_500_000;
+        return `<div class="studio-card">
+          <div class="studio-card-info">
+            <div class="studio-card-name">
+              ${safe(s.name)}
+              <span class="studio-card-level">Level ${s.level}</span>
+            </div>
+            <div class="studio-card-desc">${safe(s.desc)}</div>
+            <div class="studio-card-metrics">
+              <span>並行製作容量：<strong>${s.capacity} 集</strong></span>
+              <span>製作效率：<strong>${Math.round(s.efficiency * 100)}%</strong></span>
+              <span>品質加成：<strong>+${s.bonus} 點</strong></span>
+            </div>
+          </div>
+          ${canUpgrade ? `
+            <button class="studio-upgrade-btn" data-action="upgrade-studio" data-studio-id="${s.id}" ${state.cash < upgradeCost ? 'disabled' : ''}>
+              擴建升級 Lv${s.level + 1} (${money(upgradeCost)})
+            </button>
+          ` : `
+            <span style="font-size:0.75rem; color:#10b981; font-weight:800; white-space:nowrap;">已升滿最高級</span>
+          `}
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="crews-list panel" style="padding: 20px;">
+      <div class="panel-heading small">
+        <div>
+          <div class="eyebrow muted">CREATIVE MASTERS</div>
+          <h2>金牌主創編導與金像編審</h2>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        ${crews.map(c => `
+          <div style="background:#0f172a; padding:10px 12px; border-radius:8px; border:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-size:0.85rem; font-weight:800; color:#f8fafc;">
+                ${safe(c.name)} <span style="font-size:0.7rem; color:#f59e0b; margin-left:6px;">${c.title}</span>
+              </div>
+              <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">
+                專長：${c.specialty} · 能力 ${c.skill}
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <span style="font-size:0.78rem; font-weight:800; color:#fbbf24;">${money(c.fee)}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderFranchisesView() {
+  const completed = (state.productionProjects ?? []).filter(p => p.status === 'completed' || p.status === 'delivered');
+  if (!completed.length) {
+    return `<div class="panel" style="text-align: center; padding: 48px 24px;">
+      <div style="font-size: 2.5rem; margin-bottom: 12px;">🏆</div>
+      <h2>暫未有歷年殺青系列</h2>
+      <p style="color: #94a3b8; max-width: 500px; margin: 8px auto 20px;">
+        當你的影視作品全部集數製作交付並播映後，將會在此處歸檔為經典 IP。可一鍵立項續作（Season 2）或外傳，傳承口碑與收視期待！
+      </p>
+    </div>`;
+  }
+
+  return `<div class="franchises-list">
+    ${completed.map(p => {
+      const avgRating = p.ratingsHistory?.length
+        ? (p.ratingsHistory.reduce((s, r) => s + r.rating, 0) / p.ratingsHistory.length).toFixed(1)
+        : '尚未播出';
+
+      return `<div class="franchise-card">
+        <div class="franchise-card-header">
+          <div>
+            <div class="franchise-title">《${safe(p.title)}》</div>
+            <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">
+              ${p.genre} · 共 ${p.episodesCount} 集 · 均值收視 ${avgRating}點
+            </div>
+          </div>
+          <div>
+            <span style="background:#10b98120; color:#34d399; padding:3px 10px; border-radius:10px; font-size:0.75rem; font-weight:800; border:1px solid #10b98150;">
+              已殺青入庫
+            </span>
+          </div>
+        </div>
+
+        ${p.ratingsHistory?.length ? `
+          <div class="franchise-ep-ratings">
+            ${p.ratingsHistory.map(h => `
+              <span class="ep-rating-pill">第 ${h.episodeNumber} 集: <strong>${h.rating}點</strong></span>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        <div class="franchise-actions">
+          <button class="franchise-btn" data-action="create-sequel" data-project-id="${p.id}" data-type="next_season">
+            🎬 立項第 ${(p.seasonNumber || 1) + 1} 季 (Season ${(p.seasonNumber || 1) + 1})
+          </button>
+          <button class="franchise-btn" data-action="create-sequel" data-project-id="${p.id}" data-type="spin_off">
+            🌟 開拍外傳前傳 (Spin-off)
+          </button>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderFilmingEventModal() {
+  if (!activeEventModal) return '';
+  const project = (state.productionProjects ?? []).find(p => p.id === activeEventModal.projectId);
+  const ep = project?.episodes.find(e => e.episodeNumber === activeEventModal.episodeNumber);
+  const ev = ep?.pendingEvent;
+  if (!ev) return '';
+
+  return `<div class="studio-modal-backdrop">
+    <div class="studio-modal-card">
+      <div class="studio-modal-header">
+        <div class="studio-modal-title">
+          <span>⚡</span>
+          <span>片場突發事件：${safe(ev.title)}</span>
+        </div>
+        <button class="studio-modal-close" data-action="close-event-modal">✕</button>
+      </div>
+
+      <div class="studio-modal-desc">
+        《${safe(project.title)}》第 ${ep.episodeNumber} 集正在片場實景攝製中！${safe(ev.description)}
+      </div>
+
+      <div class="modal-choices-list">
+        ${ev.choices.map(c => `
+          <button class="modal-choice-card" data-action="filming-event-choice" data-choice-id="${c.id}">
+            <div class="modal-choice-info">
+              <span class="modal-choice-label">${safe(c.text)}</span>
+              <span class="modal-choice-desc">
+                ${c.acting ? `演技 +${c.acting} ` : ''}
+                ${c.direction ? `執導 +${c.direction} ` : ''}
+                ${c.fun ? `趣味 +${c.fun} ` : ''}
+                ${c.technical ? `特效 +${c.technical} ` : ''}
+                ${c.errors ? `瑕疵 +${c.errors} ` : ''}
+                ${c.morale ? `士氣 ${c.morale > 0 ? '+' : ''}${c.morale} ` : ''}
+                ${c.expectations ? `期待 +${c.expectations} ` : ''}
+              </span>
+            </div>
+            <div>
+              ${c.cost ? `<span class="modal-choice-cost">${money(c.cost)}</span>` : '<span class="modal-choice-cost" style="color:#10b981;">免費</span>'}
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderQCModal() {
+  if (!activeQCModal) return '';
+  const project = (state.productionProjects ?? []).find(p => p.id === activeQCModal.projectId);
+  const ep = project?.episodes.find(e => e.episodeNumber === activeQCModal.episodeNumber);
+  const report = ep?.qcReport;
+  if (!report) return '';
+
+  return `<div class="studio-modal-backdrop">
+    <div class="studio-modal-card">
+      <div class="studio-modal-header">
+        <div class="studio-modal-title">
+          <span>🔍</span>
+          <span>質量把關審片檢驗報告（第 ${ep.episodeNumber} 集）</span>
+        </div>
+        <button class="studio-modal-close" data-action="close-qc-modal">✕</button>
+      </div>
+
+      <div class="studio-modal-desc">
+        《${safe(project.title)}》第 ${ep.episodeNumber} 集後期初剪已經完成！審片委員會提交質量驗收報告，請管理層決定交付策略：
+      </div>
+
+      <div class="qc-stats-summary">
+        <div class="qc-stats-col"><span>趣味橋段</span><strong>${ep.fun}</strong></div>
+        <div class="qc-stats-col"><span>演員演出</span><strong>${ep.acting}</strong></div>
+        <div class="qc-stats-col"><span>執導調度</span><strong>${ep.direction}</strong></div>
+        <div class="qc-stats-col"><span>聲光特效</span><strong>${ep.technical}</strong></div>
+        <div class="qc-stats-col" style="grid-column: span 2; ${ep.errors > 0 ? 'color:#f87171;' : ''}">
+          <span>製作瑕疵</span><strong style="${ep.errors > 0 ? 'color:#f87171;' : ''}">${ep.errors} 處毛病</strong>
+        </div>
+        <div class="qc-stats-col" style="grid-column: span 2;"><span>觀眾期待值</span><strong>${ep.expectations} 點</strong></div>
+      </div>
+
+      <div class="modal-choices-list">
+        ${report.choices.map(c => `
+          <button class="modal-choice-card" data-action="qc-decision" data-decision-id="${c.id}" ${c.cost > state.cash ? 'disabled' : ''}>
+            <div class="modal-choice-info">
+              <span class="modal-choice-label">${safe(c.label)}</span>
+              <span class="modal-choice-desc">${safe(c.desc)}</span>
+            </div>
+            <div>
+              ${c.cost ? `<span class="modal-choice-cost">${money(c.cost)}</span>` : '<span class="modal-choice-cost" style="color:#10b981;">免費交付</span>'}
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  </div>`;
 }
 
 function scheduleHome(){
@@ -833,7 +1428,7 @@ function scheduleView() {
     ${editorOpen?'<button class="schedule-scrim" data-action="close-editor" aria-label="關閉時段編輯"></button>':''}
     <div class="schedule-editor ${editorOpen?'open':''}" ${editorOpen?'role="dialog" aria-modal="true" aria-label="安排播映時段"':'hidden'}><div class="schedule-editor-heading">安排 ${timeRange(editor.start,editor.duration)} <button class="editor-dismiss" data-action="close-editor" aria-label="關閉時段編輯">✕</button></div>
       <div class="schedule-fields"><label>開始時間<select data-action="editor-start">${Array.from({length:24},(_,i)=>`<option value="${i}" ${editor.start===i?'selected':''}>${hourLabel(i)}</option>`).join('')}</select></label><label>播映長度<select data-action="editor-duration" ${fixed?'disabled':''}>${(fixed?[fixed]:Array.from({length:max},(_,i)=>i+1)).map(n=>`<option value="${n}" ${editor.duration===n?'selected':''}>${n} 小時</option>`).join('')}</select></label></div>
-      <div class="program-picker"><div class="picker-heading"><strong>選擇節目</strong><span>已揀：${safe(selectedProgram?.title??'未選')}${(()=>{const sp=options.find(o=>o.id===editor.programId);const it=sp?state.library.find(p=>p.id===sp.id):null;if(!it)return '';const sf=freshnessLabel(it.freshness,it.maxFreshness);return ` · <b class="sel-freshness-tag ${sf.tier}">${sf.icon} 新鮮度 ${sf.percent}%</b>`;})()}</span></div><input type="search" data-action="editor-program-search" value="${safe(editorProgramSearch)}" placeholder="搜尋節目名、類型或題材" aria-label="搜尋排播節目" autocomplete="off"><div class="picker-filters" aria-label="節目分類">${filterTabs.map(([id,label])=>`<button data-action="editor-program-group" data-value="${id}" aria-pressed="${editorProgramGroup===id}" class="${editorProgramGroup===id?'active':''}">${label}</button>`).join('')}</div><div class="program-choices" aria-label="可排播節目">${visibleOptions.length?visibleOptions.map(option=>{const item=state.library.find(p=>p.id===option.id),bookings=state.schedule.filter(block=>block.programId===option.id),booked=bookings.map(block=>`${dayPattern(daysForBlock(block))} ${hourLabel(block.start)}`).join('、');const subtitle=booked?`已排 ${booked}`:'未排';const episodes=item?.episodes?`${item.kind==='catalog'?catalogCycleProgress(item).remaining:Math.max(0,item.episodes-item.runs)} 集可播`:isDailyFormat(item?.kind)?'每日新一期':option.id.startsWith('event:')?'全季直播賽事':'常規播放';const f=item?freshnessLabel(item.freshness,item.maxFreshness):null;return `<button data-action="editor-program-card" data-id="${safe(option.id)}" class="program-choice ${editor.programId===option.id?'chosen':''}" aria-pressed="${editor.programId===option.id}"><span class="program-choice-icon">${safe(option.id.startsWith('event:')?'⚽':premiereProfile(item?.kind).symbol)}</span><span class="program-choice-text"><strong>${safe(option.title)}</strong><small>${safe(item?.category??'體育直播')} · ${safe(episodes)}</small></span><span class="program-choice-status">${f?`<span class="choice-fresh-tag ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`:'<span class="choice-fresh-tag high">🏆 體育</span>'}<span>${safe(subtitle)}</span></span></button>`}).join(''):'<p class="picker-empty">搵唔到節目。試吓清除搜尋或轉分類。</p>'}</div></div>
+      <div class="program-picker"><div class="picker-heading"><strong>選擇節目</strong><span>已揀：${safe(selectedProgram?.title??'未選')}${(()=>{const sp=options.find(o=>o.id===editor.programId);const it=sp?state.library.find(p=>p.id===sp.id):null;if(!it)return '';const sf=freshnessLabel(it.freshness,it.maxFreshness);return ` · <b class="sel-freshness-tag ${sf.tier}">${sf.icon} 新鮮度 ${sf.percent}%</b>`;})()}</span></div><input type="search" data-action="editor-program-search" value="${safe(editorProgramSearch)}" placeholder="搜尋節目名、類型或題材" aria-label="搜尋排播節目" autocomplete="off"><div class="picker-filters" aria-label="節目分類">${filterTabs.map(([id,label])=>`<button data-action="editor-program-group" data-value="${id}" aria-pressed="${editorProgramGroup===id}" class="${editorProgramGroup===id?'active':''}">${label}</button>`).join('')}</div><div class="program-choices" aria-label="可排播節目">${visibleOptions.length?visibleOptions.map(option=>{const item=state.library.find(p=>p.id===option.id),bookings=state.schedule.filter(block=>block.programId===option.id),booked=bookings.map(block=>`${dayPattern(daysForBlock(block))} ${hourLabel(block.start)}`).join('、');const subtitle=booked?`已排 ${booked}`:'未排';const episodes=item?.episodes?(item.kind==='catalog'?`${catalogCycleProgress(item).remaining} 集可播`:item.deliveredEpisodes!=null&&item.deliveredEpisodes<item.episodes?`已交付 ${item.deliveredEpisodes}/${item.episodes} 集（製作中）`:`${Math.max(0,item.episodes-item.runs)} 集可播`):isDailyFormat(item?.kind)?'每日新一期':option.id.startsWith('event:')?'全季直播賽事':'常規播放';const f=item?freshnessLabel(item.freshness,item.maxFreshness):null;return `<button data-action="editor-program-card" data-id="${safe(option.id)}" class="program-choice ${editor.programId===option.id?'chosen':''}" aria-pressed="${editor.programId===option.id}"><span class="program-choice-icon">${safe(option.id.startsWith('event:')?'⚽':premiereProfile(item?.kind).symbol)}</span><span class="program-choice-text"><strong>${safe(option.title)}</strong><small>${safe(item?.category??'體育直播')} · ${safe(episodes)}</small></span><span class="program-choice-status">${f?`<span class="choice-fresh-tag ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`:'<span class="choice-fresh-tag high">🏆 體育</span>'}<span>${safe(subtitle)}</span></span></button>`}).join(''):'<p class="picker-empty">搵唔到節目。試吓清除搜尋或轉分類。</p>'}</div></div>
       <div class="recurrence">
         <div class="recurrence-head-row">
           <strong>播出日子</strong>
@@ -2105,6 +2700,146 @@ app.addEventListener('click',e=>{
     if(action==='switch-channel'){scheduleChannel=Number(button.dataset.channel);render();return;}
     if(action==='talent-filter'){talentSubTab=value;render();return;}
     if(action==='rivals-tab'){rivalsTab=value;render();return;}
+    if(action==='studio-subtab'){studioSubTab=value;resetScroll=true;render();return;}
+    if(action==='new-proj-format'){
+      newProjState.format=value;
+      if(value!=='drama'){
+        newProjState.genre=value==='variety'?'綜藝生活':value==='news'?'港聞焦點':value==='documentary'?'社會實況':value==='talkshow'?'午夜深情':'大型盛事';
+      }
+      render();
+      return;
+    }
+    if(action==='new-proj-genre'){newProjState.genre=value;render();return;}
+    if(action==='new-proj-theme'){
+      if(newProjState.themes.includes(value)){
+        if(newProjState.themes.length>1)newProjState.themes=newProjState.themes.filter(t=>t!==value);
+      } else if(newProjState.themes.length<2){
+        newProjState.themes.push(value);
+      } else {
+        newProjState.themes=[newProjState.themes[1],value];
+      }
+      render();
+      return;
+    }
+    if(action==='new-proj-audience'){newProjState.targetAudience=value;render();return;}
+    if(action==='new-proj-strategy'){newProjState.strategy=value;render();return;}
+    if(action==='new-proj-ep-count'){newProjState.episodesCount=Number(value);render();return;}
+    if(action==='new-proj-ep-hours'){newProjState.episodeHours=Number(value);render();return;}
+    if(action==='new-proj-budget'){newProjState.budgetId=value;render();return;}
+    if(action==='new-proj-studio'){newProjState.assignedStudioId=value;render();return;}
+    if(action==='new-proj-director'){newProjState.directorId=value;render();return;}
+    if(action==='new-proj-writer'){newProjState.writerId=value;render();return;}
+    if(action==='new-proj-actor'){
+      const maxCast=newProjState.format==='drama'?4:2;
+      if(newProjState.actorIds.includes(value)){
+        newProjState.actorIds=newProjState.actorIds.filter(id=>id!==value);
+      } else {
+        const avail=checkPerformerAvailability(state,value);
+        if(!avail.available)throw Error(avail.reason||'該藝人目前正在其他片場實景攝製中，檔期衝突！');
+        const talent=state.talent[value];
+        if(talent?.station&&talent.station!=='player'&&talent.station!=='free'&&Number.isInteger(talent.contractExpiresDay)&&talent.contractExpiresDay>state.day){
+          const actor=ACTORS.find(a=>a.id===value);
+          throw Error(`【${actor?.name}】正與${getStationName(talent.station)}簽署獨家合約中，無法參演！`);
+        }
+        if(newProjState.actorIds.length<maxCast){
+          newProjState.actorIds.push(value);
+        } else {
+          throw Error(`此形態節目最多選 ${maxCast} 位演員。`);
+        }
+      }
+      render();
+      return;
+    }
+    if(action==='new-proj-suggest-title'){
+      const titles=generateSuggestedTitles(newProjState.format,newProjState.genre,'',newProjState.themes);
+      if(titles.length){
+        newProjState.title=titles[Math.floor(Math.random()*titles.length)];
+        render();
+      }
+      return;
+    }
+    if(action==='new-proj-pick-title'){newProjState.title=value;render();return;}
+    if(action==='new-proj-submit'){
+      const proj=createProductionProject(state,newProjState);
+      newProjState={
+        title: '',
+        format: 'drama',
+        genre: '時裝恩怨',
+        themes: ['愛情'],
+        targetAudience: 'family',
+        episodesCount: 8,
+        episodeHours: 2,
+        budgetId: 'standard',
+        assignedStudioId: 'studio_1',
+        strategy: 'balanced',
+        directorId: 'dir_lee',
+        writerId: 'wri_cheung',
+        actorIds: []
+      };
+      studioSubTab='active';
+      resetScroll=true;
+      flash(`《${proj.title}》已成功立項開機！片廠現正全力投入第 1 階段前期製作。`);
+      return;
+    }
+    if(action==='open-event-modal'){
+      activeEventModal={projectId:button.dataset.projectId,episodeNumber:Number(button.dataset.episode)};
+      render();
+      return;
+    }
+    if(action==='close-event-modal'){
+      activeEventModal=null;
+      render();
+      return;
+    }
+    if(action==='filming-event-choice'){
+      if(activeEventModal){
+        const res=handleFilmingEventChoice(state,activeEventModal.projectId,activeEventModal.episodeNumber,button.dataset.choiceId);
+        activeEventModal=null;
+        flash(`【片場決策落實】${res.choiceText}（花費 ${money(res.cost)}）`);
+      }
+      return;
+    }
+    if(action==='open-qc-modal'){
+      activeQCModal={projectId:button.dataset.projectId,episodeNumber:Number(button.dataset.episode)};
+      render();
+      return;
+    }
+    if(action==='close-qc-modal'){
+      activeQCModal=null;
+      render();
+      return;
+    }
+    if(action==='qc-decision'){
+      if(activeQCModal){
+        const res=handleQualityControlDecision(state,activeQCModal.projectId,activeQCModal.episodeNumber,button.dataset.decisionId);
+        activeQCModal=null;
+        if(res.delivered){
+          flash(`【審片驗收完成】第 ${res.episode.episodeNumber} 集順利通過把關，母帶交付入庫！可於排播表安排播放。`);
+        } else {
+          flash(`【執行審片處置】${res.choiceLabel}（花費 ${money(res.cost)}），重回相關製作工序。`);
+        }
+      }
+      return;
+    }
+    if(action==='upgrade-studio'){
+      const s=upgradeStudioFacility(state,button.dataset.studioId);
+      flash(`【片廠擴建落成】${s.name} 成功擴充至 Lv${s.level}！並行製作容量增至 ${s.capacity} 集。`);
+      render();
+      return;
+    }
+    if(action==='create-sequel'){
+      const p=createSeasonOrSpinOff(state,button.dataset.projectId,button.dataset.type);
+      studioSubTab='active';
+      resetScroll=true;
+      flash(`【經典 IP 啟動】《${p.title}》正式立項！承接原作口碑，期待值高達 ${p.episodes[0].expectations} 點。`);
+      return;
+    }
+    if(action==='cancel-project'){
+      const p=cancelProductionProject(state,button.dataset.projectId);
+      flash(`【企劃腰斬】《${p.title}》已終止製作，騰出片廠與演職人員。`);
+      render();
+      return;
+    }
     if(state.pendingPremieres?.length&&['advance-day','advance-week','advance'].includes(action))throw Error('先處理首播戰報，然後再繼續營運。');
     if(action==='premiere-choice'){const result=resolvePremiere(state,value);flash(`《${result.title}》首播決策完成，後續集數會受影響。`);return;}
     if(action==='tab'){tab=button.dataset.tab;editorOpen=false;resetScroll=true;notice='';render();}
@@ -2256,13 +2991,65 @@ app.addEventListener('click',e=>{
     }
     if(action==='reset-prompt'){showReset=true;render();}
     if(action==='reset-cancel'){showReset=false;render();}
-    if(action==='reset-confirm'){state=newGame();selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none',customTitle:''};editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],allowRepeat:false};resetProgramPicker();scheduleDay=null;catalogFilter='all';catalogSort='featured';catalogAvailableOnly=false;catalogNetwork='ViuTV';catalogYear='all';catalogQuery='';licenseDays=180;reportFilter='all';actorFilter='viu';actorPickerOpen=false;actorSearch='';tab='schedule';editorOpen=false;runSummary=null;selectedBroadcastDay=null;selectedLeaderboardMonth=null;resetScroll=true;showReset=false;notice='';render();}
+    if(action==='reset-confirm'){
+      state=newGame();
+      selected={kind:'drama',genre:'青春',themes:['友情'],actorIds:['edaan','anson_lo'],topic:'遊戲競賽',budgetId:'standard',episodeHours:2,episodeCount:8,styleId:'mainstream',hookId:'none',customTitle:''};
+      editor={start:19,duration:2,programId:'start-sitcom',days:[...EVERY_DAY],allowRepeat:false};
+      resetProgramPicker();
+      scheduleDay=null;
+      catalogFilter='all';
+      catalogSort='featured';
+      catalogAvailableOnly=false;
+      catalogNetwork='ViuTV';
+      catalogYear='all';
+      catalogQuery='';
+      licenseDays=180;
+      reportFilter='all';
+      actorFilter='viu';
+      actorPickerOpen=false;
+      actorSearch='';
+      tab='schedule';
+      editorOpen=false;
+      runSummary=null;
+      selectedBroadcastDay=null;
+      selectedLeaderboardMonth=null;
+      resetScroll=true;
+      showReset=false;
+      notice='';
+      studioSubTab='active';
+      activeEventModal=null;
+      activeQCModal=null;
+      newProjState={
+        title: '',
+        format: 'drama',
+        genre: '時裝恩怨',
+        themes: ['愛情'],
+        targetAudience: 'family',
+        episodesCount: 8,
+        episodeHours: 2,
+        budgetId: 'standard',
+        assignedStudioId: 'studio_1',
+        strategy: 'balanced',
+        directorId: 'dir_lee',
+        writerId: 'wri_cheung',
+        actorIds: []
+      };
+      render();
+    }
   }catch(error){flash(error.message)}
 });
-app.addEventListener('input',e=>{if(e.target.dataset.action==='custom-title'){selected.customTitle=e.target.value;}if(e.target.dataset.action==='actor-search'){actorSearch=e.target.value;app.querySelectorAll('.actor-grid .actor').forEach(button=>{button.hidden=!button.textContent.includes(actorSearch.trim())});}if(e.target.dataset.action==='editor-program-search'&&!e.isComposing){const pos=e.target.selectionStart;editorProgramSearch=e.target.value;render();const input=app.querySelector('[data-action="editor-program-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}if(e.target.dataset.action==='catalog-search'&&!e.isComposing){const pos=e.target.selectionStart;catalogQuery=e.target.value;render();const input=app.querySelector('[data-action="catalog-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}});
+app.addEventListener('input',e=>{
+  if(e.target.dataset.action==='new-proj-title-input'){newProjState.title=e.target.value;}
+  if(e.target.dataset.action==='custom-title'){selected.customTitle=e.target.value;}
+  if(e.target.dataset.action==='actor-search'){actorSearch=e.target.value;app.querySelectorAll('.actor-grid .actor').forEach(button=>{button.hidden=!button.textContent.includes(actorSearch.trim())});}
+  if(e.target.dataset.action==='editor-program-search'&&!e.isComposing){const pos=e.target.selectionStart;editorProgramSearch=e.target.value;render();const input=app.querySelector('[data-action="editor-program-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}
+  if(e.target.dataset.action==='catalog-search'&&!e.isComposing){const pos=e.target.selectionStart;catalogQuery=e.target.value;render();const input=app.querySelector('[data-action="catalog-search"]');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);}
+});
 app.addEventListener('compositionend',e=>{if(e.target.dataset.action==='editor-program-search'){editorProgramSearch=e.target.value;render();app.querySelector('[data-action="editor-program-search"]')?.focus({preventScroll:true});}if(e.target.dataset.action==='catalog-search'){catalogQuery=e.target.value;render();app.querySelector('[data-action="catalog-search"]')?.focus({preventScroll:true});}});
 app.addEventListener('change',e=>{const action=e.target.dataset.action;if(action==='catalog-sort'){catalogSort=e.target.value;resetScroll=true;render()}if(action==='catalog-year'){catalogYear=e.target.value;resetScroll=true;render()}if(action==='editor-start'){editor.start=Number(e.target.value);editor.allowRepeat=false;render()}if(action==='editor-duration'){editor.duration=Number(e.target.value);render()}if(action==='editor-program'){editor.programId=e.target.value;const p=state.library.find(p=>p.id===editor.programId);editor.duration=p?.episodeHours??Math.min(editor.duration,editor.programId.startsWith('event:')?24:4);editor.days=initialDays(p);editor.recurrence=initialRecurrence(p);editor.allowRepeat=false;render()}if(action==='editor-weekday'){editor.days=[Number(e.target.value)];render()}if(action==='editor-repeat'){editor.allowRepeat=e.target.checked;render()}});
 app.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&activeEventModal){e.preventDefault();activeEventModal=null;render();return;}
+  if(e.key==='Escape'&&activeQCModal){e.preventDefault();activeQCModal=null;render();return;}
   if(e.key==='Escape'&&editorOpen){e.preventDefault();editorOpen=false;render();app.querySelector('[data-action="open-editor"]')?.focus({preventScroll:true});}
   if(e.key==='Tab'&&editorOpen){
     const controls=[...app.querySelectorAll('.schedule-editor.open button:not(:disabled),.schedule-editor.open select:not(:disabled)')];

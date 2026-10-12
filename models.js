@@ -8,10 +8,102 @@ export class Actor {
 }
 
 export class Program {
-  constructor({ id, title, kind, quality, review = quality, rating, buzz, cost = 0, genre = '', themes = [], cast = [], castIds = [], topic = '', tier = 'o', outcome = 'standard', category = '', runs = 0, episodes = 0, episodeHours = null, episodeCost = 0, style = '', licenseDays = null, licenseStartDay = null, licenseExpiresDay = null, licenseBaseCost = null, network = '', releaseYear = null, replayStartRuns = 0, replayEndRuns = null, replayCount = 0, freshness = 100, maxFreshness = 100, lastAiredDay = null, completedRuns = 0, origin = '香港', licenseExpiredHandled = false }) {
-    Object.assign(this, { id, title, kind, quality, review, rating, buzz, cost, genre, themes, cast, castIds, topic, tier, outcome, category, runs, episodes, episodeHours, episodeCost, style, licenseDays, licenseStartDay, licenseExpiresDay, licenseBaseCost, network, releaseYear, replayStartRuns, replayEndRuns, replayCount, freshness, maxFreshness, lastAiredDay, completedRuns, origin, licenseExpiredHandled });
+  constructor({ id, title, kind, quality, review = quality, rating, buzz, cost = 0, genre = '', themes = [], cast = [], castIds = [], topic = '', tier = 'o', outcome = 'standard', category = '', runs = 0, episodes = 0, episodeHours = null, episodeCost = 0, style = '', licenseDays = null, licenseStartDay = null, licenseExpiresDay = null, licenseBaseCost = null, network = '', releaseYear = null, replayStartRuns = 0, replayEndRuns = null, replayCount = 0, freshness = 100, maxFreshness = 100, lastAiredDay = null, completedRuns = 0, origin = '香港', licenseExpiredHandled = false, deliveredEpisodes = null, projectId = null }) {
+    Object.assign(this, { id, title, kind, quality, review, rating, buzz, cost, genre, themes, cast, castIds, topic, tier, outcome, category, runs, episodes, episodeHours, episodeCost, style, licenseDays, licenseStartDay, licenseExpiresDay, licenseBaseCost, network, releaseYear, replayStartRuns, replayEndRuns, replayCount, freshness, maxFreshness, lastAiredDay, completedRuns, origin, licenseExpiredHandled, deliveredEpisodes: deliveredEpisodes ?? episodes, projectId });
   }
 }
+
+export class Episode {
+  constructor({
+    id,
+    projectId,
+    episodeNumber,
+    stage = 'pre_production',
+    stageProgress = 0,
+    status = 'pending',
+    fun = 50,
+    originality = 50,
+    direction = 50,
+    acting = 50,
+    technical = 50,
+    errors = 0,
+    cost = 0,
+    days = 0,
+    morale = 80,
+    expectations = 50,
+    eventsHandled = [],
+    pendingEvent = null,
+    qcReport = null,
+    qcDecision = null,
+    airedDay = null,
+    rating = null,
+    revenue = null
+  }) {
+    Object.assign(this, {
+      id, projectId, episodeNumber, stage, stageProgress, status,
+      fun, originality, direction, acting, technical, errors, cost, days,
+      morale, expectations, eventsHandled, pendingEvent, qcReport, qcDecision,
+      airedDay, rating, revenue
+    });
+  }
+}
+
+export class ProductionProject {
+  constructor({
+    id,
+    title,
+    genre = '時裝恩怨',
+    themes = ['愛情'],
+    format = 'drama',
+    episodesCount = 8,
+    episodeHours = 2,
+    targetAudience = 'family',
+    budgetPerEpisode = 150_000,
+    budgetId = 'standard',
+    assignedStudioId = 'studio_1',
+    strategy = 'balanced',
+    plannedStartDate = 1,
+    intendedBroadcastPeriod = 'prime',
+    cast = [],
+    crew = { directorId: 'dir_lee', writerId: 'wri_cheung' },
+    episodes = [],
+    status = 'planning',
+    createdDay = 1,
+    deliveredEpisodesCount = 0,
+    totalCostSpent = 0,
+    ratingsHistory = [],
+    franchiseId = null,
+    seasonNumber = 1,
+    parentProjectId = null,
+    programId = null,
+    notes = ''
+  }) {
+    Object.assign(this, {
+      id, title, genre, themes, format, episodesCount, episodeHours,
+      targetAudience, budgetPerEpisode, budgetId, assignedStudioId, strategy,
+      plannedStartDate, intendedBroadcastPeriod, cast, crew, episodes,
+      status, createdDay, deliveredEpisodesCount, totalCostSpent,
+      ratingsHistory, franchiseId, seasonNumber, parentProjectId, programId, notes
+    });
+  }
+}
+
+export const DEFAULT_STUDIOS = [
+  { id: 'studio_1', name: '1號旗艦電視影城', type: 'drama', level: 1, capacity: 2, efficiency: 1.0, bonus: 0, costPerDay: 8_000, desc: '大型實景影視城，專攻古裝、年代及長篇旗艦大劇，可同時製作 2 集' },
+  { id: 'studio_2', name: '2號綜藝多功能棚', type: 'variety', level: 1, capacity: 2, efficiency: 1.1, bonus: 2, costPerDay: 6_000, desc: '先進多機位綜藝大廠，適合遊戲實況、音樂盛典及清談節目' },
+  { id: 'studio_3', name: '3號數碼新聞即時廠', type: 'news', level: 1, capacity: 2, efficiency: 1.3, bonus: 0, costPerDay: 4_000, desc: '高速即時直播室，專供每日新聞、開市財經與直播盛事急速出街' },
+  { id: 'studio_location', name: '外景及實景攝製組', type: 'location', level: 1, capacity: 2, efficiency: 0.95, bonus: 6, costPerDay: 9_000, desc: '全香港地標實景及海外取景組，真實質感濃厚，大幅提升原創口碑' }
+];
+
+export const DEFAULT_CREWS = [
+  { id: 'dir_lee', name: '李添勝', role: 'director', title: '金牌監製導演', skill: 88, specialty: '古裝武俠', fee: 120_000, desc: '掌控大局能力極強，擅長武俠情義與大河劇集' },
+  { id: 'dir_wai', name: '韋家輝', role: 'director', title: '鬼才編導', skill: 92, specialty: '商戰風雲', fee: 180_000, desc: '破格前衛構思，角色性格極端強烈，收視話題雙高峰' },
+  { id: 'dir_to', name: '杜琪峯', role: 'director', title: '名導巨匠', skill: 95, specialty: '刑偵懸疑', fee: 250_000, desc: '影視巨匠級執導功力，鏡頭調度與氣氛張力頂級' },
+  { id: 'dir_young', name: '新銳獨立導演', role: 'director', title: '新浪潮青年導演', skill: 78, specialty: '青春偶像', fee: 80_000, desc: '貼近年輕一代審美，鏡頭語言清新潮爆' },
+  { id: 'wri_cheung', name: '張華標', role: 'writer', title: '金牌金像編審', skill: 90, specialty: '家族恩怨', fee: 90_000, desc: '善創金句名場面，高潮迭起絕無冷場' },
+  { id: 'wri_chan', name: '陳十三', role: 'writer', title: '奇幻鬼才編劇', skill: 88, specialty: '奇幻靈異', fee: 85_000, desc: '想像力奔放不羈，奇情天馬行空' },
+  { id: 'wri_sit', name: '薛家華', role: 'writer', title: '快手生活編審', skill: 80, specialty: '處境喜劇', fee: 60_000, desc: '貼地市井生活，對白幽默風趣出稿神速' }
+];
 
 export class BiddingEvent {
   constructor({ id, name, quarter, floor, adTarget, sport = '', icon = '🏅' }) {
@@ -170,6 +262,12 @@ export class StationState {
     this.boardHistory = [];
     this.subChannelUnlocked = false;
     this.subChannelSchedule = [];
+    // Deep TV Production Engine State
+    this.productionProjects = [];
+    this.studios = DEFAULT_STUDIOS.map(s => ({ ...s }));
+    this.crews = DEFAULT_CREWS.map(c => ({ ...c }));
+    this.franchises = [];
+    this.activeFilmingEvents = [];
     this.log = [{ quarter:0, text:'電視台開台。片庫已有 12 套節目，24 小時時段全部排好。', type:'neutral' }];
   }
 }
