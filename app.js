@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-sports-calendar-v6';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-shooting-autotick-v7';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -23,6 +23,9 @@ function loadGame(){
         }
         value.franchises ??= [];
         value.activeFilmingEvents ??= [];
+        (value.productionProjects ?? []).forEach(p => {
+          p.autoChoices ??= {};
+        });
         return value;
       }
     }
@@ -496,6 +499,11 @@ function renderActiveProjectsView() {
               <span class="project-meta-tag">導演：${safe(dir?.name || '自聘')}</span>
               <span class="project-meta-tag">編審：${safe(wri?.name || '自聘')}</span>
               <span class="project-meta-tag">時長：${proj.episodeHours}小時/集</span>
+              ${proj.autoChoices && Object.keys(proj.autoChoices).length > 0 ? `
+                <button type="button" class="project-meta-tag" style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.35); cursor:pointer; font-size:0.75rem;" title="點擊可清除此企劃已記住的自動決策設定" data-action="reset-project-auto-choices" data-project-id="${proj.id}">
+                  🤖 已記住 ${Object.keys(proj.autoChoices).length} 項事件自動依循（點擊重設）
+                </button>
+              ` : ''}
             </div>
           </div>
           <div class="project-cost-summary">
@@ -1068,6 +1076,13 @@ function renderFilmingEventModal() {
       <div class="studio-modal-desc">
         《${safe(project.title)}》第 ${ep.episodeNumber} 集正在片場實景攝製中！${safe(ev.description)}
       </div>
+
+      <label class="modal-auto-choice-tick" style="display:flex; align-items:center; gap:10px; margin: 12px 0 16px; padding: 10px 14px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px; cursor: pointer;">
+        <input type="checkbox" id="filming-event-remember-tick" checked style="width:16px; height:16px; accent-color:#3b82f6; cursor:pointer;" />
+        <span style="font-size:0.85rem; color:#e2e8f0; user-select:none;">
+          <strong>☑️ 記住此選擇</strong>：本企劃往後若遇相同突發問題，自動以此方案解決（不再打斷）
+        </span>
+      </label>
 
       <div class="modal-choices-list">
         ${ev.choices.map(c => `
@@ -2944,10 +2959,18 @@ app.addEventListener('click',e=>{
     }
     if(action==='filming-event-choice'){
       if(activeEventModal){
-        const res=handleFilmingEventChoice(state,activeEventModal.projectId,activeEventModal.episodeNumber,button.dataset.choiceId);
-        activeEventModal=null;
-        flash(`【片場決策落實】${res.choiceText}（花費 ${money(res.cost)}）`);
+        const tick = document.getElementById('filming-event-remember-tick');
+        const remember = tick ? tick.checked : true;
+        const res = handleFilmingEventChoice(state, activeEventModal.projectId, activeEventModal.episodeNumber, button.dataset.choiceId, Math.random, remember);
+        activeEventModal = null;
+        flash(`【片場決策落實】${res.choiceText}${res.cost ? `（花費 ${money(res.cost)}）` : ''}${remember ? ' · ☑️ 已記住此企劃自動依循處理' : ''}`);
       }
+      return;
+    }
+    if(action==='reset-project-auto-choices'){
+      resetProjectAutoChoices(state, button.dataset.projectId);
+      flash('已清除該企劃的自動記憶決策，後續突發事件將重新向你請示。');
+      render();
       return;
     }
     if(action==='open-qc-modal'){

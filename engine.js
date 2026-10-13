@@ -2042,7 +2042,9 @@ export function createProductionProject(state, {
     ratingsHistory: [],
     franchiseId,
     seasonNumber,
-    parentProjectId
+    parentProjectId,
+    autoChoices: {},
+    lastManualEventDay: null
   });
 
   state.productionProjects ??= [];
@@ -2075,17 +2077,21 @@ export function advanceProduction(state, days = 1, rng = Math.random) {
     }
 
     const hoursFactor = project.episodeHours === 1 ? 1.25 : project.episodeHours === 2 ? 1.0 : project.episodeHours === 3 ? 0.85 : 0.70;
-    const baseProgressDelta = Math.round(38 * strat.speedMult * studio.efficiency * hoursFactor);
 
     for (const ep of activeEpisodes) {
       if (ep.pendingEvent || ep.status === 'qc_ready') {
         continue;
       }
 
-      ep.days += days;
-      ep.stageProgress += baseProgressDelta;
+      // Shorten shooting time: filming stage gets an extra 25% speed bonus
+      const stageFactor = ep.stage === 'filming' ? 1.25 : 1.0;
+      // Faster base progress delta (55 vs 38), cutting stage duration to ~1.5-2 days
+      const baseProgressDelta = Math.round(55 * strat.speedMult * studio.efficiency * hoursFactor * stageFactor);
 
-      const dailyCost = Math.round((project.budgetPerEpisode * 0.75 / (stages.length * 2.5)) * strat.costMult);
+      ep.days += days;
+      ep.stageProgress += baseProgressDelta * days;
+
+      const dailyCost = Math.round((project.budgetPerEpisode * 0.75 / (stages.length * 2.0)) * strat.costMult);
       ep.cost += dailyCost;
       project.totalCostSpent += dailyCost;
       state.cash = Math.max(0, state.cash - dailyCost);
@@ -2094,27 +2100,77 @@ export function advanceProduction(state, days = 1, rng = Math.random) {
         ep.errors += 1;
       }
 
-      if (ep.stage === 'filming' && !ep.pendingEvent && ep.eventsHandled.length < 2 && rng() < 0.25) {
-        const availableEvents = FILMING_EVENTS_POOL.filter(ev =>
-          !ep.eventsHandled.some(h => h.eventId === ev.id)
-        );
-        if (availableEvents.length) {
-          const chosenEv = availableEvents[Math.floor(rng() * availableEvents.length)];
-          ep.pendingEvent = {
-            id: chosenEv.id,
-            title: chosenEv.title,
-            description: chosenEv.description,
-            choices: chosenEv.choices,
-            day: state.day,
-            projectId: project.id,
-            episodeNumber: ep.episodeNumber
-          };
-          state.activeFilmingEvents ??= [];
-          state.activeFilmingEvents.push({
-            ...ep.pendingEvent,
-            projectTitle: project.title
-          });
-          note(state, `【片場突發事件】《${project.title}》第 ${ep.episodeNumber} 集：${chosenEv.title}！請前往節目製作台做決策。`, 'neutral');
+      // Event trigger in filming stage:
+      // Maximum 1 event per episode (ep.eventsHandled.length < 1) to avoid daily issue spam
+      // Probability 0.15 (down from 0.25)
+      if (ep.stage === 'filming' && !ep.pendingEvent && ep.eventsHandled.length < 1 && rng() < 0.15) {
+        // Collect all event IDs handled in this project so far to prevent seeing the same issue
+        const projectHandledIds = project.episodes.flatMap(e => (e.eventsHandled ?? []).map(h => h.eventId));
+        let candidatePool = FILMING_EVENTS_POOL.filter(ev => !projectHandledIds.includes(ev.id));
+
+        if (!candidatePool.length) {
+          // If all 13 events have appeared, pick events not handled in the last 4 episodes
+          const recentHandledIds = project.episodes
+            .filter(e => e.episodeNumber >= ep.episodeNumber - 4 && e.episodeNumber < ep.episodeNumber)
+            .flatMap(e => (e.eventsHandled ?? []).map(h => h.eventId));
+          candidatePool = FILMING_EVENTS_POOL.filter(ev => !recentHandledIds.includes(ev.id));
+        }
+        if (!candidatePool.length) candidatePool = FILMING_EVENTS_POOL;
+
+        const chosenEv = candidatePool[Math.floor(rng() * candidatePool.length)];
+
+        // Check if player enabled the tick to auto-follow remembered choice for this production
+        if (project.autoChoices && project.autoChoices[chosenEv.id]) {
+          const autoChoiceId = project.autoChoices[chosenEv.id];
+          const choice = chosenEv.choices.find(c => c.id === autoChoiceId);
+          if (choice) {
+            if (choice.cost) {
+              state.cash = Math.max(0, state.cash - choice.cost);
+              ep.cost += choice.cost;
+              project.totalCostSpent += choice.cost;
+            }
+            if (choice.acting) ep.acting = clamp(ep.acting + choice.acting, 10, 100);
+            if (choice.direction) ep.direction = clamp(ep.direction + choice.direction, 10, 100);
+            if (choice.originality) ep.originality = clamp(ep.originality + choice.originality, 10, 100);
+            if (choice.fun) ep.fun = clamp(ep.fun + choice.fun, 10, 100);
+            if (choice.technical) ep.technical = clamp(ep.technical + choice.technical, 10, 100);
+            if (choice.expectations) ep.expectations = clamp(ep.expectations + choice.expectations, 10, 100);
+            if (choice.morale) ep.morale = clamp(ep.morale + choice.morale, 0, 100);
+            if (choice.errors) ep.errors = Math.max(0, ep.errors + choice.errors);
+            if (choice.days) ep.days += choice.days;
+
+            ep.eventsHandled.push({
+              eventId: chosenEv.id,
+              choiceId: autoChoiceId,
+              choiceText: choice.text,
+              day: state.day,
+              autoResolved: true
+            });
+
+            note(state, `【自動決策】《${project.title}》第 ${ep.episodeNumber} 集遇「${chosenEv.title}」，已按記憶設定自動執行【${choice.text}】！`, 'good');
+            // Auto-resolved: no pendingEvent, no game interruption, shooting proceeds smoothly!
+          }
+        } else {
+          // Manual prompt required: enforce project-level cooldown of at least 2 days between manual prompts
+          const daysSinceLastManual = state.day - (project.lastManualEventDay ?? -99);
+          if (daysSinceLastManual >= 2) {
+            ep.pendingEvent = {
+              id: chosenEv.id,
+              title: chosenEv.title,
+              description: chosenEv.description,
+              choices: chosenEv.choices,
+              day: state.day,
+              projectId: project.id,
+              episodeNumber: ep.episodeNumber
+            };
+            project.lastManualEventDay = state.day;
+            state.activeFilmingEvents ??= [];
+            state.activeFilmingEvents.push({
+              ...ep.pendingEvent,
+              projectTitle: project.title
+            });
+            note(state, `【片場突發事件】《${project.title}》第 ${ep.episodeNumber} 集：${chosenEv.title}！請前往節目製作台做決策。`, 'neutral');
+          }
         }
       }
 
@@ -2274,7 +2330,7 @@ export function generateQCReport(episode, project) {
   };
 }
 
-export function handleFilmingEventChoice(state, projectId, episodeNumber, choiceId, rng = Math.random) {
+export function handleFilmingEventChoice(state, projectId, episodeNumber, choiceId, rng = Math.random, remember = false) {
   const project = (state.productionProjects ?? []).find(p => p.id === projectId);
   if (!project) throw Error('找不到企劃。');
   const ep = project.episodes.find(e => e.episodeNumber === episodeNumber);
@@ -2283,6 +2339,11 @@ export function handleFilmingEventChoice(state, projectId, episodeNumber, choice
   const eventDef = FILMING_EVENTS_POOL.find(ev => ev.id === ep.pendingEvent.id);
   const choice = eventDef?.choices?.find(c => c.id === choiceId);
   if (!choice) throw Error('無效的決策選項。');
+
+  if (remember) {
+    project.autoChoices ??= {};
+    project.autoChoices[eventDef.id] = choiceId;
+  }
 
   if (choice.cost) {
     state.cash = Math.max(0, state.cash - choice.cost);
@@ -2313,8 +2374,22 @@ export function handleFilmingEventChoice(state, projectId, episodeNumber, choice
   const eventTitle = ep.pendingEvent.title;
   ep.pendingEvent = null;
 
-  note(state, `【片場決策】《${project.title}》第 ${episodeNumber} 集：針對「${eventTitle}」選擇了「${choice.text}」，製作繼續推進！`, 'good');
-  return ep;
+  note(state, `【片場決策】《${project.title}》第 ${episodeNumber} 集：針對「${eventTitle}」選擇了「${choice.text}」${remember ? '（已設為本企劃往後遇相同事件自動執行方案）' : ''}，製作繼續推進！`, 'good');
+  return {
+    ...ep,
+    episode: ep,
+    choiceText: choice.text,
+    cost: choice.cost ?? 0,
+    remember
+  };
+}
+
+export function resetProjectAutoChoices(state, projectId) {
+  const project = (state.productionProjects ?? []).find(p => p.id === projectId);
+  if (!project) throw Error('找不到企劃。');
+  project.autoChoices = {};
+  note(state, `已重設《${project.title}》的事件自動處理記憶設定。`, 'neutral');
+  return project;
 }
 
 export function handleQualityControlDecision(state, projectId, episodeNumber, decisionId, rng = Math.random) {

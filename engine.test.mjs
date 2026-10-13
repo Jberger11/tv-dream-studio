@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -1606,6 +1606,65 @@ test('interactive filming events trigger during filming and choices persist cons
   assert.equal(ep.pendingEvent, null, 'Pending event must be resolved');
   assert.equal(ep.eventsHandled.length, 1);
   assert.equal(ep.eventsHandled[0].eventId, eventId);
+});
+
+test('filming events remember player choice via tick and automatically resolve recurring issues for the project', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '全自動港劇',
+    format: 'drama',
+    episodesCount: 2,
+    actorIds: ['bosco', 'jessica']
+  });
+
+  const ep1 = proj.episodes[0];
+  ep1.stage = 'filming';
+  ep1.status = 'in_progress';
+
+  // Episode 1 encounters a filming event
+  advanceProduction(state, 1, () => 0.05);
+  assert.ok(ep1.pendingEvent, 'Episode 1 should encounter filming event');
+  const eventId = ep1.pendingEvent.id;
+  const choiceId = ep1.pendingEvent.choices[0].id;
+
+  // Player ticks remember (remember = true)
+  const res = handleFilmingEventChoice(state, proj.id, ep1.episodeNumber, choiceId, () => 0.5, true);
+  assert.equal(res.remember, true);
+  assert.equal(proj.autoChoices[eventId], choiceId, 'Project must save auto choice for this event');
+  assert.equal(ep1.pendingEvent, null);
+
+  // Now test resetProjectAutoChoices
+  resetProjectAutoChoices(state, proj.id);
+  assert.deepEqual(proj.autoChoices, {}, 'resetProjectAutoChoices must clear auto choices');
+
+  // Re-save auto-choice
+  proj.autoChoices['outstanding_acting'] = 'b';
+  assert.equal(proj.autoChoices['outstanding_acting'], 'b');
+});
+
+test('shooting time is shortened with accelerated filming progress and single event limit', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '極速短拍劇',
+    format: 'drama',
+    strategy: 'fast',
+    episodesCount: 1,
+    actorIds: ['bosco', 'jessica']
+  });
+
+  const ep = proj.episodes[0];
+  ep.stage = 'filming';
+  ep.status = 'in_progress';
+  ep.stageProgress = 0;
+
+  // In fast strategy, filming stage has speed bonus + stage bonus (>70% per day, finishes in 1-2 days)
+  advanceProduction(state, 1, () => 0.5);
+  assert.ok(ep.stage === 'post_production' || ep.stageProgress >= 70, `Filming should advance rapidly on fast, got stage: ${ep.stage}, progress: ${ep.stageProgress}%`);
+
+  // Max 1 event per episode: already handled 1 event -> will not trigger another
+  ep.eventsHandled.push({ eventId: 'test_event', choiceId: 'a', day: 1 });
+  advanceProduction(state, 1, () => 0.01);
+  assert.equal(ep.pendingEvent, null, 'Should not trigger second event when ep already handled 1 event');
 });
 
 test('quality control report generation and player decisions (release, fix, re-edit, reshoot)', () => {
