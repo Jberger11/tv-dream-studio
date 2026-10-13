@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261012-tvproduction-v3-fix';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-tvproduction-v4-fix';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -59,6 +59,7 @@ let rivalsTab='all';
 let studioSubTab='active'; // 'active' | 'create' | 'studios' | 'franchises' | 'talent'
 let activeEventModal=null; // { projectId, episodeNumber }
 let activeQCModal=null; // { projectId, episodeNumber }
+let newProjCastFilter='all'; // 'all' | 'avail' | 'mine' | 'free'
 let newProjState={
   title: '',
   format: 'drama',
@@ -480,8 +481,8 @@ function renderActiveProjectsView() {
             </div>
             <div class="project-meta-pills">
               <span class="project-meta-tag">片廠：${safe(studio?.name || '專用影棚')}</span>
-              <span class="project-meta-tag">策略：${safe(strat?.name || '平衡')}</span>
-              <span class="project-meta-tag">受眾：${safe(aud?.name || '全家歡')}</span>
+              <span class="project-meta-tag">策略：${safe(strat?.name || strat?.label || '平衡')}</span>
+              <span class="project-meta-tag">受眾：${safe(aud?.name || aud?.label || '全家歡')}</span>
               <span class="project-meta-tag">導演：${safe(dir?.name || '自聘')}</span>
               <span class="project-meta-tag">編審：${safe(wri?.name || '自聘')}</span>
               <span class="project-meta-tag">時長：${proj.episodeHours}小時/集</span>
@@ -583,15 +584,53 @@ function renderActiveProjectsView() {
 
 function renderCreateProjectView() {
   const isDrama = newProjState.format === 'drama';
-  const formatObj = CONTENT_TYPES.find(c => c.id === newProjState.format) || CONTENT_TYPES[0];
+  const isNewsOrDoc = newProjState.format === 'news' || newProjState.format === 'documentary';
+  const isVarietyOrLive = newProjState.format === 'variety' || newProjState.format === 'live';
   const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === newProjState.assignedStudioId) || DEFAULT_STUDIOS[0];
   const strat = PRODUCTION_STRATEGIES.find(s => s.id === newProjState.strategy) || PRODUCTION_STRATEGIES[1];
   const budgetTier = BUDGETS.find(b => b.id === newProjState.budgetId) || BUDGETS[1];
   const suggestedTitles = generateSuggestedTitles(newProjState.format, newProjState.genre, '', newProjState.themes);
 
-  const minCast = isDrama ? 2 : 1;
-  const maxCast = isDrama ? 4 : 2;
-  const canSubmit = state.cash >= 300_000 && newProjState.actorIds.length >= minCast;
+  const minCast = isDrama ? 2 : isNewsOrDoc ? 0 : 1;
+  const maxCast = isDrama ? 4 : isVarietyOrLive ? 3 : 2;
+
+  // Upfront pre-production commitment (25%) calculation & validation
+  const perEpisodeBudget = Math.round(budgetTier.cost * (isDrama ? 1 : 0.85) * (1 + (newProjState.episodeHours - 1) * 0.45));
+  const totalCost = perEpisodeBudget * newProjState.episodesCount;
+  let upfrontCost = Math.round(totalCost * 0.25);
+  const scriptDiscount = isToolActive(state, 'script_workshop');
+  if (scriptDiscount) upfrontCost = Math.round(upfrontCost * 0.90);
+  const hasCash = state.cash >= upfrontCost;
+  const hasMinCast = newProjState.actorIds.length >= minCast;
+  const canSubmit = hasCash && hasMinCast;
+
+  const crewLabels = {
+    drama: { director: '監製／執導導演', writer: '編審／金牌編劇' },
+    variety: { director: '綜藝監製／節目編導', writer: '編審／節目企劃' },
+    news: { director: '新聞總監／採訪主任', writer: '主筆編審／首席記者' },
+    documentary: { director: '紀錄片總監／執行導演', writer: '專題編審／調研編劇' },
+    talkshow: { director: '清談節目監製／現場編導', writer: '題目編審／主筆企劃' },
+    live: { director: '大會總監製／導播導演', writer: '流程編審／大會撰稿' }
+  }[newProjState.format] || { director: '監製／執導導演', writer: '編審／金牌編劇' };
+
+  const allActors = ACTORS;
+  const filteredActors = allActors.filter(a => {
+    const avail = checkPerformerAvailability(state, a.id);
+    const talent = state.talent[a.id];
+    const isMine = talent?.station === 'player' && talent?.contractExpiresDay > state.day;
+    const isCompetitorLocked = talent?.station && talent.station !== 'player' && talent.station !== 'free' && Number.isInteger(talent.contractExpiresDay) && talent.contractExpiresDay > state.day;
+
+    if (newProjCastFilter === 'avail') {
+      return avail.available && !isCompetitorLocked;
+    }
+    if (newProjCastFilter === 'mine') {
+      return isMine;
+    }
+    if (newProjCastFilter === 'free') {
+      return !isCompetitorLocked && !isMine;
+    }
+    return true;
+  });
 
   return `<div class="create-proj-form">
     <div class="panel-heading">
@@ -666,8 +705,8 @@ function renderCreateProjectView() {
         <div style="display:flex; flex-direction:column; gap:6px;">
           ${TARGET_AUDIENCES.map(aud => `
             <button class="style-choice ${newProjState.targetAudience === aud.id ? 'chosen' : ''}" data-action="new-proj-audience" data-value="${aud.id}">
-              <strong>${aud.name}</strong>
-              <small>${aud.desc}</small>
+              <strong>${safe(aud.name || aud.label)}</strong>
+              <small>${safe(aud.desc)}</small>
             </button>
           `).join('')}
         </div>
@@ -678,8 +717,8 @@ function renderCreateProjectView() {
         <div style="display:flex; flex-direction:column; gap:6px;">
           ${PRODUCTION_STRATEGIES.map(st => `
             <button class="style-choice ${newProjState.strategy === st.id ? 'chosen' : ''}" data-action="new-proj-strategy" data-value="${st.id}">
-              <strong>${st.name}</strong>
-              <small>${st.desc}</small>
+              <strong>${safe(st.name || st.label)}</strong>
+              <small>${safe(st.desc)}</small>
             </button>
           `).join('')}
         </div>
@@ -734,7 +773,7 @@ function renderCreateProjectView() {
     <!-- Crew: Director & Writer -->
     <div class="form-grid-2col">
       <div class="form-group">
-        <label class="form-label">監製／執導導演</label>
+        <label class="form-label">${crewLabels.director}</label>
         <div style="display:flex; flex-direction:column; gap:6px;">
           ${(state.crews ?? DEFAULT_CREWS).filter(c => c.role === 'director').map(d => `
             <button class="style-choice ${newProjState.directorId === d.id ? 'chosen' : ''}" data-action="new-proj-director" data-value="${d.id}">
@@ -746,7 +785,7 @@ function renderCreateProjectView() {
       </div>
 
       <div class="form-group">
-        <label class="form-label">編審／金牌編劇</label>
+        <label class="form-label">${crewLabels.writer}</label>
         <div style="display:flex; flex-direction:column; gap:6px;">
           ${(state.crews ?? DEFAULT_CREWS).filter(c => c.role === 'writer').map(w => `
             <button class="style-choice ${newProjState.writerId === w.id ? 'chosen' : ''}" data-action="new-proj-writer" data-value="${w.id}">
@@ -758,26 +797,48 @@ function renderCreateProjectView() {
       </div>
     </div>
 
-    <!-- Casting Selection with Conflict Checks -->
+    <!-- Casting Selection with Conflict Checks & Filters -->
     <div class="form-group">
-      <label class="form-label">
-        演出陣容挑選 (已選 ${newProjState.actorIds.length} / ${maxCast} 位，最少 ${minCast} 位)
-      </label>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+        <label class="form-label" style="margin-bottom:0;">
+          ${isDrama ? '領銜主演陣容' : isNewsOrDoc ? '特約主持／記者嘉賓（選填）' : '主持／嘉賓陣容'} (已選 ${newProjState.actorIds.length} / ${maxCast} 位${minCast > 0 ? `，最少 ${minCast} 位` : '，內部團隊主理'})
+        </label>
+        <div class="cast-filter-row" style="margin-bottom:0;">
+          <button class="choice mini ${newProjCastFilter === 'all' ? 'chosen' : ''}" data-action="new-proj-cast-filter" data-value="all">全部 (${allActors.length})</button>
+          <button class="choice mini ${newProjCastFilter === 'avail' ? 'chosen' : ''}" data-action="new-proj-cast-filter" data-value="avail">檔期可用</button>
+          <button class="choice mini ${newProjCastFilter === 'mine' ? 'chosen' : ''}" data-action="new-proj-cast-filter" data-value="mine">旗下專屬</button>
+          <button class="choice mini ${newProjCastFilter === 'free' ? 'chosen' : ''}" data-action="new-proj-cast-filter" data-value="free">自由身可聘</button>
+        </div>
+      </div>
+
+      ${isNewsOrDoc && newProjState.actorIds.length === 0 ? `
+        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; font-size: 0.78rem; color: #93c5fd;">
+          📰 <strong>內部編採製作：</strong>新聞及紀錄片默認由電視台全職編採記者與新聞主播負責，無需額外聘請明星藝人。如需特約主持，亦可於下方挑選 1 至 2 位。
+        </div>
+      ` : ''}
+
       <div class="cast-select-container">
-        ${ACTORS.map(a => {
+        ${filteredActors.length === 0 ? `
+          <div style="grid-column: 1 / -1; padding: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem;">
+            此篩選條件下無符合藝人。可切換至「全部」或「檔期可用」，或前往【藝人台柱中心】簽約專屬藝人。
+          </div>
+        ` : filteredActors.map(a => {
           const avail = checkPerformerAvailability(state, a.id);
           const isSelected = newProjState.actorIds.includes(a.id);
           const talent = state.talent[a.id];
-          const isMine = talent?.station === 'player';
+          const isMine = talent?.station === 'player' && talent?.contractExpiresDay > state.day;
+          const isCompetitorLocked = talent?.station && talent.station !== 'player' && talent.station !== 'free' && Number.isInteger(talent.contractExpiresDay) && talent.contractExpiresDay > state.day;
 
-          return `<div class="cast-pick-card ${isSelected ? 'selected' : ''} ${!avail.available ? 'busy' : ''}" data-action="new-proj-actor" data-value="${a.id}">
+          return `<div class="cast-pick-card ${isSelected ? 'selected' : ''} ${(!avail.available || isCompetitorLocked) ? 'busy' : ''}" data-action="new-proj-actor" data-value="${a.id}">
             <div>
               <div class="cast-pick-name">${a.name} ${isMine ? '<span style="color:#10b981; font-size:0.65rem;">(旗下)</span>' : ''}</div>
               <div style="font-size:0.68rem; color:#94a3b8;">知名度 ${(talent?.fame ?? (a.skill - 10)).toFixed(1)} · 演技 ${a.skill}</div>
             </div>
             <div>
-              ${!avail.available ? `
-                <span class="cast-pick-status busy" title="${safe(avail.reason)}">⚠️ 衝突</span>
+              ${isCompetitorLocked ? `
+                <span class="cast-pick-status busy" title="正與${getStationName(talent.station)}簽署專屬約">🔒 ${getStationName(talent.station)}</span>
+              ` : !avail.available ? `
+                <span class="cast-pick-status busy" title="${safe(avail.reason)}">⚠️ 檔期衝突</span>
               ` : isSelected ? `
                 <span class="cast-pick-status free">✓ 已選</span>
               ` : `
@@ -789,8 +850,33 @@ function renderCreateProjectView() {
       </div>
     </div>
 
-    <button class="primary-button" data-action="new-proj-submit" ${!canSubmit ? 'disabled' : ''}>
-      ${!canSubmit ? (newProjState.actorIds.length < minCast ? `最少挑選 ${minCast} 位演出演員` : '資金不足') : `正式開機立項《${safe(newProjState.title || (isDrama ? `${newProjState.genre}新劇` : '精選節目'))}》`} ↗
+    <!-- Budget Summary Bar -->
+    <div class="project-budget-summary-bar">
+      <div class="summary-metric">
+        <small>單集製作預算</small>
+        <strong>${money(perEpisodeBudget)} / 集</strong>
+      </div>
+      <div class="summary-metric">
+        <small>全劇 ${newProjState.episodesCount} 集總預算</small>
+        <strong>${money(totalCost)}</strong>
+      </div>
+      <div class="summary-metric">
+        <small>前期啟動金 (25% 籌備款${scriptDiscount ? ' · 編劇坊 9折' : ''})</small>
+        <strong class="${hasCash ? 'gold-text' : 'danger'}">${money(upfrontCost)}</strong>
+      </div>
+      <div class="summary-metric">
+        <small>電視台當前可用資金</small>
+        <strong class="${hasCash ? '' : 'danger'}">${money(state.cash)}</strong>
+      </div>
+    </div>
+
+    <button class="primary-button project-submit-btn" style="margin-top:12px; width:100%; font-size:1.05rem; padding:12px;" data-action="new-proj-submit" ${!canSubmit ? 'disabled' : ''}>
+      ${!hasCash
+        ? `資金不足 · 需前期啟動準備金 ${money(upfrontCost)}（現有資金 ${money(state.cash)}）`
+        : !hasMinCast
+          ? (minCast === 1 ? '最少須挑選 1 位節目主持或司儀' : `最少須挑選 ${minCast} 位主要主演`)
+          : `正式開機立項《${safe(newProjState.title || (isDrama ? `${newProjState.genre}新劇` : '精選節目'))}》· 扣除前期款 ${money(upfrontCost)} ↗`
+      }
     </button>
   </div>`;
 }
@@ -2708,6 +2794,10 @@ app.addEventListener('click',e=>{
       if(value!=='drama'){
         newProjState.genre=value==='variety'?'綜藝生活':value==='news'?'港聞焦點':value==='documentary'?'社會實況':value==='talkshow'?'午夜深情':'大型盛事';
       }
+      const maxAllowed = value === 'drama' ? 4 : (value === 'variety' || value === 'live') ? 3 : 2;
+      if (newProjState.actorIds.length > maxAllowed) {
+        newProjState.actorIds = newProjState.actorIds.slice(0, maxAllowed);
+      }
       render();
       return;
     }
@@ -2731,8 +2821,11 @@ app.addEventListener('click',e=>{
     if(action==='new-proj-studio'){newProjState.assignedStudioId=value;render();return;}
     if(action==='new-proj-director'){newProjState.directorId=value;render();return;}
     if(action==='new-proj-writer'){newProjState.writerId=value;render();return;}
+    if(action==='new-proj-cast-filter'){newProjCastFilter=value;render();return;}
     if(action==='new-proj-actor'){
-      const maxCast=newProjState.format==='drama'?4:2;
+      const isDrama = newProjState.format === 'drama';
+      const isVarietyOrLive = newProjState.format === 'variety' || newProjState.format === 'live';
+      const maxCast = isDrama ? 4 : isVarietyOrLive ? 3 : 2;
       if(newProjState.actorIds.includes(value)){
         newProjState.actorIds=newProjState.actorIds.filter(id=>id!==value);
       } else {
@@ -2746,7 +2839,7 @@ app.addEventListener('click',e=>{
         if(newProjState.actorIds.length<maxCast){
           newProjState.actorIds.push(value);
         } else {
-          throw Error(`此形態節目最多選 ${maxCast} 位演員。`);
+          throw Error(`此形態節目最多選 ${maxCast} 位演職人員。`);
         }
       }
       render();
@@ -2762,7 +2855,10 @@ app.addEventListener('click',e=>{
     }
     if(action==='new-proj-pick-title'){newProjState.title=value;render();return;}
     if(action==='new-proj-submit'){
-      const proj=createProductionProject(state,newProjState);
+      const proj=createProductionProject(state,{
+        ...newProjState,
+        crew: { directorId: newProjState.directorId, writerId: newProjState.writerId }
+      });
       newProjState={
         title: '',
         format: 'drama',
@@ -2778,6 +2874,7 @@ app.addEventListener('click',e=>{
         writerId: 'wri_cheung',
         actorIds: []
       };
+      newProjCastFilter='all';
       studioSubTab='active';
       resetScroll=true;
       flash(`《${proj.title}》已成功立項開機！片廠現正全力投入第 1 階段前期製作。`);
@@ -3021,6 +3118,7 @@ app.addEventListener('click',e=>{
       studioSubTab='active';
       activeEventModal=null;
       activeQCModal=null;
+      newProjCastFilter='all';
       newProjState={
         title: '',
         format: 'drama',

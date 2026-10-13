@@ -1749,5 +1749,72 @@ test('studio facility upgrade increases concurrent episode capacity and producti
   assert.equal(state.cash, initialCash - 1_500_000);
 });
 
+test('TV production project creation enforces format-specific casting and verifies 25% upfront budget', () => {
+  const state = newGame();
+
+  // 1. Target audiences and production strategies must have both name and label
+  for (const aud of TARGET_AUDIENCES) {
+    assert.ok(aud.name && aud.label, `Audience ${aud.id} must have both name and label`);
+    assert.equal(aud.name, aud.label);
+  }
+  for (const strat of PRODUCTION_STRATEGIES) {
+    assert.ok(strat.name && strat.label, `Strategy ${strat.id} must have both name and label`);
+    assert.equal(strat.name, strat.label);
+  }
+
+  // 2. News allows 0 actors (in-house news team)
+  const initialCash = state.cash;
+  const newsProj = createProductionProject(state, {
+    title: '六點半港聞焦點',
+    format: 'news',
+    episodesCount: 4,
+    budgetId: 'standard',
+    actorIds: [] // 0 actors allowed
+  });
+  assert.ok(newsProj);
+  assert.equal(newsProj.cast.length, 0);
+  assert.ok(state.cash < initialCash, 'Upfront budget must be deducted');
+
+  // 3. News with > 2 actors throws error
+  assert.throws(() => {
+    createProductionProject(state, {
+      title: '超員新聞',
+      format: 'news',
+      episodesCount: 2,
+      actorIds: ['bosco', 'sheren', 'ali']
+    });
+  }, /新聞及紀錄片最多可挑選 2 位/);
+
+  // 4. Drama requires 2 to 4 actors
+  assert.throws(() => {
+    createProductionProject(state, {
+      title: '缺人劇集',
+      format: 'drama',
+      episodesCount: 2,
+      actorIds: ['bosco']
+    });
+  }, /劇集製作須挑選 2 至 4 位主演/);
+
+  // 5. Variety requires 1 to 3 hosts
+  assert.throws(() => {
+    createProductionProject(state, {
+      title: '無主持綜藝',
+      format: 'variety',
+      episodesCount: 2,
+      actorIds: []
+    });
+  }, /此形態節目須挑選 1 至 3 位主持或司儀/);
+
+  const varietyProj = createProductionProject(state, {
+    title: '全城綜藝之王',
+    format: 'variety',
+    episodesCount: 2,
+    actorIds: ['edaan']
+  });
+  assert.ok(varietyProj);
+  assert.equal(varietyProj.cast.length, 1);
+});
+
+
 
 

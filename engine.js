@@ -3,16 +3,16 @@ import { Actor, Program, BiddingEvent, StationState, Episode, ProductionProject,
 export { DEFAULT_STUDIOS, DEFAULT_CREWS };
 
 export const TARGET_AUDIENCES = [
-  { id: 'family', label: '👨‍👩‍👧‍👦 合家歡（家庭觀眾）', preferredGenres: ['處境劇','家庭','喜劇'], preferredHours: [19, 20], appealBonus: 1.15, desc: '香港晚飯黃金檔基本盤，重視溫馨笑料與共鳴處境' },
-  { id: 'youth', label: '🎓 青年族群（學生潮流）', preferredGenres: ['青春','科幻','奇幻','偶像'], preferredHours: [21, 22, 23], appealBonus: 1.20, desc: '社交媒體討論熱潮主力，偏愛新穎高概念與年輕偶像' },
-  { id: 'working', label: '💼 上班族（白領社群）', preferredGenres: ['商戰','刑偵','律政','醫療'], preferredHours: [21, 22, 23], appealBonus: 1.18, desc: '偏好節奏緊湊、職場鬥爭及專業劇真實質感' },
-  { id: 'silver', label: '👵 銀髮族（長者觀眾）', preferredGenres: ['歷史','武俠','家庭','社會寫實'], preferredHours: [11, 12, 13, 14, 15], appealBonus: 1.12, desc: '午後與清晨忠實觀眾，喜愛懷舊情義、武俠及大河長劇' }
+  { id: 'family', name: '👨‍👩‍👧‍👦 合家歡（家庭觀眾）', label: '👨‍👩‍👧‍👦 合家歡（家庭觀眾）', preferredGenres: ['處境劇','家庭','喜劇'], preferredHours: [19, 20], appealBonus: 1.15, desc: '香港晚飯黃金檔基本盤，重視溫馨笑料與共鳴處境' },
+  { id: 'youth', name: '🎓 青年族群（學生潮流）', label: '🎓 青年族群（學生潮流）', preferredGenres: ['青春','科幻','奇幻','偶像'], preferredHours: [21, 22, 23], appealBonus: 1.20, desc: '社交媒體討論熱潮主力，偏愛新穎高概念與年輕偶像' },
+  { id: 'working', name: '💼 上班族（白領社群）', label: '💼 上班族（白領社群）', preferredGenres: ['商戰','刑偵','律政','醫療'], preferredHours: [21, 22, 23], appealBonus: 1.18, desc: '偏好節奏緊湊、職場鬥爭及專業劇真實質感' },
+  { id: 'silver', name: '👵 銀髮族（長者觀眾）', label: '👵 銀髮族（長者觀眾）', preferredGenres: ['歷史','武俠','家庭','社會寫實'], preferredHours: [11, 12, 13, 14, 15], appealBonus: 1.12, desc: '午後與清晨忠實觀眾，喜愛懷舊情義、武俠及大河長劇' }
 ];
 
 export const PRODUCTION_STRATEGIES = [
-  { id: 'fast', label: '⚡ 速戰速決（低成本快拍）', speedMult: 1.5, costMult: 0.75, errorRate: 0.25, qualityMod: -6, desc: '推進速度 +50%，成本節省 25%，但失誤穿崩率偏高' },
-  { id: 'balanced', label: '⚖️ 平衡推進（標準工業化）', speedMult: 1.0, costMult: 1.0, errorRate: 0.10, qualityMod: 0, desc: '標準製作節奏與預算，兼顧進度與品質，各項指標穩定' },
-  { id: 'quality', label: '⭐ 追求極致（慢工出細貨）', speedMult: 0.7, costMult: 1.35, errorRate: 0.03, qualityMod: 12, desc: '耗時多 30%，成本高 35%，失誤率極低，全體屬性大幅提升' }
+  { id: 'fast', name: '⚡ 速戰速決（低成本快拍）', label: '⚡ 速戰速決（低成本快拍）', speedMult: 1.5, costMult: 0.75, errorRate: 0.25, qualityMod: -6, desc: '推進速度 +50%，成本節省 25%，但失誤穿崩率偏高' },
+  { id: 'balanced', name: '⚖️ 平衡推進（標準工業化）', label: '⚖️ 平衡推進（標準工業化）', speedMult: 1.0, costMult: 1.0, errorRate: 0.10, qualityMod: 0, desc: '標準製作節奏與預算，兼顧進度與品質，各項指標穩定' },
+  { id: 'quality', name: '⭐ 追求極致（慢工出細貨）', label: '⭐ 追求極致（慢工出細貨）', speedMult: 0.7, costMult: 1.35, errorRate: 0.03, qualityMod: 12, desc: '耗時多 30%，成本高 35%，失誤率極低，全體屬性大幅提升' }
 ];
 
 export const PRODUCTION_STAGES = [
@@ -1870,6 +1870,8 @@ export function createProductionProject(state, {
   intendedBroadcastPeriod = 'prime',
   actorIds = [],
   crew = { directorId: 'dir_lee', writerId: 'wri_cheung' },
+  directorId,
+  writerId,
   franchiseId = null,
   seasonNumber = 1,
   parentProjectId = null
@@ -1898,10 +1900,18 @@ export function createProductionProject(state, {
     if (actorIds.length < 2 || actorIds.length > 4) {
       throw Error('劇集製作須挑選 2 至 4 位主演。');
     }
-    for (const actorId of actorIds) {
-      const avail = checkPerformerAvailability(state, actorId);
-      if (!avail.available) throw Error(avail.reason);
+  } else if (format === 'news' || format === 'documentary') {
+    if (actorIds.length > 2) {
+      throw Error('新聞及紀錄片最多可挑選 2 位主持或解說嘉賓。');
     }
+  } else {
+    if (actorIds.length < 1 || actorIds.length > 3) {
+      throw Error('此形態節目須挑選 1 至 3 位主持或司儀。');
+    }
+  }
+  for (const actorId of actorIds) {
+    const avail = checkPerformerAvailability(state, actorId);
+    if (!avail.available) throw Error(avail.reason);
   }
 
   state.cash -= upfrontCost;
@@ -1909,8 +1919,11 @@ export function createProductionProject(state, {
   const projectTitle = title.trim() || generateSuggestedTitles(format, genre, '', themes)[0] || `新劇開拍 ${state.day}日`;
   const projectId = `proj-${state.day}-${Math.floor(rng() * 100000)}`;
 
-  const director = DEFAULT_CREWS.find(c => c.id === crew.directorId) || DEFAULT_CREWS[0];
-  const writer = DEFAULT_CREWS.find(c => c.id === crew.writerId) || DEFAULT_CREWS[4];
+  const effectiveDirectorId = crew?.directorId || directorId || 'dir_lee';
+  const effectiveWriterId = crew?.writerId || writerId || 'wri_cheung';
+  const effectiveCrew = { directorId: effectiveDirectorId, writerId: effectiveWriterId };
+  const director = DEFAULT_CREWS.find(c => c.id === effectiveDirectorId) || DEFAULT_CREWS[0];
+  const writer = DEFAULT_CREWS.find(c => c.id === effectiveWriterId) || DEFAULT_CREWS[4];
   const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === assignedStudioId) || DEFAULT_STUDIOS[0];
   const strat = PRODUCTION_STRATEGIES.find(s => s.id === strategy) || PRODUCTION_STRATEGIES[1];
 
@@ -1983,7 +1996,7 @@ export function createProductionProject(state, {
     plannedStartDate,
     intendedBroadcastPeriod,
     cast: castList,
-    crew,
+    crew: effectiveCrew,
     episodes,
     status: 'in_production',
     createdDay: state.day,

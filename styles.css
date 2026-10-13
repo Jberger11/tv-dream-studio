@@ -4168,6 +4168,51 @@ html,body,#app{height:100%;overflow:hidden}
 .cast-pick-status.free { color: #10b981; }
 .cast-pick-status.busy { color: #f87171; }
 
+.project-budget-summary-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  background: #0b1120;
+  border: 1px solid #29384e;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 6px;
+}
+
+.summary-metric small {
+  display: block;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin-bottom: 3px;
+}
+
+.summary-metric strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.summary-metric strong.gold-text {
+  color: #f59e0b;
+}
+
+.summary-metric strong.danger {
+  color: #ef4444;
+}
+
+.cast-filter-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .project-budget-summary-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 /* Studios & Crew Tab */
 .studios-crew-grid {
   display: grid;
