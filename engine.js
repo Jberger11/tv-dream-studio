@@ -1150,6 +1150,22 @@ export const SPORTS_CALENDAR = [
   { quarter: 26, name: '2034 FIFA 世界盃足球賽', sport: 'FIFA世界盃', icon: '🌍', floor: 12_000_000, adTarget: 16_000_000, id: 'football-2034' }
 ];
 
+export function isEuropeanFootballSummerBreak(day = 1) {
+  const monthInYear = (marketMonthForDay(day) % 12) + 1;
+  return monthInYear === 7 || monthInYear === 8;
+}
+
+export function isUclMatchWeek(day = 1) {
+  if (isEuropeanFootballSummerBreak(day)) return false;
+  const weekNum = Math.floor((day - 1) / 7) + 1;
+  return weekNum % 2 === 0;
+}
+
+export function isPlPausedWeek(day = 1) {
+  if (isEuropeanFootballSummerBreak(day)) return true;
+  return isUclMatchWeek(day);
+}
+
 export function getSportsConfig(event) {
   if (!event) return null;
   const name = event.name || '';
@@ -1195,23 +1211,24 @@ export function getSportsConfig(event) {
       name: '英超聯賽',
       icon: '⚽',
       // Real-world Asian/HK broadcast windows:
-      // Weekend: Sat & Sun (19:00 - 01:00 HK time)
-      // Midweek: Tue & Wed (01:00 - 05:00 HK time)
-      matchDays: [1, 2, 5, 6], // Tue, Wed, Sat, Sun
+      // Strictly weekend only: Sat & Sun (19:00 - 24:00 HK time)
+      // Never overlaps with Champions League (Tue & Wed 01:00 - 05:00 midnight)
+      // When Champions League has matches during the week, Premier League pauses that week!
+      matchDays: [5, 6], // Sat, Sun only
       weekendDays: [5, 6],     // Sat, Sun
-      midweekDays: [1, 2],     // Tue, Wed
+      midweekDays: [],
       defaultSlots: [
-        { days: [5, 6], start: 19, duration: 5, label: '週末焦點賽事（週六、日 19:00–24:00）' },
-        { days: [1, 2], start: 1, duration: 3, label: '週中快車深夜直播（週二、三 01:00–04:00）' }
+        { days: [5, 6], start: 19, duration: 5, label: '週末焦點賽事（週六、日 19:00–24:00）' }
       ],
       isLiveHour: (day, hour) => {
+        if (isEuropeanFootballSummerBreak(day)) return false;
+        if (isPlPausedWeek(day)) return false; // 歐聯比賽週，英超全週休戰暫停
         const wd = weekdayForDay(day);
-        if ((wd === 5 || wd === 6) && (hour >= 19 || hour === 0)) return true; // Sat, Sun 19:00-01:00
-        if ((wd === 1 || wd === 2) && (hour >= 1 && hour <= 4)) return true;   // Tue, Wed 01:00-05:00
-        return false;
+        return (wd === 5 || wd === 6) && (hour >= 19 && hour <= 23);
       },
-      matchdaysInMonth: 16,
-      autoScheduleDesc: '已預排【週末焦點（週六日 19:00–24:00）】及【週中快車（週二三 01:00–04:00）】直播時段，週一、四、五不佔用頻道，亦可於節目表自由調整。'
+      isSummerBreak: isEuropeanFootballSummerBreak,
+      matchdaysInMonth: 4,
+      autoScheduleDesc: '已預排【週末焦點（週六日 19:00–24:00）】直播時段。時段與歐聯完全分開，絕不重疊；逢歐聯比賽週英超休戰暫停；7、8月暑期休季。'
     };
   }
 
@@ -1230,11 +1247,14 @@ export function getSportsConfig(event) {
         { days: [1, 2], start: 1, duration: 4, label: '歐聯淘汰賽深夜大戰（週二、三 01:00–05:00）' }
       ],
       isLiveHour: (day, hour) => {
+        if (isEuropeanFootballSummerBreak(day)) return false;
+        if (!isUclMatchWeek(day)) return false; // 僅於歐聯比賽週開戰
         const wd = weekdayForDay(day);
         return (wd === 1 || wd === 2) && (hour >= 1 && hour <= 4);
       },
-      matchdaysInMonth: 8,
-      autoScheduleDesc: '已預排【歐聯週中深夜大戰（週二、三 01:00–05:00）】直播時段，週末完全留給聯賽及常規綜藝！'
+      isSummerBreak: isEuropeanFootballSummerBreak,
+      matchdaysInMonth: 4,
+      autoScheduleDesc: '已預排【歐聯週中深夜大戰（週二、三 01:00–05:00）】直播時段（隔週歐聯比賽週進行；時段與英超週末完全獨立，絕不重疊；7、8月暑期休季）。'
     };
   }
 
@@ -2718,13 +2738,18 @@ export function migrateLegacyLicenses(state) {
     if (!cfg) continue;
 
     const days = daysForBlock(block);
-    if (cfg.type === 'pl' && days.length === 7) {
-      state.schedule = state.schedule.filter(b => b !== block);
-      state.schedule.push({ start: 19, duration: 5, programId: block.programId, days: [5, 6], once: false });
-      state.schedule.push({ start: 1, duration: 3, programId: block.programId, days: [1, 2], once: false });
+    if (cfg.type === 'pl') {
+      if (days.length === 7 || days.includes(1) || days.includes(2)) {
+        state.schedule = state.schedule.filter(b => b !== block);
+        if (!state.schedule.some(b => b.programId === block.programId && b.start === 19)) {
+          state.schedule.push({ start: 19, duration: 5, programId: block.programId, days: [5, 6], once: false });
+        }
+      }
     } else if (cfg.type === 'ucl' && (days.length === 7 || days.some(d => d === 5 || d === 6))) {
       state.schedule = state.schedule.filter(b => b !== block);
-      state.schedule.push({ start: 1, duration: 4, programId: block.programId, days: [1, 2], once: false });
+      if (!state.schedule.some(b => b.programId === block.programId && b.start === 1)) {
+        state.schedule.push({ start: 1, duration: 4, programId: block.programId, days: [1, 2], once: false });
+      }
     }
   }
   state.schedule.sort((a, b) => a.start - b.start);
@@ -2951,13 +2976,23 @@ export function episodeForBlock(state,block,day=state.day) {
     const cfg = getSportsConfig(ev);
     const weekday = weekdayForDay(day);
     if (cfg?.type === 'pl') {
+      if (isEuropeanFootballSummerBreak(day)) return '英超 · 暑期休季停賽';
+      if (isPlPausedWeek(day)) return '英超 · 本週休戰（歐聯比賽週，英超暫停）';
       if (weekday === 5 || weekday === 6) return '英超 · 週末焦點現場直播';
-      if (weekday === 1 || weekday === 2) return '英超 · 週中快車深夜現場直播';
       return '英超 · 賽事轉播';
     }
     if (cfg?.type === 'ucl') {
+      if (isEuropeanFootballSummerBreak(day)) return '歐聯 · 暑期休季停賽';
+      if (!isUclMatchWeek(day)) return '歐聯 · 非比賽週（本週無歐聯賽事）';
       if (weekday === 1 || weekday === 2) return '歐聯 · 週中深夜巔峰對決現場直播';
       return '歐聯 · 賽事轉播';
+    }
+    if (cfg?.type === 'racing') {
+      const monthInYear = (marketMonthForDay(day) % 12) + 1;
+      if (monthInYear === 7 || monthInYear === 8) return '賽馬 · 暑期休季停跑';
+      if (weekday === 2) return '賽馬 · 跑馬地夜馬現場直播';
+      if (weekday === 6) return '賽馬 · 沙田日馬現場直播';
+      return '賽馬 · 賽事直擊';
     }
     if (cfg?.type === 'euro') return '歐國盃 · 歐洲列強大戰直播';
     if (cfg?.type === 'worldcup') return '世界盃 · 全城狂熱現場直播';
@@ -3619,7 +3654,7 @@ export function advanceDay(state,rng=Math.random) {
       if (special) {
         const target=blockEvent?.adTarget??8_000_000;
         const expectedDays=cfg?.matchdaysInMonth??30;
-        const expectedHoursPerDay=cfg?.type==='racing'?4.5:(cfg?.type==='pl'?4:cfg?.type==='ucl'?4:cfg?.type==='olympics'?8:6);
+        const expectedHoursPerDay=cfg?.type==='racing'?4.5:(cfg?.type==='pl'?5:cfg?.type==='ucl'?4:cfg?.type==='olympics'?8:6);
         const basePerHour=target/(expectedDays*expectedHoursPerDay);
         const repMod=0.90+state.reputation/500;
         const liveMod=isLiveSports?(1.05+(rng()*0.15-0.05)):0.25;
