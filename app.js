@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-shooting-autotick-v7';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-auto-qc-v8';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -25,6 +25,7 @@ function loadGame(){
         value.activeFilmingEvents ??= [];
         (value.productionProjects ?? []).forEach(p => {
           p.autoChoices ??= {};
+          p.autoQCDecision ??= null;
         });
         return value;
       }
@@ -499,6 +500,14 @@ function renderActiveProjectsView() {
               <span class="project-meta-tag">導演：${safe(dir?.name || '自聘')}</span>
               <span class="project-meta-tag">編審：${safe(wri?.name || '自聘')}</span>
               <span class="project-meta-tag">時長：${proj.episodeHours}小時/集</span>
+              <button type="button" class="project-meta-tag qc-strat-btn" style="background:${proj.autoQCDecision === 'manual' ? 'rgba(239, 68, 68, 0.15)' : proj.autoQCDecision === 'fix_errors' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.15)'}; color:${proj.autoQCDecision === 'manual' ? '#f87171' : proj.autoQCDecision === 'fix_errors' ? '#34d399' : '#38bdf8'}; border:1px solid ${proj.autoQCDecision === 'manual' ? 'rgba(239, 68, 68, 0.35)' : proj.autoQCDecision === 'fix_errors' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(56, 189, 248, 0.35)'}; cursor:pointer; font-size:0.75rem;" title="點擊切換本企劃審片策略 (原樣直接交付 / 自動修復瑕疵 / 逐集手動詢問)" data-action="toggle-project-qc-strategy" data-project-id="${proj.id}">
+                ${proj.autoQCDecision === 'fix_errors' ? '🛠️ 審片：自動修復瑕疵' : proj.autoQCDecision === 'manual' ? '📋 審片：逐集手動詢問' : '⚡ 審片：原樣直接交付 (免彈窗)'} (點擊切換)
+              </button>
+              ${proj.episodes.some(e => e.status === 'qc_ready') ? `
+                <button type="button" class="project-meta-tag" style="background:rgba(245, 158, 11, 0.2); color:#fbbf24; border:1px solid rgba(245, 158, 11, 0.5); cursor:pointer; font-size:0.75rem; font-weight:bold;" data-action="batch-deliver-qc" data-project-id="${proj.id}">
+                  ⚡ 一鍵全數通過交付 (${proj.episodes.filter(e => e.status === 'qc_ready').length} 集待審)
+                </button>
+              ` : ''}
               ${proj.autoChoices && Object.keys(proj.autoChoices).length > 0 ? `
                 <button type="button" class="project-meta-tag" style="background:rgba(16, 185, 129, 0.15); color:#34d399; border:1px solid rgba(16, 185, 129, 0.35); cursor:pointer; font-size:0.75rem;" title="點擊可清除此企劃已記住的自動決策設定" data-action="reset-project-auto-choices" data-project-id="${proj.id}">
                   🤖 已記住 ${Object.keys(proj.autoChoices).length} 項事件自動依循（點擊重設）
@@ -1139,6 +1148,13 @@ function renderQCModal() {
           <span>製作瑕疵</span><strong style="${ep.errors > 0 ? 'color:#f87171;' : ''}">${ep.errors} 處毛病</strong>
         </div>
         <div class="qc-stats-col" style="grid-column: span 2;"><span>觀眾期待值</span><strong>${ep.expectations} 點</strong></div>
+      </div>
+
+      <div style="margin: 12px 0 16px; padding: 10px 14px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; color: #f8fafc; user-select: none;">
+          <input type="checkbox" id="qc-remember-tick" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: #38bdf8;" />
+          <span>☑️ 記住此審片策略：本企劃往後各集自動以此方案驗收交付（不再逐集彈出詢問）</span>
+        </label>
       </div>
 
       <div class="modal-choices-list">
@@ -2985,13 +3001,35 @@ app.addEventListener('click',e=>{
     }
     if(action==='qc-decision'){
       if(activeQCModal){
-        const res=handleQualityControlDecision(state,activeQCModal.projectId,activeQCModal.episodeNumber,button.dataset.decisionId);
-        activeQCModal=null;
-        if(res.delivered){
-          flash(`【審片驗收完成】第 ${res.episode.episodeNumber} 集順利通過把關，母帶交付入庫！可於排播表安排播放。`);
-        } else {
-          flash(`【執行審片處置】${res.choiceLabel}（花費 ${money(res.cost)}），重回相關製作工序。`);
-        }
+        const tick = document.getElementById('qc-remember-tick');
+        const remember = tick ? tick.checked : true;
+        const res = handleQualityControlDecision(state, activeQCModal.projectId, activeQCModal.episodeNumber, button.dataset.decisionId, Math.random, remember);
+        activeQCModal = null;
+        const extraNote = res.batchDeliveredCount > 0 ? `（並已為另外 ${res.batchDeliveredCount} 個待審集數自動完成驗收）` : '';
+        const rememberNote = remember ? '，後續集數將自動依此策略交付，不再逐集彈窗打擾！' : '。';
+        flash(`【審片驗收完成】第 ${res.episode?.episodeNumber ?? res.episodeNumber} 集以「${res.choiceLabel}」順利交付母帶入庫${rememberNote}${extraNote}`);
+        render();
+      }
+      return;
+    }
+    if(action==='toggle-project-qc-strategy'){
+      const project = (state.productionProjects ?? []).find(p => p.id === button.dataset.projectId);
+      if(project){
+        const cur = project.autoQCDecision ?? 'release_as_is';
+        const next = cur === 'release_as_is' ? 'fix_errors' : cur === 'fix_errors' ? 'manual' : 'release_as_is';
+        const res = setProjectQCStrategy(state, project.id, next);
+        const name = next === 'release_as_is' ? '原樣直接交付 (免彈窗)' : next === 'fix_errors' ? '自動修復瑕疵' : '逐集手動詢問';
+        flash(`已切換《${project.title}》審片策略為「${name}」${res.batchCount ? `，即時交付了 ${res.batchCount} 集！` : ''}`);
+        render();
+      }
+      return;
+    }
+    if(action==='batch-deliver-qc'){
+      const project = (state.productionProjects ?? []).find(p => p.id === button.dataset.projectId);
+      if(project){
+        const res = setProjectQCStrategy(state, project.id, project.autoQCDecision || 'release_as_is');
+        flash(`【批量交付】《${project.title}》已將待審集數全數驗收交付入庫（共交付 ${res.batchCount} 集）！`);
+        render();
       }
       return;
     }

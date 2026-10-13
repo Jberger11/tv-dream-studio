@@ -1910,7 +1910,8 @@ export function createProductionProject(state, {
   writerId,
   franchiseId = null,
   seasonNumber = 1,
-  parentProjectId = null
+  parentProjectId = null,
+  autoQCDecision = null
 }, rng = Math.random) {
   if (!Number.isInteger(episodesCount) || episodesCount < 1 || episodesCount > 100) {
     throw Error('請輸入有效總集數（1 至 100 集）。');
@@ -2044,7 +2045,8 @@ export function createProductionProject(state, {
     seasonNumber,
     parentProjectId,
     autoChoices: {},
-    lastManualEventDay: null
+    lastManualEventDay: null,
+    autoQCDecision: autoQCDecision ?? null
   });
 
   state.productionProjects ??= [];
@@ -2061,6 +2063,44 @@ export function advanceProduction(state, days = 1, rng = Math.random) {
   if (!activeProjects.length) return;
 
   for (const project of activeProjects) {
+    project.autoQCDecision ??= null;
+
+    // Auto-deliver any episodes waiting at qc_ready if autoQCDecision is active or 0 errors
+    const readyQcEps = project.episodes.filter(ep => ep.status === 'qc_ready');
+    for (const ep of readyQcEps) {
+      const autoDecisionId = project.autoQCDecision ?? (ep.errors === 0 ? 'release_as_is' : null);
+      if (autoDecisionId && autoDecisionId !== 'manual') {
+        ep.qcReport ??= generateQCReport(ep, project);
+        const choice = ep.qcReport?.choices?.find(c => c.id === autoDecisionId) || ep.qcReport?.choices?.[0];
+        if (choice) {
+          const cost = choice.cost || 0;
+          if (cost === 0 || state.cash >= cost) {
+            if (cost > 0) {
+              state.cash -= cost;
+              ep.cost += cost;
+              project.totalCostSpent += cost;
+            }
+            if (choice.clearErrors) ep.errors = 0;
+            if (choice.acting) ep.acting = clamp(ep.acting + choice.acting, 10, 100);
+            if (choice.direction) ep.direction = clamp(ep.direction + choice.direction, 10, 100);
+            if (choice.technical) ep.technical = clamp(ep.technical + choice.technical, 10, 100);
+            if (choice.fun) ep.fun = clamp(ep.fun + choice.fun, 10, 100);
+            if (choice.expectations) ep.expectations = clamp(ep.expectations + choice.expectations, 10, 100);
+            if (choice.days) ep.days += choice.days;
+            ep.qcDecision = choice.id;
+            ep.status = 'delivered';
+            ep.stage = 'delivery';
+            deliverEpisode(state, project, ep);
+            if (ep.errors === 0) {
+              note(state, `【審片自動驗收】《${project.title}》第 ${ep.episodeNumber} 集 0 瑕疵完美成片，已自動免檢交付入庫！`, 'good');
+            } else {
+              note(state, `【審片自動驗收】《${project.title}》第 ${ep.episodeNumber} 集按企劃策略（${choice.label}）自動交付入庫！`, 'good');
+            }
+          }
+        }
+      }
+    }
+
     const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === project.assignedStudioId) || DEFAULT_STUDIOS[0];
     const strat = PRODUCTION_STRATEGIES.find(s => s.id === project.strategy) || PRODUCTION_STRATEGIES[1];
     const stages = getFormatStages(project.format);
@@ -2182,8 +2222,37 @@ export function advanceProduction(state, days = 1, rng = Math.random) {
           ep.stageProgress = 0;
 
           if (nextStage === 'quality_control') {
-            ep.status = 'qc_ready';
             ep.qcReport = generateQCReport(ep, project);
+            const autoDecisionId = project.autoQCDecision ?? (ep.errors === 0 ? 'release_as_is' : null);
+            if (autoDecisionId && autoDecisionId !== 'manual') {
+              const choice = ep.qcReport?.choices?.find(c => c.id === autoDecisionId) || ep.qcReport?.choices?.[0];
+              const cost = choice?.cost || 0;
+              if (choice && (cost === 0 || state.cash >= cost)) {
+                if (cost > 0) {
+                  state.cash -= cost;
+                  ep.cost += cost;
+                  project.totalCostSpent += cost;
+                }
+                if (choice.clearErrors) ep.errors = 0;
+                if (choice.acting) ep.acting = clamp(ep.acting + choice.acting, 10, 100);
+                if (choice.direction) ep.direction = clamp(ep.direction + choice.direction, 10, 100);
+                if (choice.technical) ep.technical = clamp(ep.technical + choice.technical, 10, 100);
+                if (choice.fun) ep.fun = clamp(ep.fun + choice.fun, 10, 100);
+                if (choice.expectations) ep.expectations = clamp(ep.expectations + choice.expectations, 10, 100);
+                if (choice.days) ep.days += choice.days;
+                ep.qcDecision = choice.id;
+                ep.status = 'delivered';
+                ep.stage = 'delivery';
+                deliverEpisode(state, project, ep);
+                if (ep.errors === 0) {
+                  note(state, `【審片自動驗收】《${project.title}》第 ${ep.episodeNumber} 集 0 瑕疵完美成片，已自動免檢交付入庫！`, 'good');
+                } else {
+                  note(state, `【審片自動驗收】《${project.title}》第 ${ep.episodeNumber} 集按企劃策略（${choice.label}）自動交付入庫！`, 'good');
+                }
+                continue;
+              }
+            }
+            ep.status = 'qc_ready';
             note(state, `【審片就緒】《${project.title}》第 ${ep.episodeNumber} 集已完成剪輯，質量把關審片報告已出爐！`, 'good');
           } else if (nextStage === 'delivery') {
             ep.status = 'delivered';
@@ -2392,7 +2461,7 @@ export function resetProjectAutoChoices(state, projectId) {
   return project;
 }
 
-export function handleQualityControlDecision(state, projectId, episodeNumber, decisionId, rng = Math.random) {
+export function handleQualityControlDecision(state, projectId, episodeNumber, decisionId, rng = Math.random, remember = false) {
   const project = (state.productionProjects ?? []).find(p => p.id === projectId);
   if (!project) throw Error('找不到企劃。');
   const ep = project.episodes.find(e => e.episodeNumber === episodeNumber);
@@ -2423,8 +2492,95 @@ export function handleQualityControlDecision(state, projectId, episodeNumber, de
 
   deliverEpisode(state, project, ep);
 
-  note(state, `【審片驗收完成】《${project.title}》第 ${episodeNumber} 集以「${choice.label}」完成質量把關，正式交付母帶！`, 'good');
-  return ep;
+  if (remember) {
+    project.autoQCDecision = decisionId;
+  }
+
+  let batchDeliveredCount = 0;
+  if (remember && decisionId !== 'manual') {
+    const otherReadyEps = project.episodes.filter(e => e.episodeNumber !== episodeNumber && e.status === 'qc_ready');
+    for (const otherEp of otherReadyEps) {
+      otherEp.qcReport ??= generateQCReport(otherEp, project);
+      const otherChoice = otherEp.qcReport?.choices?.find(c => c.id === decisionId) || otherEp.qcReport?.choices?.[0];
+      if (otherChoice) {
+        const cost = otherChoice.cost || 0;
+        if (cost === 0 || state.cash >= cost) {
+          if (cost > 0) {
+            state.cash -= cost;
+            otherEp.cost += cost;
+            project.totalCostSpent += cost;
+          }
+          if (otherChoice.clearErrors) otherEp.errors = 0;
+          if (otherChoice.acting) otherEp.acting = clamp(otherEp.acting + otherChoice.acting, 10, 100);
+          if (otherChoice.direction) otherEp.direction = clamp(otherEp.direction + otherChoice.direction, 10, 100);
+          if (otherChoice.technical) otherEp.technical = clamp(otherEp.technical + otherChoice.technical, 10, 100);
+          if (otherChoice.fun) otherEp.fun = clamp(otherEp.fun + otherChoice.fun, 10, 100);
+          if (otherChoice.expectations) otherEp.expectations = clamp(otherEp.expectations + otherChoice.expectations, 10, 100);
+          if (otherChoice.days) otherEp.days += otherChoice.days;
+          otherEp.qcDecision = otherChoice.id;
+          otherEp.status = 'delivered';
+          otherEp.stage = 'delivery';
+          deliverEpisode(state, project, otherEp);
+          batchDeliveredCount++;
+        }
+      }
+    }
+  }
+
+  note(state, `【審片驗收完成】《${project.title}》第 ${episodeNumber} 集以「${choice.label}」完成質量把關，正式交付母帶！${remember ? '（已設為本企劃往後自動審片策略）' : ''}${batchDeliveredCount ? `（已同時批量交付 ${batchDeliveredCount} 個待審集數）` : ''}`, 'good');
+  return {
+    ...ep,
+    episode: ep,
+    delivered: true,
+    choiceLabel: choice.label,
+    cost: choice.cost ?? 0,
+    decisionId,
+    remember,
+    batchDeliveredCount
+  };
+}
+
+export function setProjectQCStrategy(state, projectId, strategyId) {
+  const project = (state.productionProjects ?? []).find(p => p.id === projectId);
+  if (!project) throw Error('找不到企劃。');
+  project.autoQCDecision = strategyId;
+
+  let batchCount = 0;
+  if (strategyId !== 'manual') {
+    const readyEps = project.episodes.filter(e => e.status === 'qc_ready');
+    for (const ep of readyEps) {
+      ep.qcReport ??= generateQCReport(ep, project);
+      const choice = ep.qcReport?.choices?.find(c => c.id === strategyId) || ep.qcReport?.choices?.[0];
+      if (choice) {
+        const cost = choice.cost || 0;
+        if (cost === 0 || state.cash >= cost) {
+          if (cost > 0) {
+            state.cash -= cost;
+            ep.cost += cost;
+            project.totalCostSpent += cost;
+          }
+          if (choice.clearErrors) ep.errors = 0;
+          if (choice.acting) ep.acting = clamp(ep.acting + choice.acting, 10, 100);
+          if (choice.direction) ep.direction = clamp(ep.direction + choice.direction, 10, 100);
+          if (choice.technical) ep.technical = clamp(ep.technical + choice.technical, 10, 100);
+          if (choice.fun) ep.fun = clamp(ep.fun + choice.fun, 10, 100);
+          if (choice.expectations) ep.expectations = clamp(ep.expectations + choice.expectations, 10, 100);
+          if (choice.days) ep.days += choice.days;
+          ep.qcDecision = choice.id;
+          ep.status = 'delivered';
+          ep.stage = 'delivery';
+          deliverEpisode(state, project, ep);
+          batchCount++;
+        }
+      }
+    }
+  }
+
+  const stratName = strategyId === 'release_as_is' ? '⚡ 原樣直接交付（免彈窗）'
+    : strategyId === 'fix_errors' ? '🛠️ 自動消除瑕疵'
+    : '📋 逐集手動審片';
+  note(state, `《${project.title}》審片驗收策略已設定為「${stratName}」${batchCount ? `，並即時自動交付了 ${batchCount} 集！` : '。'}`, 'good');
+  return { project, strategyId, batchCount };
 }
 
 export function createSeasonOrSpinOff(state, parentProjectId, type = 'next_season', overrideParams = {}) {

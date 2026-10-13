@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -1938,7 +1938,101 @@ test('format-tailored creative crew members across drama, variety, news, documen
   assert.equal(varietyProj.crew.writerId, 'wri_var_man');
 });
 
+test('zero-error episodes automatically deliver as-is without stopping at qc_ready or prompting player', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '大時代零瑕疵完美版',
+    format: 'drama',
+    episodesCount: 2,
+    actorIds: ['bosco', 'sheren']
+  });
 
+  const ep1 = proj.episodes[0];
+  ep1.stage = 'post_production';
+  ep1.stageProgress = 99;
+  ep1.errors = 0; // 0 errors! Like in user screenshot
 
+  // Advance production to reach quality control
+  advanceProduction(state, 1, () => 0.5);
 
+  // Must automatically deliver without stopping at qc_ready
+  assert.equal(ep1.status, 'delivered', 'Zero-error episode must automatically deliver as-is');
+  assert.equal(proj.deliveredEpisodesCount, 1);
+  assert.ok(state.log.some(l => l.text.includes('0 瑕疵完美成片') || l.text.includes('自動免檢交付入庫')));
+});
 
+test('remembering QC strategy automatically applies to subsequent episodes and batch-delivers pending episodes', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '大時代後續自動審片',
+    format: 'drama',
+    episodesCount: 3,
+    actorIds: ['bosco', 'sheren']
+  });
+
+  const ep1 = proj.episodes[0];
+  const ep2 = proj.episodes[1];
+  const ep3 = proj.episodes[2];
+
+  // Episode 1 has 2 errors and reaches QC
+  ep1.stage = 'quality_control';
+  ep1.status = 'qc_ready';
+  ep1.errors = 2;
+  ep1.qcReport = { choices: [{ id: 'fix_errors', label: '消除檢驗瑕疵', cost: 10000, clearErrors: true, days: 1 }] };
+
+  // Episode 2 is also in qc_ready
+  ep2.stage = 'quality_control';
+  ep2.status = 'qc_ready';
+  ep2.errors = 1;
+  ep2.qcReport = { choices: [{ id: 'fix_errors', label: '消除檢驗瑕疵', cost: 10000, clearErrors: true, days: 1 }] };
+
+  // Player decides fix_errors on Episode 1 with remember = true
+  const initialCash = state.cash;
+  const res = handleQualityControlDecision(state, proj.id, ep1.episodeNumber, 'fix_errors', Math.random, true);
+
+  assert.equal(res.delivered, true);
+  assert.equal(res.remember, true);
+  assert.equal(proj.autoQCDecision, 'fix_errors');
+  assert.equal(ep1.status, 'delivered');
+  assert.equal(ep1.errors, 0);
+
+  // Ep2 should have been batch-delivered as well!
+  assert.equal(ep2.status, 'delivered');
+  assert.equal(ep2.errors, 0);
+  assert.equal(res.batchDeliveredCount, 1);
+  assert.equal(proj.deliveredEpisodesCount, 2);
+
+  // Now Ep3 finishes post_production with 3 errors
+  ep3.stage = 'post_production';
+  ep3.stageProgress = 99;
+  ep3.errors = 3;
+
+  // Advance production: Ep3 reaches QC and should automatically fix_errors and deliver!
+  advanceProduction(state, 1, () => 0.5);
+
+  assert.equal(ep3.status, 'delivered', 'Subsequent episodes must automatically apply remembered QC strategy');
+  assert.equal(ep3.errors, 0);
+  assert.equal(proj.deliveredEpisodesCount, 3);
+});
+
+test('setProjectQCStrategy updates project strategy and delivers waiting qc_ready episodes', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '一鍵策略切換劇',
+    format: 'drama',
+    episodesCount: 2,
+    actorIds: ['bosco', 'sheren']
+  });
+
+  const ep = proj.episodes[0];
+  ep.stage = 'quality_control';
+  ep.status = 'qc_ready';
+  ep.errors = 3;
+
+  const result = setProjectQCStrategy(state, proj.id, 'release_as_is');
+  assert.equal(result.strategyId, 'release_as_is');
+  assert.equal(proj.autoQCDecision, 'release_as_is');
+  assert.equal(ep.status, 'delivered');
+  assert.equal(result.batchCount, 1);
+  assert.equal(proj.deliveredEpisodesCount, 1);
+});

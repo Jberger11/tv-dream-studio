@@ -78,7 +78,8 @@ export class ProductionProject {
     programId = null,
     notes = '',
     autoChoices = {},
-    lastManualEventDay = null
+    lastManualEventDay = null,
+    autoQCDecision = null
   }) {
     Object.assign(this, {
       id, title, genre, themes, format, episodesCount, episodeHours,
@@ -86,7 +87,7 @@ export class ProductionProject {
       plannedStartDate, intendedBroadcastPeriod, cast, crew, episodes,
       status, createdDay, deliveredEpisodesCount, totalCostSpent,
       ratingsHistory, franchiseId, seasonNumber, parentProjectId, programId, notes,
-      autoChoices, lastManualEventDay
+      autoChoices, lastManualEventDay, autoQCDecision
     });
   }
 }
