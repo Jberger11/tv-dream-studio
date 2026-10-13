@@ -2,6 +2,22 @@ import { Actor, Program, BiddingEvent, StationState, Episode, ProductionProject,
 
 export { DEFAULT_STUDIOS, DEFAULT_CREWS };
 
+export function getAllCrews(state = null) {
+  const currentCrews = state?.crews ?? [];
+  const currentMap = new Map(currentCrews.map(c => [c.id, c]));
+  for (const def of DEFAULT_CREWS) {
+    if (!currentMap.has(def.id)) {
+      currentMap.set(def.id, { ...def });
+    }
+  }
+  return Array.from(currentMap.values());
+}
+
+export function getCrewsForFormat(format = 'drama', state = null) {
+  const all = getAllCrews(state);
+  return all.filter(c => (c.format || 'drama') === format);
+}
+
 export const TARGET_AUDIENCES = [
   { id: 'family', name: '👨‍👩‍👧‍👦 合家歡（家庭觀眾）', label: '👨‍👩‍👧‍👦 合家歡（家庭觀眾）', preferredGenres: ['處境劇','家庭','喜劇'], preferredHours: [19, 20], appealBonus: 1.15, desc: '香港晚飯黃金檔基本盤，重視溫馨笑料與共鳴處境' },
   { id: 'youth', name: '🎓 青年族群（學生潮流）', label: '🎓 青年族群（學生潮流）', preferredGenres: ['青春','科幻','奇幻','偶像'], preferredHours: [21, 22, 23], appealBonus: 1.20, desc: '社交媒體討論熱潮主力，偏愛新穎高概念與年輕偶像' },
@@ -1922,8 +1938,9 @@ export function createProductionProject(state, {
   const effectiveDirectorId = crew?.directorId || directorId || 'dir_lee';
   const effectiveWriterId = crew?.writerId || writerId || 'wri_cheung';
   const effectiveCrew = { directorId: effectiveDirectorId, writerId: effectiveWriterId };
-  const director = DEFAULT_CREWS.find(c => c.id === effectiveDirectorId) || DEFAULT_CREWS[0];
-  const writer = DEFAULT_CREWS.find(c => c.id === effectiveWriterId) || DEFAULT_CREWS[4];
+  const allKnownCrews = getAllCrews(state);
+  const director = allKnownCrews.find(c => c.id === effectiveDirectorId) || allKnownCrews[0];
+  const writer = allKnownCrews.find(c => c.id === effectiveWriterId) || allKnownCrews[4];
   const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === assignedStudioId) || DEFAULT_STUDIOS[0];
   const strat = PRODUCTION_STRATEGIES.find(s => s.id === strategy) || PRODUCTION_STRATEGIES[1];
 

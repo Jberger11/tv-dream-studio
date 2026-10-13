@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-tvproduction-v4-fix';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, handleQualityControlDecision, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-tvproduction-v5-fix';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -11,7 +11,16 @@ function loadGame(){
         clearCompletedPrograms(value);
         value.productionProjects ??= [];
         value.studios ??= [...DEFAULT_STUDIOS];
-        value.crews ??= [...DEFAULT_CREWS];
+        if (value.crews) {
+          const existingIds = new Set(value.crews.map(c => c.id));
+          for (const def of DEFAULT_CREWS) {
+            if (!existingIds.has(def.id)) {
+              value.crews.push({ ...def });
+            }
+          }
+        } else {
+          value.crews = DEFAULT_CREWS.map(c => ({ ...c }));
+        }
         value.franchises ??= [];
         value.activeFilmingEvents ??= [];
         return value;
@@ -60,6 +69,7 @@ let studioSubTab='active'; // 'active' | 'create' | 'studios' | 'franchises' | '
 let activeEventModal=null; // { projectId, episodeNumber }
 let activeQCModal=null; // { projectId, episodeNumber }
 let newProjCastFilter='all'; // 'all' | 'avail' | 'mine' | 'free'
+let crewFormatFilter='all'; // 'all' | 'drama' | 'variety' | 'news' | 'documentary' | 'talkshow' | 'live'
 let newProjState={
   title: '',
   format: 'drama',
@@ -468,8 +478,8 @@ function renderActiveProjectsView() {
       const studio = (state.studios ?? DEFAULT_STUDIOS).find(s => s.id === proj.assignedStudioId);
       const strat = PRODUCTION_STRATEGIES.find(s => s.id === proj.strategy);
       const aud = TARGET_AUDIENCES.find(a => a.id === proj.targetAudience);
-      const dir = (state.crews ?? DEFAULT_CREWS).find(c => c.id === proj.crew?.directorId);
-      const wri = (state.crews ?? DEFAULT_CREWS).find(c => c.id === proj.crew?.writerId);
+      const dir = getAllCrews(state).find(c => c.id === proj.crew?.directorId);
+      const wri = getAllCrews(state).find(c => c.id === proj.crew?.writerId);
 
       return `<div class="project-card">
         <div class="project-header">
@@ -612,6 +622,17 @@ function renderCreateProjectView() {
     talkshow: { director: '清談節目監製／現場編導', writer: '題目編審／主筆企劃' },
     live: { director: '大會總監製／導播導演', writer: '流程編審／大會撰稿' }
   }[newProjState.format] || { director: '監製／執導導演', writer: '編審／金牌編劇' };
+
+  const formatCrews = getCrewsForFormat(newProjState.format, state);
+  const formatDirectors = formatCrews.filter(c => c.role === 'director');
+  const formatWriters = formatCrews.filter(c => c.role === 'writer');
+
+  if (!formatDirectors.some(d => d.id === newProjState.directorId)) {
+    newProjState.directorId = formatDirectors[0]?.id || 'dir_lee';
+  }
+  if (!formatWriters.some(w => w.id === newProjState.writerId)) {
+    newProjState.writerId = formatWriters[0]?.id || 'wri_cheung';
+  }
 
   const allActors = ACTORS;
   const filteredActors = allActors.filter(a => {
@@ -775,10 +796,10 @@ function renderCreateProjectView() {
       <div class="form-group">
         <label class="form-label">${crewLabels.director}</label>
         <div style="display:flex; flex-direction:column; gap:6px;">
-          ${(state.crews ?? DEFAULT_CREWS).filter(c => c.role === 'director').map(d => `
+          ${formatDirectors.map(d => `
             <button class="style-choice ${newProjState.directorId === d.id ? 'chosen' : ''}" data-action="new-proj-director" data-value="${d.id}">
-              <strong>${d.name} (${d.title}) · 能力 ${d.skill}</strong>
-              <small>擅長：${d.specialty} · 執導費 ${money(d.fee)} · ${d.desc}</small>
+              <strong>${safe(d.name)} (${safe(d.title)}) · 能力 ${d.skill}</strong>
+              <small>擅長：${safe(d.specialty)} · 聘用費 ${money(d.fee)} · ${safe(d.desc)}</small>
             </button>
           `).join('')}
         </div>
@@ -787,10 +808,10 @@ function renderCreateProjectView() {
       <div class="form-group">
         <label class="form-label">${crewLabels.writer}</label>
         <div style="display:flex; flex-direction:column; gap:6px;">
-          ${(state.crews ?? DEFAULT_CREWS).filter(c => c.role === 'writer').map(w => `
+          ${formatWriters.map(w => `
             <button class="style-choice ${newProjState.writerId === w.id ? 'chosen' : ''}" data-action="new-proj-writer" data-value="${w.id}">
-              <strong>${w.name} (${w.title}) · 能力 ${w.skill}</strong>
-              <small>擅長：${w.specialty} · 編審費 ${money(w.fee)} · ${w.desc}</small>
+              <strong>${safe(w.name)} (${safe(w.title)}) · 能力 ${w.skill}</strong>
+              <small>擅長：${safe(w.specialty)} · 編審費 ${money(w.fee)} · ${safe(w.desc)}</small>
             </button>
           `).join('')}
         </div>
@@ -883,7 +904,19 @@ function renderCreateProjectView() {
 
 function renderStudiosCrewView() {
   const studios = state.studios ?? DEFAULT_STUDIOS;
-  const crews = state.crews ?? DEFAULT_CREWS;
+  const allCrews = getAllCrews(state);
+  const filteredCrews = crewFormatFilter === 'all'
+    ? allCrews
+    : allCrews.filter(c => (c.format || 'drama') === crewFormatFilter);
+
+  const formatNames = {
+    drama: '旗艦劇集',
+    variety: '自製綜藝',
+    news: '新聞資訊',
+    documentary: '深度紀錄',
+    talkshow: '夜間清談',
+    live: '直播盛事'
+  };
 
   return `<div class="studios-crew-grid">
     <div class="studios-list">
@@ -924,18 +957,31 @@ function renderStudiosCrewView() {
       <div class="panel-heading small">
         <div>
           <div class="eyebrow muted">CREATIVE MASTERS</div>
-          <h2>金牌主創編導與金像編審</h2>
+          <h2>全台金牌編導與編審企劃班底</h2>
         </div>
       </div>
-      <div style="display:flex; flex-direction:column; gap:10px;">
-        ${crews.map(c => `
+
+      <!-- Format Filter Row -->
+      <div class="cast-filter-row" style="margin-bottom:12px;">
+        <button class="choice mini ${crewFormatFilter === 'all' ? 'chosen' : ''}" data-action="crew-format-filter" data-value="all">全部 (${allCrews.length})</button>
+        <button class="choice mini ${crewFormatFilter === 'drama' ? 'chosen' : ''}" data-action="crew-format-filter" data-value="drama">劇集</button>
+        <button class="choice mini ${crewFormatFilter === 'variety' ? 'chosen' : ''}" data-action="crew-format-filter" data-value="variety">綜藝</button>
+        <button class="choice mini ${crewFormatFilter === 'news' ? 'chosen' : ''}" data-action="crew-format-filter" data-value="news">新聞</button>
+        <button class="choice mini ${crewFormatFilter === 'documentary' ? 'chosen' : ''}" data-action="crew-format-filter" data-value="documentary">紀錄</button>
+        <button class="choice mini ${crewFormatFilter === 'talkshow' ? 'chosen' : ''}" data-action="crew-format-filter" data-value="talkshow">清談</button>
+        <button class="choice mini ${crewFormatFilter === 'live' ? 'chosen' : ''}" data-action="crew-format-filter" data-value="live">盛事</button>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px; max-height:480px; overflow-y:auto; padding-right:4px;">
+        ${filteredCrews.map(c => `
           <div style="background:#0f172a; padding:10px 12px; border-radius:8px; border:1px solid #1e293b; display:flex; justify-content:space-between; align-items:center;">
             <div>
               <div style="font-size:0.85rem; font-weight:800; color:#f8fafc;">
-                ${safe(c.name)} <span style="font-size:0.7rem; color:#f59e0b; margin-left:6px;">${c.title}</span>
+                ${safe(c.name)} <span style="font-size:0.7rem; color:#f59e0b; margin-left:6px;">${safe(c.title)}</span>
+                <span style="font-size:0.65rem; background:#1e293b; color:#93c5fd; padding:1px 6px; border-radius:4px; margin-left:6px;">${formatNames[c.format] || '全能'}</span>
               </div>
               <div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">
-                專長：${c.specialty} · 能力 ${c.skill}
+                專長：${safe(c.specialty)} · 能力 ${c.skill} · ${c.role === 'director' ? '導演／總監' : '編審／企劃'}
               </div>
             </div>
             <div style="text-align:right;">
@@ -2789,6 +2835,7 @@ app.addEventListener('click',e=>{
     if(action==='talent-filter'){talentSubTab=value;render();return;}
     if(action==='rivals-tab'){rivalsTab=value;render();return;}
     if(action==='studio-subtab'){studioSubTab=value;resetScroll=true;render();return;}
+    if(action==='crew-format-filter'){crewFormatFilter=value;render();return;}
     if(action==='new-proj-format'){
       newProjState.format=value;
       if(value!=='drama'){
@@ -2798,6 +2845,11 @@ app.addEventListener('click',e=>{
       if (newProjState.actorIds.length > maxAllowed) {
         newProjState.actorIds = newProjState.actorIds.slice(0, maxAllowed);
       }
+      const fmtCrews = getCrewsForFormat(value, state);
+      const fmtDirs = fmtCrews.filter(c => c.role === 'director');
+      const fmtWris = fmtCrews.filter(c => c.role === 'writer');
+      if (fmtDirs.length) newProjState.directorId = fmtDirs[0].id;
+      if (fmtWris.length) newProjState.writerId = fmtWris[0].id;
       render();
       return;
     }
@@ -3119,6 +3171,7 @@ app.addEventListener('click',e=>{
       activeEventModal=null;
       activeQCModal=null;
       newProjCastFilter='all';
+      crewFormatFilter='all';
       newProjState={
         title: '',
         format: 'drama',

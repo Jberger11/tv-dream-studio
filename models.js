@@ -96,13 +96,59 @@ export const DEFAULT_STUDIOS = [
 ];
 
 export const DEFAULT_CREWS = [
-  { id: 'dir_lee', name: '李添勝', role: 'director', title: '金牌監製導演', skill: 88, specialty: '古裝武俠', fee: 120_000, desc: '掌控大局能力極強，擅長武俠情義與大河劇集' },
-  { id: 'dir_wai', name: '韋家輝', role: 'director', title: '鬼才編導', skill: 92, specialty: '商戰風雲', fee: 180_000, desc: '破格前衛構思，角色性格極端強烈，收視話題雙高峰' },
-  { id: 'dir_to', name: '杜琪峯', role: 'director', title: '名導巨匠', skill: 95, specialty: '刑偵懸疑', fee: 250_000, desc: '影視巨匠級執導功力，鏡頭調度與氣氛張力頂級' },
-  { id: 'dir_young', name: '新銳獨立導演', role: 'director', title: '新浪潮青年導演', skill: 78, specialty: '青春偶像', fee: 80_000, desc: '貼近年輕一代審美，鏡頭語言清新潮爆' },
-  { id: 'wri_cheung', name: '張華標', role: 'writer', title: '金牌金像編審', skill: 90, specialty: '家族恩怨', fee: 90_000, desc: '善創金句名場面，高潮迭起絕無冷場' },
-  { id: 'wri_chan', name: '陳十三', role: 'writer', title: '奇幻鬼才編劇', skill: 88, specialty: '奇幻靈異', fee: 85_000, desc: '想像力奔放不羈，奇情天馬行空' },
-  { id: 'wri_sit', name: '薛家華', role: 'writer', title: '快手生活編審', skill: 80, specialty: '處境喜劇', fee: 60_000, desc: '貼地市井生活，對白幽默風趣出稿神速' }
+  // 1. 旗艦劇集 (drama)
+  { id: 'dir_lee', name: '李添勝', role: 'director', format: 'drama', title: '金牌監製導演', skill: 88, specialty: '古裝武俠', fee: 120_000, desc: '掌控大局能力極強，擅長武俠情義與大河劇集' },
+  { id: 'dir_wai', name: '韋家輝', role: 'director', format: 'drama', title: '鬼才編導', skill: 92, specialty: '商戰風雲', fee: 180_000, desc: '破格前衛構思，角色性格極端強烈，收視話題雙高峰' },
+  { id: 'dir_to', name: '杜琪峯', role: 'director', format: 'drama', title: '名導巨匠', skill: 95, specialty: '刑偵懸疑', fee: 250_000, desc: '影視巨匠級執導功力，鏡頭調度與氣氛張力頂級' },
+  { id: 'dir_young', name: '新銳獨立導演', role: 'director', format: 'drama', title: '新浪潮青年導演', skill: 78, specialty: '青春偶像', fee: 80_000, desc: '貼近年輕一代審美，鏡頭語言清新潮爆' },
+  { id: 'wri_cheung', name: '張華標', role: 'writer', format: 'drama', title: '金牌金像編審', skill: 90, specialty: '家族恩怨', fee: 90_000, desc: '善創金句名場面，高潮迭起絕無冷場' },
+  { id: 'wri_chan', name: '陳十三', role: 'writer', format: 'drama', title: '奇幻鬼才編劇', skill: 88, specialty: '奇幻靈異', fee: 85_000, desc: '想像力奔放不羈，奇情天馬行空' },
+  { id: 'wri_sit', name: '薛家華', role: 'writer', format: 'drama', title: '快手生活編審', skill: 80, specialty: '處境喜劇', fee: 60_000, desc: '貼地市井生活，對白幽默風趣出稿神速' },
+
+  // 2. 自製綜藝 (variety)
+  { id: 'dir_var_siu', name: '蕭潮順', role: 'director', format: 'variety', title: '元祖綜藝總監', skill: 89, specialty: '爆笑遊戲', fee: 110_000, desc: 'TVB獎門人背後功臣，節奏緊湊笑料不斷，老少咸宜' },
+  { id: 'dir_var_fa', name: '花姐（黃慧君）', role: 'director', format: 'variety', title: '造星金牌監製', skill: 93, specialty: '偶像選秀', fee: 170_000, desc: '現象級偶像選秀教母，善造話題爭議，捧紅新世代偶像' },
+  { id: 'dir_var_wilson', name: '錢國偉', role: 'director', format: 'variety', title: '美女廚房金牌編導', skill: 86, specialty: '青春真人騷', fee: 95_000, desc: '經典青春遊戲王，善於炒熱氣氛與捕捉嘉賓尷尬笑點' },
+  { id: 'dir_var_mike', name: 'Mike導（劉諾衡）', role: 'director', format: 'variety', title: '無限制瘋狂編導', skill: 90, specialty: '整蠱企劃', fee: 130_000, desc: 'ERROR自肥企劃主腦，天馬行空無底線搞笑，年輕網絡狂潮' },
+  { id: 'wri_var_man', name: '文雋', role: 'writer', format: 'variety', title: '殿堂綜藝主筆', skill: 88, specialty: '大型遊戲企劃', fee: 80_000, desc: '幽默包袱設計老手，遊戲環節緊張刺激，台詞幽默逗趣' },
+  { id: 'wri_var_ling', name: '鄧潔明', role: 'writer', format: 'variety', title: '生活娛樂編審', skill: 82, specialty: '美食旅遊', fee: 65_000, desc: '貼地治癒系生活，挖掘在地隱世美食與感人溫馨故事' },
+  { id: 'wri_var_gag', name: '網絡GAG王企劃組', role: 'writer', format: 'variety', title: '潮流迷因主筆', skill: 85, specialty: '流行梗整蠱', fee: 70_000, desc: '網羅全港社交平台熱梗，製造爆笑迷因與病毒式傳播金句' },
+
+  // 3. 新聞資訊 (news)
+  { id: 'dir_news_yuen', name: '袁志偉', role: 'director', format: 'news', title: '資深新聞總監', skill: 91, specialty: '權威客觀', fee: 130_000, desc: '數十年新聞主管經驗，重視權威客觀與黃金時段排播穩定' },
+  { id: 'dir_news_au', name: '區家麟', role: 'director', format: 'news', title: '深度調查編採總監', skill: 93, specialty: '深度追蹤', fee: 160_000, desc: '新聞獎大滿貫採訪主任，抽絲剝繭揭露事實真相與社會問題' },
+  { id: 'dir_news_fast', name: '港聞突發採訪主任', role: 'director', format: 'news', title: '即時現場指揮', skill: 85, specialty: '突發直擊', fee: 85_000, desc: '全天候24小時機動調度，第一時間直擊重大事故與新聞現場' },
+  { id: 'dir_news_fin', name: '財經新聞主編', role: 'director', format: 'news', title: '財經專業拆局', skill: 87, specialty: '政經剖析', fee: 100_000, desc: '精準捕捉港股外匯風向，深度拆解宏觀經濟與樓市走勢' },
+  { id: 'wri_news_anchor', name: '首席主播文稿編審', role: 'writer', format: 'news', title: '金牌新聞主筆', skill: 89, specialty: '頭條文稿', fee: 75_000, desc: '字字珠璣嚴謹審核，語速語調精準拿捏，建立觀眾高度信任' },
+  { id: 'wri_news_invest', name: '調查報導專題筆鋒', role: 'writer', format: 'news', title: '重磅調查撰稿', skill: 92, specialty: '黑幕調查', fee: 90_000, desc: '扎實數據調查與暗訪求證，重磅調查專題屢獲殊榮' },
+  { id: 'wri_news_live', name: '突發快訊首席撰稿', role: 'writer', format: 'news', title: '快手外電主筆', skill: 83, specialty: '全球快訊', fee: 60_000, desc: '全球外電即時編譯，秒速推送破局快訊，搶佔第一發布權' },
+
+  // 4. 深度紀錄 (documentary)
+  { id: 'dir_doc_cheung', name: '張堅庭', role: 'director', format: 'documentary', title: '人文紀實導演', skill: 90, specialty: '社會人文', fee: 120_000, desc: '細膩人文鏡頭關懷，深入城市微塵與平民日常，韻味悠長' },
+  { id: 'dir_doc_mak', name: '麥海珊', role: 'director', format: 'documentary', title: '獨立紀實先鋒', skill: 88, specialty: '邊緣寫實', fee: 105_000, desc: '大膽深入爭議群體與被遺忘角落，客觀冷靜長鏡頭展現真實' },
+  { id: 'dir_doc_nature', name: '極地深海攝製總監', role: 'director', format: 'documentary', title: '自然生態巨匠', skill: 94, specialty: '自然奇觀', fee: 200_000, desc: '遠赴南北極與深海4K微距捕捉，震撼視聽震撼全城' },
+  { id: 'dir_doc_hist', name: '香港歷史影像總監', role: 'director', format: 'documentary', title: '回憶口述導演', skill: 86, specialty: '集體回憶', fee: 90_000, desc: '百年香港影像檔案考證，重現九龍城寨與老香港傳奇歲月' },
+  { id: 'wri_doc_hist', name: '文史考證首席編審', role: 'writer', format: 'documentary', title: '歷史文獻學者', skill: 91, specialty: '史實考究', fee: 85_000, desc: '翻閱檔案館百萬史料，嚴謹考證每段歷史細節，具學術價值' },
+  { id: 'wri_doc_field', name: '田野調查深度主筆', role: 'writer', format: 'documentary', title: '生命故事撰稿', skill: 87, specialty: '人物傳記', fee: 70_000, desc: '駐村數月深度訪談，挖掘平凡人物不屈生命力，催淚動人' },
+  { id: 'wri_doc_sci', name: '探索科學專題編審', role: 'writer', format: 'documentary', title: '硬核科普筆觸', skill: 85, specialty: '科普解析', fee: 65_000, desc: '通俗易懂拆解複雜科學原理與前沿科技，開拓全民眼界' },
+
+  // 5. 夜間清談 (talkshow)
+  { id: 'dir_talk_to', name: '陶傑', role: 'director', format: 'talkshow', title: '深度訪談才子監製', skill: 92, specialty: '機智辛辣', fee: 150_000, desc: '才子式引導風格，談笑風生間直擊嘉賓心防，妙語連珠' },
+  { id: 'dir_talk_cheuk', name: '卓韻芝', role: 'director', format: 'talkshow', title: '前衛夜話導演', skill: 87, specialty: '兩性情感', fee: 100_000, desc: '深夜心事無所顧忌，直言不諱暢聊男女攻防與都市孤獨' },
+  { id: 'dir_talk_zen', name: '深夜治癒心靈編導', role: 'director', format: 'talkshow', title: '深夜樹洞導演', skill: 84, specialty: '溫情療癒', fee: 80_000, desc: '溫柔傾聽嘉賓脆弱，打造都市夜歸人溫暖的精神避風港' },
+  { id: 'dir_talk_cross', name: '跨界文化沙龍總監', role: 'director', format: 'talkshow', title: '思想交鋒名嘴', skill: 89, specialty: '文藝思想', fee: 120_000, desc: '邀請各界名流深度碰撞，擦出哲學與藝術的燦爛思想火花' },
+  { id: 'wri_talk_hot', name: '辛辣話題首席策劃', role: 'writer', format: 'talkshow', title: '熱門爆料編審', skill: 89, specialty: '爭議話題', fee: 80_000, desc: '量身定制犀利提問提綱，善於引導嘉賓吐露心聲猛料' },
+  { id: 'wri_talk_love', name: '深夜兩性專題編審', role: 'writer', format: 'talkshow', title: '情書信箱主筆', skill: 85, specialty: '感情心理', fee: 68_000, desc: '深諳當代男女情感痛點，設計扎心又治癒的情感互動環節' },
+  { id: 'wri_talk_weird', name: '都市奇聞檔案主筆', role: 'writer', format: 'talkshow', title: '奇聞異事企劃', skill: 83, specialty: '怪談怪聞', fee: 60_000, desc: '網羅都市奇人異事與民間未解之謎，營造神秘引人入勝氛圍' },
+
+  // 6. 直播盛事 (live)
+  { id: 'dir_live_wai', name: '衛世輝', role: 'director', format: 'live', title: '殿堂大型盛典總監', skill: 95, specialty: '萬人直播', fee: 220_000, desc: '台慶、港姐與大型籌款第一導播，現場多機位切換零失誤神話' },
+  { id: 'dir_live_stephen', name: '陳志雲', role: 'director', format: 'live', title: '盛典舞台總策劃', skill: 92, specialty: '頒獎典禮', fee: 160_000, desc: '掌控舞台宏大視覺節奏，調度全港巨星嘉賓，營造萬眾矚目高潮' },
+  { id: 'dir_live_sports', name: '體育直播第一導播', role: 'director', format: 'live', title: '激戰秒速切換', skill: 88, specialty: '體育電競', fee: 120_000, desc: '無縫捕捉進球、衝線瞬間，多角度慢鏡頭回放扣人心弦' },
+  { id: 'dir_live_xr', name: '跨屏新媒體直播導演', role: 'director', format: 'live', title: '全景互動技術', skill: 86, specialty: '虛擬舞台', fee: 95_000, desc: '融合XR虛擬舞台與全城互動彈幕，引爆跨世代全民參與' },
+  { id: 'wri_live_law', name: '鄭丹瑞', role: 'writer', format: 'live', title: '殿堂司儀稿總撰稿', skill: 93, specialty: '金牌司儀稿', fee: 100_000, desc: '金牌司儀幕後撰稿靈魂，精準鋪排高雅幽默笑話與莊重過場' },
+  { id: 'wri_live_show', name: '盛典歌舞秀編審', role: 'writer', format: 'live', title: '高潮節奏策劃', skill: 87, specialty: '文藝匯演', fee: 75_000, desc: '設計開場萬人歌舞與重頭神秘嘉賓驚喜串聯，熱度破表' },
+  { id: 'wri_live_quick', name: '現場救場即興文膽', role: 'writer', format: 'live', title: '臨場急智快手', skill: 85, specialty: '臨場補位', fee: 65_000, desc: '應對超時或冷場危機秒速遞紙條，幽默化解任何直播意外' }
 ];
 
 export class BiddingEvent {
