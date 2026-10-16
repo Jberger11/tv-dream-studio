@@ -1751,24 +1751,20 @@ export function calcFourStationShares(playerScore = 0, rivalScores = [50, 50, 50
   const r2 = Math.max(1, Number(rivalScores?.[2]) || 45);
   const rRaw = [r0, r1, r2];
   const maxRivalRaw = Math.max(...rRaw);
-  let topRivalIdx = rRaw.indexOf(maxRivalRaw);
   const won = p > maxRivalRaw;
 
-  // Authentic Hong Kong TV station reach tiers (81 翡翠台 > 99 ViuTV > 77 HOY TV)
-  // If ViuTV or HOY TV is the strongest rival in this slot, elevate its reach so it leads the rivals
-  const baseStationReach = [1.02, 0.78, 0.56];
-  const effRivals = rRaw.map((val, idx) => {
-    const reach = idx === topRivalIdx ? Math.max(0.96, baseStationReach[idx]) : baseStationReach[idx];
-    return val * reach;
-  });
+  // 81 翡翠台 (×0.88), 99 ViuTV (×0.98), 77 HOY TV (×0.56，一般時段佔 4%–9%)
+  const baseStationReach = [0.88, 0.98, 0.56];
+  const effRivals = rRaw.map((val, idx) => val * baseStationReach[idx]);
+  const maxRivalEff = Math.max(...effRivals);
+  let topRivalIdx = effRivals.indexOf(maxRivalEff);
 
   // Player effective attraction: rewards beating top rival AND high absolute show score (70-100 blockbuster pull)
   let effPlayer = 0;
   if (p > 0) {
-    const topRivalEff = effRivals[topRivalIdx];
     const leadRatio = Math.pow(Math.max(0.25, p / Math.max(1, maxRivalRaw)), 1.65);
     const blockbusterBonus = p >= 70 ? 1 + Math.pow((p - 68) / 32, 1.25) * 0.48 : (p < 45 ? 0.82 : 0.96);
-    effPlayer = topRivalEff * leadRatio * blockbusterBonus;
+    effPlayer = maxRivalEff * leadRatio * blockbusterBonus;
   }
 
   const effAll = [effPlayer, effRivals[0], effRivals[1], effRivals[2]];
@@ -1842,7 +1838,7 @@ export function calcFourStationShares(playerScore = 0, rivalScores = [50, 50, 50
     diffShare: shares[0] - topRivalShare,
     won,
     total: 100,
-    modelVersion: 2
+    modelVersion: 3
   };
 }
 

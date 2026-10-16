@@ -2064,7 +2064,11 @@ test('calcFourStationShares normalizes 4 stations to exactly 100% and preserves 
   const hit = calcFourStationShares(97, [75, 61, 62]);
   assert.equal(hit.playerShare + hit.jadeShare + hit.viuShare + hit.hoyShare, 100);
   assert.ok(hit.playerShare >= 65, `Blockbuster show (97 pts) must capture >= 65% share, got ${hit.playerShare}%`);
-  assert.ok(hit.jadeShare > hit.viuShare && hit.viuShare >= hit.hoyShare, 'Rivals must reflect realistic station hierarchy');
+  assert.ok(hit.jadeShare > hit.hoyShare && hit.viuShare > hit.hoyShare && hit.hoyShare <= 9, 'HOY TV (x0.56) must have the smallest base share');
+
+  // Equal raw rival scores must follow ViuTV (x0.98) > Jade (x0.88) > HOY (x0.56)
+  const equalRivals = calcFourStationShares(60, [60, 60, 60]);
+  assert.ok(equalRivals.viuShare > equalRivals.jadeShare && equalRivals.jadeShare > equalRivals.hoyShare);
 
   // Tied raw score must never produce 0% diffShare
   const tied = calcFourStationShares(63, [63, 53, 50]);
