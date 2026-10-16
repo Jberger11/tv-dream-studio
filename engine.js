@@ -1744,6 +1744,69 @@ export function productionQuote(state,{kind='drama',actorIds=[],budgetId='standa
   return {perEpisode,episodes,fees,total:perEpisode*(episodes||1)+fees+hook.cost,style,budget,cast,hook};
 }
 
+export function calcFourStationShares(playerScore = 0, rivalScores = [50, 50, 50]) {
+  const p = Math.max(0, Number(playerScore) || 0);
+  const r0 = Math.max(1, Number(rivalScores?.[0]) || 45);
+  const r1 = Math.max(1, Number(rivalScores?.[1]) || 45);
+  const r2 = Math.max(1, Number(rivalScores?.[2]) || 45);
+  const raw = [p, r0, r1, r2];
+  const total = Math.max(1, raw[0] + raw[1] + raw[2] + raw[3]);
+  const exact = raw.map(v => (v / total) * 100);
+  const shares = exact.map((v, i) => raw[i] === 0 ? 0 : Math.floor(v));
+  let rem = 100 - shares.reduce((a, b) => a + b, 0);
+
+  const order = [0, 1, 2, 3].filter(i => raw[i] > 0).sort((a, b) => {
+    const fracDiff = (exact[b] - shares[b]) - (exact[a] - shares[a]);
+    if (Math.abs(fracDiff) > 1e-9) return fracDiff;
+    if (raw[b] !== raw[a]) return raw[b] - raw[a];
+    return a - b;
+  });
+
+  for (let i = 0; i < rem && order.length > 0; i++) {
+    shares[order[i % order.length]] += 1;
+  }
+
+  // Ensure strict winner consistency between player and strongest rival
+  const maxRivalRaw = Math.max(r0, r1, r2);
+  let topRivalIdx = [r0, r1, r2].indexOf(maxRivalRaw);
+  const rivalShareIdx = topRivalIdx + 1;
+
+  if (p > maxRivalRaw && shares[0] <= shares[rivalShareIdx]) {
+    const delta = (shares[rivalShareIdx] - shares[0]) + 1;
+    if (shares[rivalShareIdx] > delta) {
+      shares[0] += delta;
+      shares[rivalShareIdx] -= delta;
+    }
+  } else if (p < maxRivalRaw && p > 0 && shares[0] >= shares[rivalShareIdx]) {
+    const delta = (shares[0] - shares[rivalShareIdx]) + 1;
+    if (shares[0] > delta) {
+      shares[rivalShareIdx] += delta;
+      shares[0] -= delta;
+    }
+  }
+
+  const rivalShares = [shares[1], shares[2], shares[3]];
+  const topRivalShare = Math.max(...rivalShares);
+  topRivalIdx = rivalShares.indexOf(topRivalShare);
+  const rivalIds = ['jade', 'viu', 'hoy'];
+  const rivalNames = ['翡翠台', 'ViuTV', 'HOY TV'];
+
+  return {
+    playerShare: shares[0],
+    rivalShares,
+    jadeShare: shares[1],
+    viuShare: shares[2],
+    hoyShare: shares[3],
+    topRivalShare,
+    topRivalIdx,
+    topRivalId: rivalIds[topRivalIdx],
+    topRivalName: rivalNames[topRivalIdx],
+    diffShare: shares[0] - topRivalShare,
+    won: p > maxRivalRaw,
+    total: 100
+  };
+}
+
 export function rivalAtHour(state,rival,hour,day=state.day) {
   const block=rival.schedule.find(item=>hoursInBlock(item).includes(hour));
   if (!block) return null;
@@ -1751,7 +1814,7 @@ export function rivalAtHour(state,rival,hour,day=state.day) {
   const deal=hour>=21&&hour<23?(state.distributionDeals??[]).find(item=>item.rivalId===rival.id&&item.startDay<=day&&day<item.expiresDay):null;
   const rivalMarketBuy=hour>=21&&hour<23&&!deal?(state.rivalPurchases??[]).find(item=>item.rivalId===rival.id&&item.startDay<=day&&day<item.expiresDay):null;
   const title=deal?.title??rivalMarketBuy?.title??premiere?.title??block.rotation?.[state.quarter%block.rotation.length]??block.title;
-  const wave=(day*11+hour*3+(rival.id==='jade'||rival.id==='city'?0:rival.id==='viu'||rival.id==='local'?2:4))%7-3;
+  const wave=(day*11+(block.start??hour)*3+(rival.id==='jade'||rival.id==='city'?0:rival.id==='viu'||rival.id==='local'?2:4))%7-3;
   const base=deal?.rating??(rivalMarketBuy?rivalMarketBuy.rating+2:null)??premiere?.rating??block.rating;
   let eventMod = 0;
   if (state.breakingEvent) {
@@ -3778,6 +3841,7 @@ export function advanceDay(state,rng=Math.random) {
           maxFreshness: 100,
           special: false,
           rivals: rivals.map(item => item.rating),
+          rivalShows: rivals.map((item, idx) => ({ id: state.rivals[idx]?.id, name: state.rivals[idx]?.name, title: item.title, category: item.category, rating: item.rating })),
           eventMod: 0,
           eventTitle: state.breakingEvent?.title
         };
@@ -3789,6 +3853,18 @@ export function advanceDay(state,rng=Math.random) {
       }
       const gapBlockRating = Math.round(gapRatingTotal / times.length);
       const gapRivalRating = Math.round(times.reduce((sum, hour) => sum + Math.max(...hours[hour].rivals), 0) / times.length);
+      const gapAvgRivals = [0, 1, 2].map(idx => Math.round(times.reduce((sum, hour) => sum + (hours[hour].rivals[idx] ?? 0), 0) / times.length));
+      const maxGapIdx = gapAvgRivals.indexOf(Math.max(...gapAvgRivals));
+      if (maxGapIdx >= 0) gapAvgRivals[maxGapIdx] = gapRivalRating;
+      const gapShares = calcFourStationShares(gapBlockRating, gapAvgRivals);
+      for (const hour of times) {
+        hours[hour].rating = gapBlockRating;
+        hours[hour].rivals = [...gapAvgRivals];
+        if (hours[hour].rivalShows) {
+          hours[hour].rivalShows = hours[hour].rivalShows.map((rs, idx) => ({ ...rs, rating: gapAvgRivals[idx] ?? rs.rating }));
+        }
+        hours[hour].shares = gapShares;
+      }
       details.push({
         programId: p.id,
         kind: p.kind,
@@ -3799,6 +3875,12 @@ export function advanceDay(state,rng=Math.random) {
         episode: gapEpisode,
         rating: gapBlockRating,
         rivalRating: gapRivalRating,
+        rivals: gapAvgRivals,
+        shares: gapShares,
+        playerShare: gapShares.playerShare,
+        rivalShare: gapShares.topRivalShare,
+        topRivalName: gapShares.topRivalName,
+        diffShare: gapShares.diffShare,
         won: false,
         decay: 1,
         freshness: 40,
@@ -3902,17 +3984,30 @@ export function advanceDay(state,rng=Math.random) {
         else if (pricingStrategy === 'premium') pricingMod = prime ? 1.30 : 0.95;
         ads=Math.round(rate*rating*rating/70*rightsFactor*(p.outcome==='disaster'?.5:1)*pricingMod);
       }
-      hours[hour]={hour,title:special?blockEvent.name:p.title,episode,rating,revenue:ads,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,special,rivals:rivals.map(item=>item.rating),eventMod,eventTitle:state.breakingEvent?.title};
+      hours[hour]={hour,title:special?blockEvent.name:p.title,episode,rating,revenue:ads,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,special,rivals:rivals.map(item=>item.rating),rivalShows:rivals.map((item,idx)=>({id:state.rivals[idx]?.id,name:state.rivals[idx]?.name,title:item.title,category:item.category,rating:item.rating})),eventMod,eventTitle:state.breakingEvent?.title};
       blockRevenue+=ads; ratingTotal+=rating; revenue+=ads; audience+=rating;
       buzz+=special?(cfg?.type==='racing'?55:90):Math.round(p.buzz*decay*freshFactor);
     }
     const blockRating=Math.round(ratingTotal/times.length);
     const rivalRating=Math.round(times.reduce((sum,hour)=>sum+Math.max(...hours[hour].rivals),0)/times.length);
+    const avgRivals=[0,1,2].map(idx=>Math.round(times.reduce((sum,hour)=>sum+(hours[hour].rivals[idx]??0),0)/times.length));
+    const maxAvgRival=Math.max(...avgRivals);
+    const maxAvgIdx=avgRivals.indexOf(maxAvgRival);
+    if (maxAvgIdx>=0) avgRivals[maxAvgIdx]=rivalRating;
+    const blockShares=calcFourStationShares(blockRating,avgRivals);
+    for (const hour of times) {
+      hours[hour].rating = blockRating;
+      hours[hour].rivals = [...avgRivals];
+      if (hours[hour].rivalShows) {
+        hours[hour].rivalShows = hours[hour].rivalShows.map((rs, idx) => ({ ...rs, rating: avgRivals[idx] ?? rs.rating }));
+      }
+      hours[hour].shares = blockShares;
+    }
     const won=blockRating>rivalRating;
     const effect=p&&isOneOffEvent(p.kind)?oneOffBroadcastEffect(state,p,blockRating,won):'';
     if(effect)note(state,`《${p.title}》播映：收視 ${blockRating}，${effect}。`,won?'good':'neutral');
     const eventMod = p ? getBreakingRatingMod(state.breakingEvent, p) : 0;
-    details.push({programId:p?.id??block.programId,kind:p?.kind??'sports',category:p?.category??'大型賽事',start:block.start,duration:block.duration,title:special?blockEvent.name:p.title,episode,rating:blockRating,rivalRating,won,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,revenue:blockRevenue,special,effect,eventMod,eventTitle:state.breakingEvent?.title});
+    details.push({programId:p?.id??block.programId,kind:p?.kind??'sports',category:p?.category??'大型賽事',start:block.start,duration:block.duration,title:special?blockEvent.name:p.title,episode,rating:blockRating,rivalRating,rivals:avgRivals,shares:blockShares,playerShare:blockShares.playerShare,rivalShare:blockShares.topRivalShare,topRivalName:blockShares.topRivalName,diffShare:blockShares.diffShare,won,decay,freshness:p?.freshness??100,maxFreshness:p?.maxFreshness??100,revenue:blockRevenue,special,effect,eventMod,eventTitle:state.breakingEvent?.title});
     state.monthBroadcastLog ??= [];
     state.monthBroadcastLog.push({
       programId: p ? p.id : block.programId,
@@ -4106,7 +4201,9 @@ export function advanceDay(state,rng=Math.random) {
   const completed=finishedPrograms.map(p=>p.title);
   if (completed.length) note(state,`${completed.map(title=>`《${title}》`).join('、')}一輪播畢（大結局後新鮮度降至冷卻期，隨時間將回溫）；時段已騰空。如要重播重溫，請到片庫手動開新一輪。`,'neutral');
   for (let hour=0;hour<24;hour++) if (!hours[hour]) {
-    hours[hour]={hour,title:'未排節目',episode:'',rating:0,revenue:0,decay:1,empty:true,rivals:state.rivals.map(rival=>rivalAtHour(state,rival,hour,gameDay).rating)};
+    const rivalShows=state.rivals.map(rival=>rivalAtHour(state,rival,hour,gameDay));
+    const rRatings=rivalShows.map(item=>item.rating);
+    hours[hour]={hour,title:'未排節目',episode:'',rating:0,revenue:0,decay:1,empty:true,rivals:rRatings,rivalShows,shares:calcFourStationShares(0,rRatings)};
   }
   state.quarterLedger.sportsRevenue+=sportsRevenue;
   const concludingSports = (state.events ?? []).filter(e => {
@@ -4318,7 +4415,7 @@ export function advanceDay(state,rng=Math.random) {
   let topHighlight = null;
   let lowestHighlight = null;
   if (details.length) {
-    const sorted = [...details].sort((a, b) => b.rating - a.rating);
+    const sorted = [...details].sort((a, b) => b.rating - a.rating || (b.playerShare ?? 0) - (a.playerShare ?? 0));
     const top = sorted[0];
     const lowest = sorted[sorted.length - 1];
     topHighlight = {
@@ -4327,6 +4424,11 @@ export function advanceDay(state,rng=Math.random) {
       duration: top.duration,
       rating: top.rating,
       rivalRating: top.rivalRating,
+      playerShare: top.playerShare,
+      rivalShare: top.rivalShare,
+      topRivalName: top.topRivalName,
+      diffShare: top.diffShare,
+      shares: top.shares,
       won: top.won,
       diff: top.rating - top.rivalRating,
       revenue: top.revenue
@@ -4337,6 +4439,11 @@ export function advanceDay(state,rng=Math.random) {
       duration: lowest.duration,
       rating: lowest.rating,
       rivalRating: lowest.rivalRating,
+      playerShare: lowest.playerShare,
+      rivalShare: lowest.rivalShare,
+      topRivalName: lowest.topRivalName,
+      diffShare: lowest.diffShare,
+      shares: lowest.shares,
       won: lowest.won,
       diff: lowest.rating - lowest.rivalRating,
       revenue: lowest.revenue
@@ -4347,7 +4454,7 @@ export function advanceDay(state,rng=Math.random) {
   const daily={day:gameDay,quarter:state.quarter,label:`第 ${gameDay} 日`,hours,details,revenue,overhead,net:revenue-overhead,sportsRevenue,sportsPenalty,wins,talentChanges,completed,highlights};
   state.lastDayResult=daily;
   state.broadcastReports??=[];
-  state.broadcastReports.unshift({day:gameDay,details});
+  state.broadcastReports.unshift({day:gameDay,details,hours,highlights});
   state.broadcastReports=state.broadcastReports.slice(0,7);
   const ledger=state.quarterLedger;
   ledger.revenue+=revenue;ledger.overhead+=overhead;ledger.audience+=audience;ledger.buzz+=buzz;ledger.days++;

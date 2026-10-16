@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-auto-qc-v8';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, calcFourStationShares, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261016-share100-v9';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -1212,7 +1212,7 @@ function scheduleHome(){
         </button>
       </div>
     `}
-    ${result?`<div class="day-result-strip" role="status"><span>最近 ${result.days} 日營運</span><strong class="${result.net<0?'danger':''}">${result.net>=0?'+':''}${money(result.net)}</strong><span>對台勝出 ${result.wins} / ${24*result.days} 小時</span>${state.lastDayResult?.highlights?.top?`<span class="highlight-strip-pill top">🏆 今日焦點：《${safe(state.lastDayResult.highlights.top.title)}》（${state.lastDayResult.highlights.top.rating}分）</span>`:''}<button data-action="tab" data-tab="reports">逐套節目成績 →</button></div>`:''}
+    ${result?`<div class="day-result-strip" role="status"><span>最近 ${result.days} 日營運</span><strong class="${result.net<0?'danger':''}">${result.net>=0?'+':''}${money(result.net)}</strong><span>對台勝出 ${result.wins} / ${24*result.days} 小時</span>${state.lastDayResult?.highlights?.top?`<span class="highlight-strip-pill top">🏆 今日焦點：《${safe(state.lastDayResult.highlights.top.title)}》（${state.lastDayResult.highlights.top.playerShare ?? getDetailShares(state.lastDayResult.highlights.top, state.lastDayResult.day, state.lastDayResult.hours).playerShare}%）</span>`:''}<button data-action="tab" data-tab="reports">逐套節目成績 →</button></div>`:''}
     ${completed.length && !dismissedAlerts.completed?`
       <div class="completion-alert has-dismiss" role="status">
         <div class="alert-content">
@@ -1236,14 +1236,122 @@ function scheduleHome(){
   </div>`;
 }
 
+function getSettledReports() {
+  if (state.broadcastReports?.length) return state.broadcastReports;
+  if (state.lastDayResult) {
+    return [{
+      day: state.lastDayResult.day,
+      details: state.lastDayResult.details ?? [],
+      hours: state.lastDayResult.hours,
+      highlights: state.lastDayResult.highlights
+    }];
+  }
+  return [];
+}
+
+function getDetailShares(item, reportDay, rawHours) {
+  if (item.shares && Number.isFinite(item.shares.playerShare) && item.shares.total === 100) {
+    return item.shares;
+  }
+  let rRatings;
+  if (Array.isArray(item.rivals) && item.rivals.length === 3) {
+    rRatings = [...item.rivals];
+  } else {
+    const start = item.start ?? 0;
+    const duration = Math.max(1, item.duration ?? 1);
+    const hrs = Array.from({ length: duration }, (_, i) => (start + i) % 24);
+    rRatings = [0, 1, 2].map(idx => {
+      const vals = hrs.map(h => {
+        const fromRaw = rawHours?.[h]?.rivals?.[idx];
+        return Number.isFinite(fromRaw) ? fromRaw : rivalAtHour(state, state.rivals[idx], h, reportDay).rating;
+      });
+      return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+    });
+  }
+  if (Number.isFinite(item.rivalRating)) {
+    const maxIdx = rRatings.indexOf(Math.max(...rRatings));
+    if (maxIdx >= 0) rRatings[maxIdx] = item.rivalRating;
+  }
+  return calcFourStationShares(item.rating ?? 0, rRatings);
+}
+
+function buildAlignedReportHours(report) {
+  if (!report) return null;
+  const reportDay = report.day;
+  const details = report.details ?? [];
+  const rawHours = report.hours ?? (state.lastDayResult?.day === reportDay ? state.lastDayResult.hours : null) ?? [];
+  const aligned = Array.from({ length: 24 }, (_, hour) => {
+    const raw = rawHours[hour];
+    const rivalShows = raw?.rivalShows?.length === 3
+      ? raw.rivalShows.map(rs => ({ ...rs }))
+      : state.rivals.map((rival, idx) => {
+          const computed = rivalAtHour(state, rival, hour, reportDay);
+          const rawRivalRating = raw?.rivals?.[idx];
+          return {
+            id: rival.id,
+            name: rival.name,
+            title: computed.title,
+            category: computed.category,
+            rating: Number.isFinite(rawRivalRating) ? rawRivalRating : computed.rating
+          };
+        });
+    const rRatings = rivalShows.map(s => s.rating);
+    const rating = raw?.rating ?? 0;
+    const shares = raw?.shares && raw.shares.total === 100 && raw.rating === rating
+      ? raw.shares
+      : calcFourStationShares(rating, rRatings);
+    return {
+      ...(raw || {}),
+      hour,
+      title: raw?.title ?? '未排節目',
+      episode: raw?.episode ?? '',
+      rating,
+      empty: raw?.empty ?? rating === 0,
+      rivals: rRatings,
+      rivalShows,
+      shares
+    };
+  });
+
+  for (const detail of details) {
+    const shares = getDetailShares(detail, reportDay, rawHours);
+    const start = detail.start ?? 0;
+    const duration = Math.max(1, detail.duration ?? 1);
+    for (let i = 0; i < duration; i++) {
+      const hour = (start + i) % 24;
+      const base = aligned[hour];
+      const rRatings = Array.isArray(detail.rivals) && detail.rivals.length === 3
+        ? [...detail.rivals]
+        : base.rivals.map((val, idx) => idx === shares.topRivalIdx && Number.isFinite(detail.rivalRating) ? detail.rivalRating : val);
+      const rivalShows = base.rivalShows.map((rs, idx) => ({ ...rs, rating: rRatings[idx] ?? rs.rating }));
+      aligned[hour] = {
+        ...base,
+        hour,
+        title: detail.title,
+        episode: detail.episode ?? '',
+        rating: detail.rating,
+        empty: false,
+        freshness: detail.freshness ?? base.freshness,
+        maxFreshness: detail.maxFreshness ?? base.maxFreshness,
+        rivals: rRatings,
+        rivalShows,
+        shares
+      };
+    }
+  }
+  return aligned;
+}
+
 function broadcastResultsView(){
-  const reports=state.broadcastReports?.length?state.broadcastReports:state.lastDayResult?[{day:state.lastDayResult.day,details:state.lastDayResult.details??[],highlights:state.lastDayResult.highlights}]:[];
+  const reports=getSettledReports();
   if(!reports.length)return '';
-  const report=reports.find(item=>item.day===selectedBroadcastDay)??reports[0];
+  const activeDay=typeof selectedBroadcastDay==='number'?selectedBroadcastDay:reports[0].day;
+  const report=reports.find(item=>item.day===activeDay)??reports[0];
+  const rawHours=report.hours??(state.lastDayResult?.day===report.day?state.lastDayResult.hours:null);
   const entries=[...report.details].sort((a,b)=>a.start-b.start);
   const charity=entries.filter(item=>item.kind==='charity').length;
   const currentHighlights=report.highlights || (state.lastDayResult?.day===report.day ? state.lastDayResult.highlights : null);
-  return `<section class="panel broadcast-results" aria-label="逐套節目播映成績"><div class="section-heading"><div><div class="eyebrow gold">ON AIR RESULTS</div><h2>逐套節目成績戰報</h2></div><span class="report-meta-tag">第 ${report.day} 日 · ${entries.length} 個播映時段</span></div><p class="broadcast-results-help">即時播映成效報告：收視指數（0–100）與同時段最強對手比拼，廣告收入即日入帳。</p><div class="broadcast-days" aria-label="選擇播映日">${reports.map(item=>`<button data-action="broadcast-day" data-day="${item.day}" class="${item.day===report.day?'active':''}" aria-pressed="${item.day===report.day}">第 ${item.day} 日</button>`).join('')}</div>${dailyHighlightsView(currentHighlights, report.day)}${charity?`<p class="charity-summary">累計慈善籌款 ${hourlyMoney(state.charityRaised??0)} · 款項不屬電視台資金</p>`:''}<div class="broadcast-result-grid">${entries.length?entries.map(item=>{const rival=Number.isFinite(item.rivalRating)?item.rivalRating:state.lastDayResult?.day===report.day?Math.max(...(state.lastDayResult.hours??[]).filter(hour=>hour&&hour.title===item.title&&hour.hour>=item.start&&hour.hour<item.start+item.duration).flatMap(hour=>hour.rivals??[0])):null;const won=Number.isFinite(rival)?item.rating>rival:null;const diff=Number.isFinite(rival)?item.rating-rival:0;const diffText=diff>0?`+${diff}`:`${diff}`;const totalRatings=Math.max(1,(item.rating+(rival||0)));const ourShare=Math.min(95,Math.max(5,Math.round((item.rating/totalRatings)*100)));return `<article class="broadcast-result-card ${won===true?'won':won===false?'lost':''}"><div class="broadcast-result-top"><span class="broadcast-time-tag">${hourLabel(item.start)}–${hourLabel(item.start+item.duration)}</span>${item.freshness!==undefined?(()=>{const f=freshnessLabel(item.freshness,item.maxFreshness);return `<span class="freshness-result-pill ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`;})():''}${item.eventMod?`<span class="event-mod-tag ${item.eventMod>0?'boost':'debuff'}">${item.eventMod>0?`▲ 突發 +${item.eventMod}`:`▼ 突發 ${item.eventMod}`}</span>`:''}<b class="battle-badge ${won===true?'won':won===false?'lost':''}">${won===null?'成績':won?`搶贏對台 ${diffText}`:`未能勝出 ${diffText}`}</b></div><div class="broadcast-title-row"><h3>《${safe(item.title)}》</h3><span class="broadcast-cat-tag">${safe(item.category||'節目')}</span></div><p class="broadcast-ep-line">${safe(item.episode||item.category||'節目播映')}</p><div class="battle-bar-box" title="我台 ${item.rating} : 對手 ${Number.isFinite(rival)?rival:'—'}"><div class="battle-bar-labels"><span>我台 <b>${item.rating}</b></span><span>對手 <b>${Number.isFinite(rival)?rival:'—'}</b></span></div><div class="battle-bar-track"><div class="battle-bar-fill" style="width:${ourShare}%"></div></div></div><div class="broadcast-result-stats"><div><small>我台收視</small><strong>${item.rating}</strong></div><div><small>最強對手</small><strong>${Number.isFinite(rival)?rival:'—'}</strong></div><div><small>廣告收入</small><strong class="gold-text">${hourlyMoney(item.revenue??0)}</strong></div></div>${item.effect?`<p class="broadcast-result-effect">★ ${safe(item.effect)}</p>`:''}${item.eventMod&&item.eventTitle?`<p class="event-mod-note">${item.eventMod>0?'🔥':'⚡'} 突發效應【${safe(item.eventTitle)}】：收視 ${item.eventMod>0?`+${item.eventMod}`:item.eventMod} 點</p>`:''}</article>`}).join(''):'<p class="empty">當日冇節目播映，排檔後先有逐套成績。</p>'}</div></section>`;
+  return `<section class="panel broadcast-results" aria-label="逐套節目播映成績"><div class="section-heading"><div><div class="eyebrow gold">ON AIR RESULTS · 100% AUDIENCE SHARE</div><h2>逐套節目成績戰報</h2></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span class="report-meta-tag">第 ${report.day} 日 · ${entries.length} 個播映時段</span><button type="button" class="soft-button" style="padding:4px 10px;font-size:0.78rem;" data-action="open-matchup-day" data-day="${report.day}">⚔️ 查看第 ${report.day} 日 24 小時四台對決表 →</button></div></div><p class="broadcast-results-help">即時播映成效報告：四台收視率合計為 <strong>100%</strong>（我台 + 81 翡翠台 + 99 ViuTV + 77 HOY TV = 100%），與「24 小時四台逐小時同步對決表」完全同步對齊，廣告收入即日入帳。</p><div class="broadcast-days" aria-label="選擇播映日">${reports.map(item=>`<button data-action="broadcast-day" data-day="${item.day}" class="${item.day===report.day?'active':''}" aria-pressed="${item.day===report.day}">第 ${item.day} 日</button>`).join('')}</div>${dailyHighlightsView(currentHighlights, report.day, entries, rawHours)}${charity?`<p class="charity-summary">累計慈善籌款 ${hourlyMoney(state.charityRaised??0)} · 款項不屬電視台資金</p>`:''}<div class="broadcast-result-grid">${entries.length?entries.map(item=>{const shares=getDetailShares(item,report.day,rawHours);const won=shares.won;const diff=shares.diffShare;const diffText=diff>0?`+${diff}%`:`${diff}%`;return `<article class="broadcast-result-card ${won?'won':'lost'}"><div class="broadcast-result-top"><span class="broadcast-time-tag">${hourLabel(item.start)}–${hourLabel(item.start+item.duration)}</span>${item.freshness!==undefined?(()=>{const f=freshnessLabel(item.freshness,item.maxFreshness);return `<span class="freshness-result-pill ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`;})():''}${item.eventMod?`<span class="event-mod-tag ${item.eventMod>0?'boost':'debuff'}">${item.eventMod>0?`▲ 突發 +${item.eventMod}`:`▼ 突發 ${item.eventMod}`}</span>`:''}<b class="battle-badge ${won?'won':'lost'}">${won?`搶贏對台 ${diffText}`:`未能勝出 ${diffText}`}</b></div><div class="broadcast-title-row"><h3>《${safe(item.title)}》</h3><span class="broadcast-cat-tag">${safe(item.category||'節目')}</span></div><p class="broadcast-ep-line">${safe(item.episode||item.category||'節目播映')}</p><div class="battle-bar-box" title="四台收視率合計 100%：我台 ${shares.playerShare}% · 翡翠台 ${shares.jadeShare}% · ViuTV ${shares.viuShare}% · HOY TV ${shares.hoyShare}%"><div class="battle-bar-labels" style="font-size:0.74rem;display:flex;justify-content:space-between;gap:4px;flex-wrap:wrap;"><span style="color:#38bdf8;">我台 <b>${shares.playerShare}%</b></span><span style="color:#86efac;">翡翠 <b>${shares.jadeShare}%</b></span><span style="color:#7dd3fc;">Viu <b>${shares.viuShare}%</b></span><span style="color:#fda4af;">HOY <b>${shares.hoyShare}%</b></span></div><div class="battle-bar-track" style="display:flex;overflow:hidden;"><div style="width:${shares.playerShare}%;background:#38bdf8;height:100%;" title="我台 ${shares.playerShare}%"></div><div style="width:${shares.jadeShare}%;background:#10b981;height:100%;" title="81 翡翠台 ${shares.jadeShare}%"></div><div style="width:${shares.viuShare}%;background:#0ea5e9;height:100%;" title="99 ViuTV ${shares.viuShare}%"></div><div style="width:${shares.hoyShare}%;background:#f43f5e;height:100%;" title="77 HOY TV ${shares.hoyShare}%"></div></div></div><div class="broadcast-result-stats"><div><small>我台收視率</small><strong>${shares.playerShare}%</strong></div><div><small>最強對手 (${safe(shares.topRivalName)})</small><strong>${shares.topRivalShare}%</strong></div><div><small>廣告收入</small><strong class="gold-text">${hourlyMoney(item.revenue??0)}</strong></div></div>${item.effect?`<p class="broadcast-result-effect">★ ${safe(item.effect)}</p>`:''}${item.eventMod&&item.eventTitle?`<p class="event-mod-note">${item.eventMod>0?'🔥':'⚡'} 突發效應【${safe(item.eventTitle)}】：收視 ${item.eventMod>0?`+${item.eventMod}`:item.eventMod} 點</p>`:''}</article>`}).join(''):'<p class="empty">當日冇節目播映，排檔後先有逐套成績。</p>'}</div></section>`;
 }
 
 function premiereView(){
@@ -1920,34 +2028,43 @@ function renderRivalsOverview(live) {
 
     <section class="panel matchup-panel">
       <div class="section-heading">
-        <h2>⚡ 此刻四台同步收視即時戰況（${hourLabel(live.hour)}）</h2>
-        <span>即時對抗概況 · 點擊切換完整對決矩陣</span>
+        <h2>⚡ 此刻四台同步收視率戰況（${hourLabel(live.hour)} · 四台合計 100%）</h2>
+        <span>四台收視率總和 100% · 點擊切換完整對決矩陣</span>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:12px;background:#172230;border-radius:8px;border:1px solid #2a3c54;">
         ${(() => {
-          const myBlock = programAtHour(state, live.hour);
+          const reports = getSettledReports();
+          const activeReport = reports.length && selectedBroadcastDay !== 'preview'
+            ? (reports.find(r => r.day === selectedBroadcastDay) ?? reports[0])
+            : null;
+          const alignedHours = activeReport ? buildAlignedReportHours(activeReport) : null;
+          const hData = alignedHours?.[live.hour];
+          const myBlock = !hData ? programAtHour(state, live.hour) : null;
           const myProg = myBlock && state.library.find(p => p.id === myBlock.programId);
           const myEvent = myBlock?.programId.startsWith('event:') && state.events.find(e => `event:${e.id}` === myBlock.programId);
-          const myTitle = myProg?.title ?? myEvent?.name ?? '未排節目';
-          const myRating = state.lastDayResult?.hours?.[live.hour]?.rating ?? (myProg?.rating ?? 45);
+          const myTitle = hData?.title ?? myProg?.title ?? myEvent?.name ?? '未排節目';
+          const myRating = hData ? hData.rating : (myProg?.rating ?? (myEvent ? 75 : 0));
+          const rivalShows = hData?.rivalShows ?? state.rivals.map(r => rivalAtHour(state, r, live.hour, state.day));
+          const shares = hData?.shares ?? calcFourStationShares(myRating, rivalShows.map(s => s.rating));
           return `
             <div style="flex:1;min-width:180px;">
               <small style="color:#94a3b8;display:block;">我台（你的電視台）</small>
               <strong style="color:#38bdf8;">《${safe(myTitle)}》</strong>
-              <span class="rating-pill tier-a" style="margin-left:6px;padding:2px 7px;font-size:0.75rem;">${myRating} 點</span>
+              <span class="rating-pill tier-a" style="margin-left:6px;padding:2px 7px;font-size:0.75rem;">${shares.playerShare}%</span>
             </div>
+            ${state.rivals.map((rival, idx) => {
+              const show = rivalShows[idx] ?? rivalAtHour(state, rival, live.hour, state.day);
+              const rShare = shares.rivalShares?.[idx] ?? 25;
+              return `
+                <div style="flex:1;min-width:180px;">
+                  <small style="color:#94a3b8;display:block;">${safe(rival.name)}（${rival.channelNo || ''}台）</small>
+                  <strong style="color:#f1f5f9;">《${safe(show.title)}》</strong>
+                  <span class="rating-pill ${ratingTierClass(show.rating)}" style="margin-left:6px;padding:2px 7px;font-size:0.75rem;">${rShare}%</span>
+                </div>
+              `;
+            }).join('')}
           `;
         })()}
-        ${state.rivals.map(rival => {
-          const show = rivalAtHour(state, rival, live.hour, state.day);
-          return `
-            <div style="flex:1;min-width:180px;">
-              <small style="color:#94a3b8;display:block;">${safe(rival.name)}（${rival.channelNo || ''}台）</small>
-              <strong style="color:#f1f5f9;">《${safe(show.title)}》</strong>
-              <span class="rating-pill ${ratingTierClass(show.rating)}" style="margin-left:6px;padding:2px 7px;font-size:0.75rem;">${show.rating} 點</span>
-            </div>
-          `;
-        }).join('')}
         <button type="button" class="primary-button" data-action="rivals-tab" data-value="matchup">
           進入 24 小時全日對決矩陣 →
         </button>
@@ -1958,51 +2075,70 @@ function renderRivalsOverview(live) {
 
 function renderRivalsMatchup(live) {
   let playerWins = 0, jadeWins = 0, viuWins = 0, hoyWins = 0;
+  const reports = getSettledReports();
+  const isPreview = !reports.length || selectedBroadcastDay === 'preview';
+  const activeReport = !isPreview
+    ? (reports.find(r => r.day === selectedBroadcastDay) ?? reports[0])
+    : null;
+  const alignedHours = activeReport ? buildAlignedReportHours(activeReport) : null;
+  const displayDay = activeReport ? activeReport.day : state.day;
+
+  const jade = state.rivals.find(r => r.id === 'jade') || state.rivals[0];
+  const viu = state.rivals.find(r => r.id === 'viu') || state.rivals[1];
+  const hoy = state.rivals.find(r => r.id === 'hoy') || state.rivals[2];
 
   const rowsHtml = Array.from({ length: 24 }, (_, hour) => {
     const isNow = hour === live.hour;
     const isPrime = hour >= 18 && hour <= 22;
-    const block = programAtHour(state, hour);
-    const prog = block && state.library.find(item => item.id === block.programId);
-    const event = block?.programId.startsWith('event:') && state.events.find(e => `event:${e.id}` === block.programId);
-    const title = prog?.title ?? event?.name ?? '未排節目';
-    const episode = episodeForBlock(state, block);
-    const playerRating = state.lastDayResult?.hours?.[hour]?.rating ?? (prog?.rating ?? 45);
 
-    const jade = state.rivals.find(r => r.id === 'jade') || state.rivals[0];
-    const viu = state.rivals.find(r => r.id === 'viu') || state.rivals[1];
-    const hoy = state.rivals.find(r => r.id === 'hoy') || state.rivals[2];
+    let title, episode, jadeShow, viuShow, hoyShow, shares;
+    if (alignedHours) {
+      const h = alignedHours[hour];
+      title = h.title;
+      episode = h.episode;
+      jadeShow = h.rivalShows?.[0] ?? rivalAtHour(state, jade, hour, displayDay);
+      viuShow = h.rivalShows?.[1] ?? rivalAtHour(state, viu, hour, displayDay);
+      hoyShow = h.rivalShows?.[2] ?? rivalAtHour(state, hoy, hour, displayDay);
+      shares = h.shares ?? calcFourStationShares(h.rating, [jadeShow.rating, viuShow.rating, hoyShow.rating]);
+    } else {
+      const block = programAtHour(state, hour, state.day);
+      const prog = block && state.library.find(item => item.id === block.programId);
+      const event = block?.programId.startsWith('event:') && state.events.find(e => `event:${e.id}` === block.programId);
+      title = prog?.title ?? event?.name ?? '未排節目';
+      episode = episodeForBlock(state, block, state.day);
+      const playerRating = block ? (prog?.rating ?? (event ? 75 : 45)) : 0;
+      jadeShow = rivalAtHour(state, jade, hour, state.day);
+      viuShow = rivalAtHour(state, viu, hour, state.day);
+      hoyShow = rivalAtHour(state, hoy, hour, state.day);
+      shares = calcFourStationShares(playerRating, [jadeShow.rating, viuShow.rating, hoyShow.rating]);
+    }
 
-    const jadeShow = rivalAtHour(state, jade, hour, state.day);
-    const viuShow = rivalAtHour(state, viu, hour, state.day);
-    const hoyShow = rivalAtHour(state, hoy, hour, state.day);
-
-    const ratings = [
-      { name: 'player', label: '我台', val: playerRating },
-      { name: 'jade', label: '翡翠台', val: jadeShow.rating },
-      { name: 'viu', label: 'ViuTV', val: viuShow.rating },
-      { name: 'hoy', label: 'HOY TV', val: hoyShow.rating }
+    const shareEntries = [
+      { name: 'player', label: '我台', share: shares.playerShare },
+      { name: 'jade', label: '翡翠台', share: shares.jadeShare },
+      { name: 'viu', label: 'ViuTV', share: shares.viuShare },
+      { name: 'hoy', label: 'HOY TV', share: shares.hoyShare }
     ];
-    ratings.sort((a, b) => b.val - a.val);
-    const winner = ratings[0];
+    shareEntries.sort((a, b) => b.share - a.share);
+    const winner = shares.won ? shareEntries.find(s => s.name === 'player') : shareEntries[0];
     if (winner.name === 'player') playerWins++;
     else if (winner.name === 'jade') jadeWins++;
     else if (winner.name === 'viu') viuWins++;
     else if (winner.name === 'hoy') hoyWins++;
 
     return `
-      <div class="matchup-row ${isPrime ? 'prime' : ''} ${isNow ? 'is-now' : ''}" data-hour="${hour}" style="grid-template-columns: 80px minmax(160px,1.2fr) minmax(130px,1fr) minmax(130px,1fr) minmax(130px,1fr) 110px;">
+      <div class="matchup-row ${isPrime ? 'prime' : ''} ${isNow ? 'is-now' : ''}" data-hour="${hour}" style="grid-template-columns: 80px minmax(160px,1.2fr) minmax(130px,1fr) minmax(130px,1fr) minmax(130px,1fr) 120px;">
         <strong>${hourLabel(hour)}</strong>
         <span>
           ${safe(title)}${episode ? `<small>${safe(episode)}</small>` : ''}
-          <b>${playerRating} 點</b>
+          <b>${shares.playerShare}%</b>
         </span>
-        <span>${safe(jadeShow.title)}<b>${jadeShow.rating} 點</b></span>
-        <span>${safe(viuShow.title)}<b>${viuShow.rating} 點</b></span>
-        <span>${safe(hoyShow.title)}<b>${hoyShow.rating} 點</b></span>
+        <span>${safe(jadeShow.title)}<b>${shares.jadeShare}%</b></span>
+        <span>${safe(viuShow.title)}<b>${shares.viuShare}%</b></span>
+        <span>${safe(hoyShow.title)}<b>${shares.hoyShare}%</b></span>
         <span>
           <span class="matchup-winner-badge ${winner.name}">
-            ${winner.name === 'player' ? '🏆 我台領先' : `${winner.label}領先`}
+            ${winner.name === 'player' ? `🏆 我台領先 (${shares.playerShare}%)` : `${winner.label}領先 (${winner.share}%)`}
           </span>
         </span>
       </div>
@@ -2012,11 +2148,19 @@ function renderRivalsMatchup(live) {
   return `
     <section class="panel matchup-panel">
       <div class="section-heading">
-        <h2>⚔️ 24 小時四台逐小時同步對決表</h2>
-        <span>我台（你的電視台）對陣 81 翡翠台、99 ViuTV、77 HOY TV</span>
+        <div>
+          <div class="eyebrow gold">FOUR-STATION 100% AUDIENCE SHARE MATRIX</div>
+          <h2>⚔️ 24 小時四台逐小時同步對決表（第 ${displayDay} 日${isPreview ? ' · 今日排播預覽' : ' · 已結算戰報'}）</h2>
+          <span>每小時四台收視率合計 <strong>100%</strong>（我台 + 81 翡翠台 + 99 ViuTV + 77 HOY TV = 100%），與「逐套節目成績戰報」完全對齊</span>
+        </div>
+        ${activeReport ? `<button type="button" class="soft-button" style="padding:5px 12px;font-size:0.8rem;" data-action="open-report-day" data-day="${activeReport.day}">📊 查看第 ${activeReport.day} 日逐套節目成績戰報 →</button>` : ''}
+      </div>
+      <div class="broadcast-days" aria-label="選擇對決日" style="margin-bottom:12px;">
+        ${reports.map(item => `<button data-action="broadcast-day" data-day="${item.day}" class="${!isPreview && activeReport?.day === item.day ? 'active' : ''}" aria-pressed="${!isPreview && activeReport?.day === item.day}">第 ${item.day} 日（已結算戰報）</button>`).join('')}
+        <button data-action="broadcast-day-preview" class="${isPreview ? 'active' : ''}" aria-pressed="${isPreview}">🔮 第 ${state.day} 日（今日排播預覽）</button>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;background:#172230;padding:10px 14px;border-radius:8px;font-size:0.8rem;">
-        <span style="color:#94a3b8;">當日領先統計：</span>
+        <span style="color:#94a3b8;">第 ${displayDay} 日領先統計（每小時四台合計 100%）：</span>
         <strong style="color:#6ee7b7;">我台領先 ${playerWins} 時段</strong> · 
         <strong style="color:#86efac;">翡翠台領先 ${jadeWins} 時段</strong> · 
         <strong style="color:#7dd3fc;">ViuTV領先 ${viuWins} 時段</strong> · 
@@ -2024,18 +2168,18 @@ function renderRivalsMatchup(live) {
       </div>
       <div class="matchup-scroll">
         <div class="matchup-table" style="min-width:920px;">
-          <div class="matchup-head" style="grid-template-columns: 80px minmax(160px,1.2fr) minmax(130px,1fr) minmax(130px,1fr) minmax(130px,1fr) 110px;">
+          <div class="matchup-head" style="grid-template-columns: 80px minmax(160px,1.2fr) minmax(130px,1fr) minmax(130px,1fr) minmax(130px,1fr) 120px;">
             <span>時段</span>
-            <span>我台節目 · 預測收視</span>
-            <span>81 翡翠台 · 收視</span>
-            <span>99 ViuTV · 收視</span>
-            <span>77 HOY TV · 收視</span>
-            <span>時段盟主</span>
+            <span>我台節目 · 收視率 (%)</span>
+            <span>81 翡翠台 · 收視率 (%)</span>
+            <span>99 ViuTV · 收視率 (%)</span>
+            <span>77 HOY TV · 收視率 (%)</span>
+            <span>時段盟主 (合計100%)</span>
           </div>
           ${rowsHtml}
         </div>
       </div>
-      <p class="footnote">💡 對手節目與收視為即時情資預測。按「結算今日」後，實際我台收視與藝人人氣將全面更新！黃金時段（18:00–23:00）為收視定奪關鍵戰場。</p>
+      <p class="footnote">💡 每一小時四間電視台（我台 + 81 翡翠台 + 99 ViuTV + 77 HOY TV）收視率百分比總和固定為 100%，數據與「報告 → 逐套節目成績戰報」同日數據 100% 同步對齊！</p>
     </section>
   `;
 }
@@ -2441,20 +2585,26 @@ function sportsView() {
 }
 
 function hourlyComparisonView() {
-  const result=state.lastDayResult;
-  const visible=result.hours.filter(h=>reportFilter==='prime'?h.hour>=18&&h.hour<=22:reportFilter==='behind'?h.rating<=Math.max(...h.rivals):true);
+  const reports=getSettledReports();
+  const activeDay=typeof selectedBroadcastDay==='number'?selectedBroadcastDay:(reports[0]?.day??state.lastDayResult?.day);
+  const report=reports.find(r=>r.day===activeDay)??reports[0]??state.lastDayResult;
+  if(!report)return '';
+  const alignedHours=buildAlignedReportHours(report)??report.hours??[];
+  const winsCount=alignedHours.filter(h=>h.shares?.won??(h.rating>Math.max(...(h.rivals??[0])))).length;
+  const visible=alignedHours.filter(h=>reportFilter==='prime'?h.hour>=18&&h.hour<=22:reportFilter==='behind'?!(h.shares?.won):true);
   const filters=[['all','全日 24 小時'],['prime','黃金檔 18–22'],['behind','落後時段']];
   return `<section class="panel history-panel comparison-panel">
-    <div class="section-heading"><h2>逐小時收視對比</h2><span>我台勝出 ${result.wins} / 24 小時</span></div>
-    <p class="score-explainer">收視指數係遊戲內 0–100 分，唔係收視率百分比。我台分數高過<strong>三間對手（翡翠台、ViuTV、HOY TV）</strong>先算勝出；廣告收入係該小時賺到嘅錢。</p>
+    <div class="section-heading"><h2>逐小時四台收視率對比（第 ${report.day} 日 · 合計 100%）</h2><span>我台勝出 ${winsCount} / 24 小時</span></div>
+    <p class="score-explainer">每小時四間電視台（<strong>我台、81 翡翠台、99 ViuTV、77 HOY TV</strong>）收視率百分比合計為 <strong>100%</strong>。我台收視率高過三間對手先算勝出；數據與「24 小時四台逐小時同步對決表」完全一致。</p>
     <div class="report-filters" role="group" aria-label="篩選收視時段">${filters.map(([id,label])=>`<button data-action="report-filter" data-value="${id}" class="${reportFilter===id?'active':''}" aria-pressed="${reportFilter===id}">${label}</button>`).join('')}</div>
     <div class="hour-report">${visible.length?visible.map(h=>{
-      const strongest=Math.max(...h.rivals),outcome=h.rating>strongest?'勝出':h.rating===strongest?'打和':'落後';
-      const stations=[['我台',h.rating,'ours'],...state.rivals.map((r,idx)=>[r.name,h.rivals[idx]??0,r.id])];
+      const shares=h.shares??calcFourStationShares(h.rating,h.rivals);
+      const outcome=shares.won?'勝出':'落後';
+      const stations=[['我台',shares.playerShare,'ours'],...state.rivals.map((r,idx)=>[r.name,shares.rivalShares?.[idx]??0,r.id])];
       return `<article class="hour-match ${outcome==='勝出'?'is-win':'is-behind'} ${h.hour>=18&&h.hour<=22?'is-prime':''}">
-        <div class="hour-match-title"><strong>${hourLabel(h.hour)}</strong><span>${safe(h.title)}${h.episode?` · ${safe(h.episode)}`:''}${h.freshness!==undefined?(()=>{const f=freshnessLabel(h.freshness,h.maxFreshness);return ` · <small class="match-freshness ${f.tier}">${f.icon} ${f.percent}%</small>`;})():''}</span><b>${outcome}</b></div>
-        <div class="score-cards">${stations.map(([name,score,kind])=>`<div class="score-card ${kind}"><div><span>${safe(name)}</span><strong>${score}</strong></div><span class="score-meter" aria-hidden="true"><i style="width:${Math.max(0,Math.min(100,Number(score)||0))}%"></i></span></div>`).join('')}</div>
-        <div class="hour-match-revenue"><span>每小時廣告收入</span><strong>${hourlyMoney(h.revenue)}</strong></div>
+        <div class="hour-match-title"><strong>${hourLabel(h.hour)}</strong><span>${safe(h.title)}${h.episode?` · ${safe(h.episode)}`:''}${h.freshness!==undefined?(()=>{const f=freshnessLabel(h.freshness,h.maxFreshness);return ` · <small class="match-freshness ${f.tier}">${f.icon} ${f.percent}%</small>`;})():''}</span><b>${outcome}（合計 100%）</b></div>
+        <div class="score-cards">${stations.map(([name,sharePct,kind])=>`<div class="score-card ${kind}"><div><span>${safe(name)}</span><strong>${sharePct}%</strong></div><span class="score-meter" aria-hidden="true"><i style="width:${Math.max(0,Math.min(100,Number(sharePct)||0))}%"></i></span></div>`).join('')}</div>
+        <div class="hour-match-revenue"><span>每小時廣告收入</span><strong>${hourlyMoney(h.revenue??0)}</strong></div>
       </article>`;
     }).join(''):'<p class="empty">呢個篩選暫時冇時段。</p>'}</div>
   </section>`;
@@ -2691,18 +2841,36 @@ function boardroomReportView() {
 }
 
 
-function dailyHighlightsView(highlights, day) {
+function dailyHighlightsView(highlights, day, entries = null, rawHours = null) {
   if (!highlights?.top || !highlights?.lowest) return '';
-  const { top, lowest } = highlights;
-  const topDiff = top.diff >= 0 ? `+${top.diff}` : `${top.diff}`;
-  const lowDiff = lowest.diff >= 0 ? `+${lowest.diff}` : `${lowest.diff}`;
+  const report = !entries ? getSettledReports().find(r => r.day === day) : null;
+  const detailsList = entries ?? report?.details ?? [];
+  const hrs = rawHours ?? report?.hours ?? (state.lastDayResult?.day === day ? state.lastDayResult.hours : null);
+
+  const resolveHighlight = (hl) => {
+    const match = detailsList.find(d => d.title === hl.title && d.start === hl.start) ?? hl;
+    const shares = getDetailShares(match, day ?? state.day, hrs);
+    return {
+      ...hl,
+      playerShare: shares.playerShare,
+      rivalShare: shares.topRivalShare,
+      topRivalName: shares.topRivalName,
+      diffShare: shares.diffShare,
+      won: shares.won
+    };
+  };
+
+  const top = resolveHighlight(highlights.top);
+  const lowest = resolveHighlight(highlights.lowest);
+  const topDiff = top.diffShare >= 0 ? `+${top.diffShare}%` : `${top.diffShare}%`;
+  const lowDiff = lowest.diffShare >= 0 ? `+${lowest.diffShare}%` : `${lowest.diffShare}%`;
   return `<section class="panel daily-highlights-box">
     <div class="highlights-head">
       <div>
-        <div class="eyebrow gold">DAILY BROADCAST HIGHLIGHTS</div>
+        <div class="eyebrow gold">DAILY BROADCAST HIGHLIGHTS · 100% SHARE</div>
         <h2>第 ${day} 日 · 節目收視焦點與警戒</h2>
       </div>
-      <span class="highlights-legend">收視 vs 最強對手差距</span>
+      <span class="highlights-legend">四台總收視 100% 份額 vs 最強對手差距</span>
     </div>
     <div class="highlights-grid">
       <div class="highlight-card top-card">
@@ -2714,12 +2882,12 @@ function dailyHighlightsView(highlights, day) {
           </div>
           <div class="highlight-stats-row">
             <div class="stat-unit">
-              <small>我台收視</small>
-              <strong class="stat-high">${top.rating}</strong>
+              <small>我台收視率</small>
+              <strong class="stat-high">${top.playerShare}%</strong>
             </div>
             <div class="stat-unit">
-              <small>對手收視</small>
-              <strong>${top.rivalRating}</strong>
+              <small>最強對手 (${safe(top.topRivalName)})</small>
+              <strong>${top.rivalShare}%</strong>
             </div>
             <div class="stat-unit">
               <small>領先差距</small>
@@ -2741,12 +2909,12 @@ function dailyHighlightsView(highlights, day) {
           </div>
           <div class="highlight-stats-row">
             <div class="stat-unit">
-              <small>我台收視</small>
-              <strong class="stat-low">${lowest.rating}</strong>
+              <small>我台收視率</small>
+              <strong class="stat-low">${lowest.playerShare}%</strong>
             </div>
             <div class="stat-unit">
-              <small>對手收視</small>
-              <strong>${lowest.rivalRating}</strong>
+              <small>最強對手 (${safe(lowest.topRivalName)})</small>
+              <strong>${lowest.rivalShare}%</strong>
             </div>
             <div class="stat-unit">
               <small>勝負差距</small>
@@ -3056,6 +3224,9 @@ app.addEventListener('click',e=>{
     if(action==='premiere-choice'){const result=resolvePremiere(state,value);flash(`《${result.title}》首播決策完成，後續集數會受影響。`);return;}
     if(action==='tab'){tab=button.dataset.tab;editorOpen=false;resetScroll=true;notice='';render();}
     if(action==='broadcast-day'){selectedBroadcastDay=Number(button.dataset.day);render();}
+    if(action==='broadcast-day-preview'){selectedBroadcastDay='preview';render();return;}
+    if(action==='open-matchup-day'){selectedBroadcastDay=Number(button.dataset.day);tab='rivals';rivalsTab='matchup';resetScroll=true;render();return;}
+    if(action==='open-report-day'){selectedBroadcastDay=Number(button.dataset.day);tab='reports';resetScroll=true;render();return;}
     if(action==='kind'){selected.kind=value;const format=CONTENT_TYPES.find(item=>item.id===value);if(format.topics&&!format.topics.includes(selected.topic))selected.topic=format.topics[0];render();}
     if(action==='genre'){selected.genre=value;render();}
     if(action==='theme'){if(selected.themes.includes(value)){if(selected.themes.length>1)selected.themes=selected.themes.filter(t=>t!==value)}else if(selected.themes.length<2)selected.themes.push(value);else selected.themes=[selected.themes[1],value];render();}

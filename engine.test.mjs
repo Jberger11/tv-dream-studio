@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, calcFourStationShares, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -2036,3 +2036,57 @@ test('setProjectQCStrategy updates project strategy and delivers waiting qc_read
   assert.equal(result.batchCount, 1);
   assert.equal(proj.deliveredEpisodesCount, 1);
 });
+
+test('calcFourStationShares normalizes 4 stations to exactly 100% and preserves win/loss ordering', () => {
+  const s1 = calcFourStationShares(47, [53, 48, 39]);
+  assert.equal(s1.playerShare + s1.jadeShare + s1.viuShare + s1.hoyShare, 100);
+  assert.equal(s1.won, false);
+  assert.ok(s1.playerShare < s1.topRivalShare, 'Losing player must have strictly lower share% than top rival');
+
+  const s2 = calcFourStationShares(51, [48, 41, 38]);
+  assert.equal(s2.playerShare + s2.jadeShare + s2.viuShare + s2.hoyShare, 100);
+  assert.equal(s2.won, true);
+  assert.ok(s2.playerShare > s2.topRivalShare, 'Winning player must have strictly higher share% than top rival');
+
+  // Edge case: 1-point win with high numbers where naive rounding might tie
+  const s3 = calcFourStationShares(81, [80, 75, 70]);
+  assert.equal(s3.playerShare + s3.jadeShare + s3.viuShare + s3.hoyShare, 100);
+  assert.equal(s3.won, true);
+  assert.ok(s3.playerShare > s3.topRivalShare, '1-point win must still strictly win in percentage share');
+
+  // Edge case: 1-point loss
+  const s4 = calcFourStationShares(80, [81, 75, 70]);
+  assert.equal(s4.playerShare + s4.jadeShare + s4.viuShare + s4.hoyShare, 100);
+  assert.equal(s4.won, false);
+  assert.ok(s4.playerShare < s4.topRivalShare, '1-point loss must still strictly lose in percentage share');
+});
+
+test('advanceDay aligns broadcastReports details and 24-hour matchup hours with 100% shares', () => {
+  const state = newGame();
+  const res = advanceDay(state, () => 0.5);
+  const report = state.broadcastReports[0];
+  assert.equal(report.day, 1);
+  assert.equal(report.hours.length, 24);
+
+  for (let h = 0; h < 24; h++) {
+    const hr = report.hours[h];
+    assert.ok(hr.shares, `Hour ${h} must have shares object`);
+    const sum = hr.shares.playerShare + hr.shares.jadeShare + hr.shares.viuShare + hr.shares.hoyShare;
+    assert.equal(sum, 100, `Hour ${h} 4-station shares must sum to 100%`);
+  }
+
+  for (const detail of report.details) {
+    if (detail.special) continue;
+    assert.ok(detail.shares, `Detail ${detail.title} must have shares`);
+    assert.equal(detail.shares.playerShare + detail.shares.jadeShare + detail.shares.viuShare + detail.shares.hoyShare, 100);
+    for (let i = 0; i < detail.duration; i++) {
+      const h = (detail.start + i) % 24;
+      const hr = report.hours[h];
+      assert.equal(hr.title, detail.title, `Hour ${h} title must match block detail title`);
+      assert.equal(hr.episode, detail.episode, `Hour ${h} episode must match block detail episode`);
+      assert.equal(hr.shares.playerShare, detail.playerShare, `Hour ${h} playerShare must match block detail playerShare`);
+      assert.equal(hr.shares.topRivalShare, detail.rivalShare, `Hour ${h} topRivalShare must match block detail rivalShare`);
+    }
+  }
+});
+
