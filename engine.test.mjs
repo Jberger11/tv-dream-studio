@@ -2059,6 +2059,17 @@ test('calcFourStationShares normalizes 4 stations to exactly 100% and preserves 
   assert.equal(s4.playerShare + s4.jadeShare + s4.viuShare + s4.hoyShare, 100);
   assert.equal(s4.won, false);
   assert.ok(s4.playerShare < s4.topRivalShare, '1-point loss must still strictly lose in percentage share');
+
+  // Blockbuster hit must dominate share (>= 65%) rather than hovering near 25%-30%
+  const hit = calcFourStationShares(97, [75, 61, 62]);
+  assert.equal(hit.playerShare + hit.jadeShare + hit.viuShare + hit.hoyShare, 100);
+  assert.ok(hit.playerShare >= 65, `Blockbuster show (97 pts) must capture >= 65% share, got ${hit.playerShare}%`);
+  assert.ok(hit.jadeShare > hit.viuShare && hit.viuShare >= hit.hoyShare, 'Rivals must reflect realistic station hierarchy');
+
+  // Tied raw score must never produce 0% diffShare
+  const tied = calcFourStationShares(63, [63, 53, 50]);
+  assert.equal(tied.playerShare + tied.jadeShare + tied.viuShare + tied.hoyShare, 100);
+  assert.notEqual(tied.diffShare, 0, 'Tied raw score must not show 0% difference');
 });
 
 test('advanceDay aligns broadcastReports details and 24-hour matchup hours with 100% shares', () => {

@@ -1749,39 +1749,77 @@ export function calcFourStationShares(playerScore = 0, rivalScores = [50, 50, 50
   const r0 = Math.max(1, Number(rivalScores?.[0]) || 45);
   const r1 = Math.max(1, Number(rivalScores?.[1]) || 45);
   const r2 = Math.max(1, Number(rivalScores?.[2]) || 45);
-  const raw = [p, r0, r1, r2];
-  const total = Math.max(1, raw[0] + raw[1] + raw[2] + raw[3]);
-  const exact = raw.map(v => (v / total) * 100);
-  const shares = exact.map((v, i) => raw[i] === 0 ? 0 : Math.floor(v));
-  let rem = 100 - shares.reduce((a, b) => a + b, 0);
+  const rRaw = [r0, r1, r2];
+  const maxRivalRaw = Math.max(...rRaw);
+  let topRivalIdx = rRaw.indexOf(maxRivalRaw);
+  const won = p > maxRivalRaw;
 
-  const order = [0, 1, 2, 3].filter(i => raw[i] > 0).sort((a, b) => {
-    const fracDiff = (exact[b] - shares[b]) - (exact[a] - shares[a]);
-    if (Math.abs(fracDiff) > 1e-9) return fracDiff;
-    if (raw[b] !== raw[a]) return raw[b] - raw[a];
-    return a - b;
+  // Authentic Hong Kong TV station reach tiers (81 翡翠台 > 99 ViuTV > 77 HOY TV)
+  // If ViuTV or HOY TV is the strongest rival in this slot, elevate its reach so it leads the rivals
+  const baseStationReach = [1.02, 0.78, 0.56];
+  const effRivals = rRaw.map((val, idx) => {
+    const reach = idx === topRivalIdx ? Math.max(0.96, baseStationReach[idx]) : baseStationReach[idx];
+    return val * reach;
   });
 
-  for (let i = 0; i < rem && order.length > 0; i++) {
-    shares[order[i % order.length]] += 1;
+  // Player effective attraction: rewards beating top rival AND high absolute show score (70-100 blockbuster pull)
+  let effPlayer = 0;
+  if (p > 0) {
+    const topRivalEff = effRivals[topRivalIdx];
+    const leadRatio = Math.pow(Math.max(0.25, p / Math.max(1, maxRivalRaw)), 1.65);
+    const blockbusterBonus = p >= 70 ? 1 + Math.pow((p - 68) / 32, 1.25) * 0.48 : (p < 45 ? 0.82 : 0.96);
+    effPlayer = topRivalEff * leadRatio * blockbusterBonus;
   }
 
-  // Ensure strict winner consistency between player and strongest rival
-  const maxRivalRaw = Math.max(r0, r1, r2);
-  let topRivalIdx = [r0, r1, r2].indexOf(maxRivalRaw);
-  const rivalShareIdx = topRivalIdx + 1;
+  const effAll = [effPlayer, effRivals[0], effRivals[1], effRivals[2]];
+  const weights = effAll.map((v, i) => (i === 0 && p <= 0) ? 0 : Math.pow(Math.max(5, v - 14), 1.75));
+  const wSum = Math.max(1e-9, weights.reduce((a, b) => a + b, 0));
+  const exact = weights.map(w => (w / wSum) * 100);
+  const minFloor = p > 0 ? 4 : 0;
+  const shares = exact.map((v, i) => (i === 0 && p <= 0) ? 0 : Math.max(i === 0 ? minFloor : 4, Math.floor(v)));
 
-  if (p > maxRivalRaw && shares[0] <= shares[rivalShareIdx]) {
-    const delta = (shares[rivalShareIdx] - shares[0]) + 1;
-    if (shares[rivalShareIdx] > delta) {
+  let rem = 100 - shares.reduce((a, b) => a + b, 0);
+  const activeIndices = [0, 1, 2, 3].filter(i => !(i === 0 && p <= 0));
+  const orderUp = [...activeIndices].sort((a, b) => (exact[b] - shares[b]) - (exact[a] - shares[a]) || weights[b] - weights[a]);
+  while (rem > 0 && orderUp.length) {
+    for (const idx of orderUp) {
+      if (rem > 0) {
+        shares[idx] += 1;
+        rem -= 1;
+      }
+    }
+  }
+  const orderDown = [...orderUp].reverse();
+  while (rem < 0 && orderDown.length) {
+    for (const idx of orderDown) {
+      if (rem < 0 && shares[idx] > 4) {
+        shares[idx] -= 1;
+        rem += 1;
+      }
+    }
+  }
+
+  // Ensure strict winner consistency between player and strongest rival (never 0% tie)
+  const rivalShareIdx = topRivalIdx + 1;
+  if (won && shares[0] <= shares[rivalShareIdx]) {
+    const delta = (shares[rivalShareIdx] - shares[0]) + 2;
+    if (shares[rivalShareIdx] - delta >= 4) {
       shares[0] += delta;
       shares[rivalShareIdx] -= delta;
+    } else if (shares[rivalShareIdx] > shares[0]) {
+      const d = (shares[rivalShareIdx] - shares[0]) + 1;
+      shares[0] += d;
+      shares[rivalShareIdx] -= d;
     }
-  } else if (p < maxRivalRaw && p > 0 && shares[0] >= shares[rivalShareIdx]) {
-    const delta = (shares[0] - shares[rivalShareIdx]) + 1;
-    if (shares[0] > delta) {
+  } else if (!won && p > 0 && shares[0] >= shares[rivalShareIdx]) {
+    const delta = (shares[0] - shares[rivalShareIdx]) + 2;
+    if (shares[0] - delta >= 4) {
       shares[rivalShareIdx] += delta;
       shares[0] -= delta;
+    } else if (shares[0] >= shares[rivalShareIdx] && shares[0] > 1) {
+      const d = (shares[0] - shares[rivalShareIdx]) + 1;
+      shares[rivalShareIdx] += d;
+      shares[0] -= d;
     }
   }
 
@@ -1802,8 +1840,9 @@ export function calcFourStationShares(playerScore = 0, rivalScores = [50, 50, 50
     topRivalId: rivalIds[topRivalIdx],
     topRivalName: rivalNames[topRivalIdx],
     diffShare: shares[0] - topRivalShare,
-    won: p > maxRivalRaw,
-    total: 100
+    won,
+    total: 100,
+    modelVersion: 2
   };
 }
 
