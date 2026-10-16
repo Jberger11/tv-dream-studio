@@ -2156,7 +2156,38 @@ export function createProductionProject(state, {
   return project;
 }
 
+export function reconcileProductionEvents(state) {
+  const projects = state.productionProjects ?? [];
+  const validEvents = [];
+  for (const proj of projects) {
+    if (proj.status !== 'in_production') {
+      for (const ep of (proj.episodes ?? [])) {
+        ep.pendingEvent = null;
+        if (ep.status === 'qc_ready') {
+          ep.status = proj.status === 'cancelled' ? 'cancelled' : 'delivered';
+        }
+      }
+      continue;
+    }
+    for (const ep of (proj.episodes ?? [])) {
+      if (ep.status === 'delivered' || ep.status === 'aired' || ep.status === 'cancelled') {
+        ep.pendingEvent = null;
+      } else if (ep.pendingEvent) {
+        validEvents.push({
+          ...ep.pendingEvent,
+          projectId: proj.id,
+          episodeNumber: ep.episodeNumber,
+          projectTitle: proj.title
+        });
+      }
+    }
+  }
+  state.activeFilmingEvents = validEvents;
+  return validEvents;
+}
+
 export function advanceProduction(state, days = 1, rng = Math.random) {
+  reconcileProductionEvents(state);
   const activeProjects = (state.productionProjects ?? []).filter(p => p.status === 'in_production');
   if (!activeProjects.length) return;
 
@@ -2363,6 +2394,7 @@ export function advanceProduction(state, days = 1, rng = Math.random) {
       }
     }
   }
+  reconcileProductionEvents(state);
 }
 
 export function deliverEpisode(state, project, episode) {
@@ -2370,6 +2402,7 @@ export function deliverEpisode(state, project, episode) {
     episode.status = 'delivered';
     episode.stage = 'delivery';
   }
+  episode.pendingEvent = null;
   project.deliveredEpisodesCount = project.episodes.filter(e => e.status === 'delivered' || e.status === 'aired').length;
 
   if (project.deliveredEpisodesCount >= project.episodesCount) {
@@ -2379,6 +2412,7 @@ export function deliverEpisode(state, project, episode) {
     note(state, `【單集交付】《${project.title}》第 ${episode.episodeNumber} 集成功交付（已交付 ${project.deliveredEpisodesCount} / ${project.episodesCount} 集），可排入頻道播放！`, 'good');
   }
 
+  reconcileProductionEvents(state);
   syncProjectToLibrary(state, project);
 }
 
@@ -2540,6 +2574,7 @@ export function handleFilmingEventChoice(state, projectId, episodeNumber, choice
 
   const eventTitle = ep.pendingEvent.title;
   ep.pendingEvent = null;
+  reconcileProductionEvents(state);
 
   note(state, `【片場決策】《${project.title}》第 ${episodeNumber} 集：針對「${eventTitle}」選擇了「${choice.text}」${remember ? '（已設為本企劃往後遇相同事件自動執行方案）' : ''}，製作繼續推進！`, 'good');
   return {
@@ -2740,10 +2775,12 @@ export function cancelProductionProject(state, projectId) {
   if (!project) throw Error('找不到該企劃。');
   project.status = 'cancelled';
   for (const ep of project.episodes) {
+    ep.pendingEvent = null;
     if (ep.status !== 'delivered' && ep.status !== 'aired') {
       ep.status = 'cancelled';
     }
   }
+  reconcileProductionEvents(state);
   note(state, `已腰斬及取消《${project.title}》未完成之製作。`, 'neutral');
   return project;
 }
