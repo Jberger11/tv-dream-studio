@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL, getChallengeList, evaluateChallenges, premierePreviewQuotes, evaluateTalentStoryEvent, rivalGrudgeOf, playerStrongestDaypart} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -2196,4 +2196,253 @@ test('knockout-only UCL rights last one quarter and a same-type takeover conclud
   assert.ok(state.log.some(n => n.text.includes('提前結束') && n.text.includes(ko.name)), 'Player must be told the old contract ended early');
   const expectedPenalty = Math.round(ko.adTarget * 0.55); // Nothing aired yet, so nothing earned
   assert.equal(state.cash, cashBefore - 8_100_000 - expectedPenalty, 'Takeover charges the buyout plus the displaced contract’s own shortfall penalty');
+});
+
+// ---------------------------------------------------------------------------
+// Phase B1: challenge missions
+// ---------------------------------------------------------------------------
+
+test('challenges seed for new games, complete at day end and pay out the next morning', () => {
+  const state = newGame();
+  const list = getChallengeList(state);
+  assert.equal(list.length, 11);
+  assert.ok(list.every(c => !c.done && c.progress === 0));
+
+  // Guarantee a prime-time win: the starter sitcom already sits at 19:00.
+  const sitcom = state.library.find(p => p.id === 'start-sitcom');
+  sitcom.rating = 99;
+  sitcom.quality = 99;
+  const cashBefore = state.cash;
+  const day1 = advanceDay(state, () => 0.5);
+  const prime = state.challenges.find(c => c.id === 'prime-first');
+  assert.equal(prime.done, true, 'Winning a prime hour completes the challenge at day end');
+  // The reward is queued, not paid synchronously: day 1 cash is exactly the broadcast net.
+  assert.equal(state.cash, cashBefore + day1.net);
+  const pendingSum = state.pendingChallengeRewards.reduce((sum, r) => sum + (r.cash ?? 0), 0);
+  assert.ok(pendingSum >= 200_000);
+  assert.ok(state.pendingChallengeRewards.some(r => r.id === 'prime-first'));
+
+  const cashBefore2 = state.cash;
+  const day2 = advanceDay(state, () => 0.5);
+  assert.equal(state.cash, cashBefore2 + day2.net + pendingSum, 'Queued rewards land the next morning');
+  assert.equal(state.pendingChallengeRewards.some(r => r.id === 'prime-first'), false);
+  assert.ok(state.log.some(n => n.text.includes('【挑戰達成】')), 'Payout fires a celebratory note');
+});
+
+test('challenge and grudge state migrates into old saves and survives a JSON round-trip', () => {
+  const state = newGame();
+  delete state.challenges; delete state.challengeFlags; delete state.pendingChallengeRewards;
+  delete state.rivalGrudge; delete state.rivalBeatStreak; delete state.talentEventCooldownUntil;
+  delete state.pendingHeadline;
+  migrateLegacyLicenses(state);
+  assert.equal(getChallengeList(state).length, 11);
+  assert.deepEqual(state.rivalGrudge, { jade: 0, viu: 0, hoy: 0 });
+  assert.equal(state.talentEventCooldownUntil, 0);
+  assert.equal(state.pendingHeadline, null);
+
+  state.challenges.find(c => c.id === 'prime-first').done = true;
+  state.rivalGrudge.jade = 42;
+  const revived = JSON.parse(JSON.stringify(state));
+  assert.equal(getChallengeList(revived).find(c => c.id === 'prime-first').done, true);
+  assert.equal(rivalGrudgeOf(revived, 'jade'), 42);
+  assert.ok(Array.isArray(revived.pendingChallengeRewards));
+
+  // A save that already opened the sub-channel before challenges existed
+  // gets the marker backfilled by migration.
+  const legacy = newGame();
+  legacy.subChannelUnlocked = true;
+  delete legacy.challengeFlags;
+  migrateLegacyLicenses(legacy);
+  assert.equal(legacy.challengeFlags['sub-channel'], true);
+});
+
+test('first production and first signing complete via action markers without touching action cash', () => {
+  const state = newGame();
+  const freeActor = ACTORS.find(a => state.talent[a.id].station === 'free');
+  const cost = artistSignCost(state.talent[freeActor.id], freeActor);
+  const cashBefore = state.cash;
+  signArtist(state, freeActor.id);
+  assert.equal(state.cash, cashBefore - cost, 'signArtist charges exactly its usual fee');
+  assert.equal(state.challengeFlags['first-signing'], true);
+  assert.equal(state.challenges.find(c => c.id === 'first-signing').done, false, 'Not complete until day end');
+
+  produce(state, { kind: 'variety', topic: '遊戲競賽', budgetId: 'lean', episodeHours: 1, episodeCount: 8 }, () => 0.5);
+  assert.equal(state.challengeFlags['first-production'], true);
+
+  advanceDay(state, () => 0.5);
+  assert.equal(state.challenges.find(c => c.id === 'first-signing').done, true);
+  assert.equal(state.challenges.find(c => c.id === 'first-production').done, true);
+  assert.ok(state.pendingChallengeRewards.some(r => r.id === 'first-signing'));
+  assert.ok(state.pendingChallengeRewards.some(r => r.id === 'first-production'));
+});
+
+test('sub-channel challenge completes through unlockSubChannel', () => {
+  const state = newGame();
+  state.cash = 40_000_000;
+  unlockSubChannel(state);
+  assert.equal(state.challengeFlags['sub-channel'], true);
+  evaluateChallenges(state, { day: 1, hours: [], wins: 0 });
+  assert.equal(state.challenges.find(c => c.id === 'sub-channel').done, true);
+  assert.ok(state.pendingChallengeRewards.some(r => r.id === 'sub-channel' && r.cash === 1_000_000));
+});
+
+// ---------------------------------------------------------------------------
+// Phase B2: premiere night expansion
+// ---------------------------------------------------------------------------
+
+test('premiere preview quotes are deterministic for the same programme and day', () => {
+  const item = { programId: 'prog-x', day: 12, kind: 'drama', title: '測試劇' };
+  const program = { id: 'prog-x', kind: 'drama', quality: 82 };
+  const first = premierePreviewQuotes(item, program);
+  const second = premierePreviewQuotes(item, program);
+  assert.deepEqual(first, second, 'Re-renders must not reroll the quotes');
+  assert.ok(first.length >= 2 && first.length <= 3);
+  assert.ok(first.every(q => q.text.length > 0 && q.from.length > 0));
+  const lowBand = premierePreviewQuotes(item, { id: 'prog-x', kind: 'drama', quality: 30 });
+  assert.ok(lowBand.length >= 2 && lowBand.length <= 3);
+});
+
+test('premiere first airing posts a premiere feed line and the next day carries a headline', () => {
+  const state = newGame();
+  const show = produce(state, { kind: 'variety', topic: '遊戲競賽', budgetId: 'standard', episodeHours: 2, episodeCount: 8 }, () => 0.5);
+  scheduleProgram(state, 19, show.id, 2);
+  advanceDay(state, () => 0.5);
+  assert.ok(state.pendingPremieres.some(p => p.programId === show.id), 'First airing registers a pending premiere');
+  assert.ok(
+    state.audienceFeed.some(f => f.title === show.title && f.text.includes('首播')),
+    'Audience feed carries a premiere-specific post referencing the result'
+  );
+  assert.equal(state.pendingHeadline?.title, show.title);
+  advanceDay(state, () => 0.5);
+  assert.ok(
+    state.log.some(n => n.text.includes('【今日頭條】') && n.text.includes(show.title)),
+    'The following day log carries the newspaper headline'
+  );
+  assert.equal(state.pendingHeadline, null, 'Headline is consumed the next day');
+});
+
+// ---------------------------------------------------------------------------
+// Phase B3: talent story events
+// ---------------------------------------------------------------------------
+
+test('talent story events stay silent before day 8 and respect the cooldown', () => {
+  const state = newGame();
+  state.day = 7;
+  assert.equal(evaluateTalentStoryEvent(state, () => 0), null);
+  assert.equal(state.talentEventCooldownUntil, 0, 'No cooldown is consumed before day 8');
+  state.day = 8;
+  const event = evaluateTalentStoryEvent(state, () => 0);
+  assert.equal(event.kind, 'scandal');
+  assert.equal(state.talentEventCooldownUntil, 17, 'Cooldown is 9 to 14 days');
+  assert.equal(evaluateTalentStoryEvent(state, () => 0), null, 'No second event inside the cooldown');
+});
+
+test('poach letter offers retention and release choices with real contract effects', () => {
+  // rng 0.99 picks the poach archetype out of [scandal, poach] on day 20.
+  const build = () => {
+    const state = newGame();
+    state.day = 20;
+    const event = evaluateTalentStoryEvent(state, () => 0.99);
+    assert.equal(event.kind, 'poach');
+    const letter = state.mailbox.find(l => l.id === event.letterId);
+    assert.ok(letter && letter.type === 'poach' && letter.options.length === 2);
+    return { state, event, letter };
+  };
+
+  const retained = build();
+  const actorId = retained.event.actorId;
+  const expiresBefore = retained.state.talent[actorId].contractExpiresDay;
+  const fameBefore = retained.state.talent[actorId].fame;
+  const cashBefore = retained.state.cash;
+  const retainOption = retained.letter.options.find(o => o.id === 'retain');
+  replyToLetter(retained.state, retained.letter.id, 'retain');
+  assert.equal(retained.state.cash, cashBefore - retainOption.cost, 'Retention bonus is charged');
+  assert.equal(retained.state.talent[actorId].contractExpiresDay, expiresBefore + 90, 'Retention extends the contract by 90 days');
+  assert.equal(retained.state.talent[actorId].fame, Math.min(100, fameBefore + 2));
+
+  const released = build();
+  const feeBefore = released.state.talent[actorId].fee;
+  replyToLetter(released.state, released.letter.id, 'release');
+  assert.equal(released.state.talent[actorId].contractExpiresDay, 50, 'Release shortens the contract to 30 days out');
+  assert.equal(released.state.talent[actorId].fee, Math.round(feeBefore * 1.15 / 10_000) * 10_000, 'Release raises the fee demand by 15%');
+});
+
+// ---------------------------------------------------------------------------
+// Phase B4: rival personalities + grudge
+// ---------------------------------------------------------------------------
+
+test('rival personalities shape signings, premieres and evening ratings', () => {
+  // 翡翠台 挖角王: prefers a free artist the player has cast.
+  const state = newGame();
+  const freeActor = ACTORS.find(a => state.talent[a.id].station === 'free');
+  for (const p of state.library) p.castIds = [];
+  state.library[0].castIds = [freeActor.id];
+  checkCompetitorArtistSignings(state, () => 0);
+  assert.equal(state.talent[freeActor.id].station, 'jade', 'Jade poaches the player-cast artist first');
+
+  // ViuTV 話題王: premieres rotate inside the high-buzz top three.
+  const viu = state.rivals.find(r => r.id === 'viu');
+  const buzzTitles = new Set(['大叔甜蜜愛火', '二月廿九之約', '季前熱血單挑']);
+  const seen = new Set();
+  for (let m = 0; m < 6; m++) {
+    const premiere = rivalPremiere(viu, 1 + m * 30);
+    assert.ok(buzzTitles.has(premiere.title), `Viu premiere ${premiere.title} must be a high-buzz pick`);
+    seen.add(premiere.title);
+  }
+  assert.ok(seen.size >= 2, 'Viu premieres still rotate monthly');
+
+  // HOY TV 量產王: premiere quality is discounted by 3.
+  const hoy = state.rivals.find(r => r.id === 'hoy');
+  assert.equal(rivalPremiere(hoy, 1).rating, 67, 'HOY month-0 premiere 70 - 3');
+
+  // ViuTV evening buzz bonus: +2 over the raw premiere rating at 20:00.
+  const at20 = rivalAtHour(state, viu, 20, 1);
+  assert.equal(at20.rating - rivalPremiere(viu, 1).rating, 2, 'Wave is 0 on day 1 at 20:00, leaving exactly the +2 buzz bonus');
+});
+
+test('grudge accrues from monthly wins and daily beat streaks, decays, and hardens auction bids at 50', () => {
+  const state = newGame();
+  const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, rating: 50, rivals: [40, 40, 40] }));
+  evaluateChallenges(state, { day: 3, hours, wins: 0, monthResult: { isOurWin: true, top5: [{ station: '你的電視台' }, { station: '翡翠台' }] } });
+  assert.equal(rivalGrudgeOf(state, 'jade'), 14, 'Monthly win over the runner-up: +15, day-3 decay: -1');
+  evaluateChallenges(state, { day: 4, hours, wins: 0 });
+  assert.equal(rivalGrudgeOf(state, 'jade'), 14, 'Beat streak still building');
+  evaluateChallenges(state, { day: 5, hours, wins: 0 });
+  assert.equal(rivalGrudgeOf(state, 'jade'), 24, 'Third straight head-to-head win adds +10');
+
+  // Auction teeth: at grudge >= 50 the rival bids 5% harder.
+  const control = newGame();
+  const grudging = newGame();
+  grudging.rivalGrudge.jade = 60;
+  const controlEvent = control.events.find(e => !e.resolved);
+  const grudgeEvent = grudging.events.find(e => e.id === controlEvent.id);
+  controlEvent.playerBid = 100;
+  grudgeEvent.playerBid = 100;
+  resolveAuction(control, controlEvent, () => 0.5);
+  resolveAuction(grudging, grudgeEvent, () => 0.5);
+  const controlBid = controlEvent.bids.find(b => b.name === '翡翠台').amount;
+  const grudgeBid = grudgeEvent.bids.find(b => b.name === '翡翠台').amount;
+  assert.equal(grudgeBid, Math.round(controlBid * 1.05 / 100_000) * 100_000);
+  assert.ok(grudgeBid > controlBid);
+});
+
+test('a grudging rival targets the player strongest daypart with its premieres', () => {
+  const boost = state => {
+    const block = state.schedule.find(b => b.start <= 12 && 12 < b.start + b.duration);
+    const program = state.library.find(p => p.id === block.programId);
+    program.rating = 99;
+  };
+  const state = newGame();
+  boost(state);
+  assert.equal(playerStrongestDaypart(state), 'daytime');
+  state.rivalGrudge.viu = 60;
+  const viu = state.rivals.find(r => r.id === 'viu');
+  const premiere = rivalPremiere(viu, state.day);
+  assert.equal(rivalAtHour(state, viu, 12, state.day).title, premiere.title, 'Premiere moves to the strongest daypart');
+  assert.notEqual(rivalAtHour(state, viu, 19, state.day).title, premiere.title, 'Prime time is left alone while targeting');
+
+  const calm = newGame();
+  boost(calm);
+  assert.equal(rivalAtHour(calm, viu, 19, calm.day).title, premiere.title, 'Without a grudge the premiere stays at 19:00');
+  assert.notEqual(rivalAtHour(calm, viu, 12, calm.day).title, premiere.title);
 });

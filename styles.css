@@ -4440,3 +4440,26 @@ body{background:radial-gradient(circle at 87% -10%,#1c2739 0,transparent 31%),#0
   .onair-pill.is-live .onair-dot{animation:none}
   .hour-match.win-flash{animation:none}
 }
+
+/* Phase B: challenges panel, premiere preview quotes, rival standing */
+.challenge-list{display:grid;gap:8px}
+.challenge-row{display:flex;justify-content:space-between;gap:14px;align-items:center;background:#1a2030;border:1px solid #323a50;border-radius:9px;padding:12px 14px}
+.challenge-row.done{border-color:#57603f;background:#232a24}
+.challenge-main strong{display:block;font-size:.88rem;color:#eef0f5}
+.challenge-main small{display:block;color:#98a3b5;font-size:.72rem;margin-top:3px;line-height:1.5}
+.challenge-side{text-align:right;flex:none}
+.challenge-progress{display:block;color:#f4c37d;font-weight:800;font-size:.85rem}
+.challenge-row.done .challenge-progress{color:#9fd48a}
+.challenge-side small{color:#98a3b5;font-size:.7rem}
+.premiere-preview{border:1px solid #ffffff2e;background:#0b172480;border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.premiere-preview h3{margin:0 0 7px;font-size:.75rem;color:var(--glow);letter-spacing:.08em}
+.premiere-preview p{font-size:.78rem;color:#d8e5e9;line-height:1.55;margin:4px 0}
+.premiere-preview small{color:#9eb6c2;font-size:.68rem;margin-left:6px;white-space:nowrap}
+.rival-standing{margin-top:10px;border-top:1px solid #343a4b;padding-top:10px}
+.rival-standing-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.personality-tag{color:#f4c37d;font-weight:800;font-size:.78rem}
+.grudge-label{color:#98a3b5;font-size:.72rem}
+.grudge-meter{height:6px;border-radius:10px;background:#30374b;overflow:hidden;margin:8px 0}
+.grudge-meter i{display:block;height:100%;background:linear-gradient(90deg,#e6a65c,#e2574c);border-radius:10px}
+.rival-standing-desc{color:#b9c3d1;font-size:.76rem;line-height:1.55}
+.rival-standing-line{color:#8e99ac;font-size:.74rem;font-style:italic;margin-top:4px;line-height:1.55}
