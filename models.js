@@ -324,6 +324,8 @@ export class StationState {
     this.rivalBeatStreak = {};
     this.talentEventCooldownUntil = 0;
     this.pendingHeadline = null;
+    // Phase C: 直播夜 (per-day seed, one mid-day intervention, revealed script)
+    this.liveDay = null;
     this.log = [{ quarter:0, text:'電視台開台。片庫已有 12 套節目，24 小時時段全部排好。', type:'neutral' }];
   }
 }

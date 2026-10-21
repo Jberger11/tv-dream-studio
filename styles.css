@@ -4463,3 +4463,33 @@ body{background:radial-gradient(circle at 87% -10%,#1c2739 0,transparent 31%),#0
 .grudge-meter i{display:block;height:100%;background:linear-gradient(90deg,#e6a65c,#e2574c);border-radius:10px}
 .rival-standing-desc{color:#b9c3d1;font-size:.76rem;line-height:1.55}
 .rival-standing-line{color:#8e99ac;font-size:.74rem;font-style:italic;margin-top:4px;line-height:1.55}
+
+/* Phase C: 直播夜 (live broadcast night) */
+.live-night-panel{border-color:#3a2f1d;background:linear-gradient(180deg,#131722,#101623)}
+.live-matchup{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 12px;margin-bottom:12px;border:1px solid #2b3042;border-radius:11px;background:#0d1220}
+.live-matchup-main{display:flex;flex-direction:column;gap:2px;min-width:200px}
+.live-matchup-label{font-size:.68rem;font-weight:700;letter-spacing:.08em;color:#e2574c}
+.live-matchup-main strong{font-size:1.02rem;color:#f2e7ce}
+.live-matchup-main small{color:#93a2b8;font-size:.74rem}
+.live-matchup-score{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:#b9c3d1}
+.live-matchup-score b{color:#f6bc6e;font-size:.92rem}
+.live-curve{margin-top:0}
+.live-ticker{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px}
+.live-tick{display:inline-flex;gap:4px;align-items:center;padding:4px 9px;border-radius:999px;border:1px solid #2b3042;background:#12172a;font-size:.72rem;color:#c6d2e2}
+.live-tick b{color:#8e99ac;font-weight:700}
+.live-tick.win{border-color:#3d5a35;background:#16241a;color:#bfe3b4}
+.live-tick.loss{border-color:#5a3535;background:#241618;color:#e8b7b0}
+.live-tick.draw{border-color:#4a4a35;background:#22231a;color:#ddd9a8}
+.live-tick.empty{opacity:.62}
+.live-ticker-empty{color:#8e99ac;font-size:.78rem;margin:2px 0 12px}
+.live-swap-box{border-top:1px dashed #2b3042;padding-top:10px}
+.live-swap-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.live-swap-head strong{color:#f2e7ce;font-size:.9rem}
+.live-swap-state{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid #3d5a35;color:#bfe3b4;background:#16241a}
+.live-swap-state.used{border-color:#4a4030;color:#cbb98a;background:#221d12}
+.live-swap-help{color:#8e99ac;font-size:.74rem;margin:6px 0 10px}
+.live-swap-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.live-swap-controls label{display:flex;flex-direction:column;gap:4px;font-size:.72rem;color:#98a3b5;font-weight:600}
+.live-swap-controls select{min-width:210px;max-width:320px;padding:7px 9px;border-radius:8px;border:1px solid #2b3042;background:#0d1220;color:#e6ecf5;font-size:.8rem}
+.live-swap-done{font-size:.8rem;color:#cbb98a;background:#221d12;border:1px solid #4a4030;border-radius:9px;padding:8px 11px}
+.live-swap-none{font-size:.78rem;color:#8e99ac;margin:0}

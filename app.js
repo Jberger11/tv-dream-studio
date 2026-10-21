@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, premierePreviewQuotes, getChallengeList, rivalPersonality, rivalGrudgeOf, rivalGrudgeTier, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-auto-qc-v8';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, premierePreviewQuotes, getChallengeList, rivalPersonality, rivalGrudgeOf, rivalGrudgeTier, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-auto-qc-v8';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -252,6 +252,7 @@ function ceremonyModalView() {
 function render() {
   const event=currentEvent(state);
   const live=broadcastNow(state);
+  ensureLiveDay(state);
   const scroll=resetScroll?0:(app.querySelector('main')?.scrollTop??0);
   const editorScroll=app.querySelector('.schedule-editor.open')?.scrollTop??0;
   const editorWasOpen=Boolean(app.querySelector('.schedule-editor.open'));
@@ -342,6 +343,8 @@ function refreshLive() {
   app.querySelector('#next-title').textContent=now.finished?'按「播出今日」開始下一日':`${hourLabel(nextHour)} ${next?.title??next?.name??'未排節目'}`;
   if (lastLiveHour!==now.hour) {
     app.querySelectorAll('.hour-row,.matchup-row').forEach(row=>row.classList.toggle('is-now',Number(row.dataset.hour)===now.hour));
+    const livePanel=app.querySelector('#live-night-panel');
+    if(livePanel)livePanel.outerHTML=liveNightView();
     lastLiveHour=now.hour;
   }
 }
@@ -1275,6 +1278,7 @@ function scheduleHome(){
         </div>
         <button class="alert-dismiss-btn" data-action="dismiss-alert" data-alert="expired" title="關閉提示" aria-label="關閉提示">✕</button>
       </div>`:''}
+    ${liveNightView()}
     ${isSubChannel ? subChannelView() : scheduleView()}
   </div>`;
 }
@@ -1306,6 +1310,70 @@ function ratingsChartView(report){
   const winDots=points.filter(p=>p&&p.ours>p.rival);
   return `<div class="ratings-chart"><div class="ratings-chart-head"><span>收視曲線 · 第 ${report.day} 日</span><span class="chart-legend"><span class="legend-item"><i class="legend-line ours"></i>我台</span><span class="legend-item"><i class="legend-line rival"></i>最強對手</span><span class="legend-item"><i class="legend-dot"></i>勝出小時</span></span></div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="第 ${report.day} 日逐小時收視曲線"><rect x="${bandX1.toFixed(1)}" y="${mt}" width="${(bandX2-bandX1).toFixed(1)}" height="${ph}" class="chart-prime-band"/><text x="${((bandX1+bandX2)/2).toFixed(1)}" y="${mt+11}" class="chart-band-label">黃金檔</text>${[0,yMax/2,yMax].map(v=>`<line x1="${ml}" y1="${Y(v).toFixed(1)}" x2="${ml+pw}" y2="${Y(v).toFixed(1)}" class="chart-grid"/><text x="${ml-5}" y="${(Y(v)+3).toFixed(1)}" class="chart-y-label">${v}</text>`).join('')}<path d="${path('rival')}" class="chart-line rival"/><path d="${path('ours')}" class="chart-line ours"/>${winDots.map(p=>`<circle cx="${X(p.hour).toFixed(1)}" cy="${Y(p.ours).toFixed(1)}" r="3.4" class="chart-win-dot"/>`).join('')}${[0,6,12,18,23].map(h=>`<text x="${X(h).toFixed(1)}" y="${H-6}" text-anchor="${h===0?'start':h===23?'end':'middle'}" class="chart-x-label">${hourLabel(h)}</text>`).join('')}</svg></div>`;
 }
+// Phase C: 直播夜 panel. Everything shown here comes from the day's live
+// script (a seeded dry run of the one true settlement), so the revealed
+// hours are exactly what the final daily report will say.
+function liveCurveView(points,day){
+  if(!points||!points.length)return '';
+  const W=720,H=208,ml=30,mr=10,mt=12,mb=24,pw=W-ml-mr,ph=H-mt-mb,step=pw/23;
+  const maxVal=Math.max(10,...points.flatMap(p=>[p.ours,p.rival]));
+  const yMax=Math.max(40,Math.ceil(maxVal/10)*10);
+  const X=h=>ml+step*h, Y=v=>mt+ph*(1-v/yMax);
+  const path=key=>points.map((p,i)=>`${i?'L':'M'}${X(p.hour).toFixed(1)},${Y(p[key]).toFixed(1)}`).join(' ');
+  const bandX1=Math.max(ml,X(18)-step/2),bandX2=Math.min(ml+pw,X(22)+step/2);
+  const winDots=points.filter(p=>p.ours>p.rival);
+  return `<div class="ratings-chart live-curve"><div class="ratings-chart-head"><span>實時收視曲線 · 第 ${day} 日</span><span class="chart-legend"><span class="legend-item"><i class="legend-line ours"></i>我台</span><span class="legend-item"><i class="legend-line rival"></i>最強對手</span><span class="legend-item"><i class="legend-dot"></i>勝出小時</span></span></div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="第 ${day} 日實時收視曲線"><rect x="${bandX1.toFixed(1)}" y="${mt}" width="${(bandX2-bandX1).toFixed(1)}" height="${ph}" class="chart-prime-band"/><text x="${((bandX1+bandX2)/2).toFixed(1)}" y="${mt+11}" class="chart-band-label">黃金檔</text>${[0,yMax/2,yMax].map(v=>`<line x1="${ml}" y1="${Y(v).toFixed(1)}" x2="${ml+pw}" y2="${Y(v).toFixed(1)}" class="chart-grid"/><text x="${ml-5}" y="${(Y(v)+3).toFixed(1)}" class="chart-y-label">${v}</text>`).join('')}<path d="${path('rival')}" class="chart-line rival"/><path d="${path('ours')}" class="chart-line ours"/>${winDots.map(p=>`<circle cx="${X(p.hour).toFixed(1)}" cy="${Y(p.ours).toFixed(1)}" r="3.4" class="chart-win-dot"/>`).join('')}${[0,6,12,18,23].map(h=>`<text x="${X(h).toFixed(1)}" y="${H-6}" text-anchor="${h===0?'start':h===23?'end':'middle'}" class="chart-x-label">${hourLabel(h)}</text>`).join('')}</svg></div>`;
+}
+
+function liveNightView(){
+  const live=ensureLiveDay(state);
+  const script=ensureLiveScript(state);
+  const now=broadcastNow(state);
+  const currentHour=now.finished?24:now.hour;
+  const strongestOf=entry=>entry?Math.max(0,...(entry.rivals??[0]).map(Number)):0;
+  let wins=0,losses=0;
+  const ticks=[];
+  for(let h=0;h<currentHour;h++){
+    const entry=script?.[h];
+    if(!entry)continue;
+    const rival=strongestOf(entry),margin=entry.rating-rival;
+    if(!entry.empty){if(margin>0)wins++;else if(margin<0)losses++;}
+    const cls=entry.empty?'empty':margin>0?'win':margin<0?'loss':'draw';
+    const verdict=entry.empty?'空檔':margin>0?`贏 +${margin}`:margin<0?`輸 ${margin}`:'打平';
+    ticks.push(`<span class="live-tick ${cls}"><b>${hourLabel(h)}</b> ${entry.empty?'未排節目':safe(entry.title)} · 我台 ${entry.rating} : 對手 ${rival} · ${verdict}</span>`);
+  }
+  let matchup='';
+  if(!now.finished){
+    const entry=script?.[currentHour];
+    if(entry){
+      const rivalRating=strongestOf(entry);
+      const rivalIdx=(entry.rivals??[]).map(Number).indexOf(rivalRating);
+      const rival=state.rivals[rivalIdx];
+      const rivalTitle=rival?rivalAtHour(state,rival,currentHour)?.title??'對台節目':'對台節目';
+      matchup=`<div class="live-matchup"><div class="live-matchup-main"><span class="live-matchup-label">而家播緊 ${hourLabel(currentHour)}</span><strong>${entry.empty?'未排節目':`《${safe(entry.title)}》`}</strong><small>${safe(entry.episode||'')}</small></div><div class="live-matchup-score"><span>實時收視 <b>${entry.rating}</b></span><span>最強對手 ${rival?safe(rival.name):'對台'}《${safe(rivalTitle)}》 <b>${rivalRating}</b></span><span>廣告收入（暫計） <b>${hourlyMoney(entry.revenue??0)}</b></span></div></div>`;
+    }
+  }
+  const curvePoints=[];
+  for(let h=0;h<=Math.min(currentHour,23);h++){
+    const entry=script?.[h];
+    if(entry)curvePoints.push({hour:h,ours:entry.rating,rival:strongestOf(entry)});
+  }
+  const weekday=weekdayForDay(state.day);
+  const swappable=state.schedule.filter(b=>runsOnWeekday(b,weekday)&&b.start>currentHour&&!b.programId.startsWith('event:'));
+  const candidates=state.library.filter(p=>!isUnavailable(p,state.day));
+  let swapUi='';
+  if(live.interventionUsed&&live.intervention){
+    swapUi=`<div class="live-swap-done">今日臨場調播已用：${hourLabel(live.intervention.start)} 《${safe(live.intervention.fromTitle)}》 改播 《${safe(live.intervention.toTitle)}》，聽日回復原有排播。</div>`;
+  } else if(now.finished){
+    swapUi=`<p class="live-swap-none">今日已經播畢，臨場調播聽日再用。</p>`;
+  } else if(!swappable.length){
+    swapUi=`<p class="live-swap-none">今日餘下時段冇得調播（已經開播，或者係體育賽事直播）。</p>`;
+  } else {
+    swapUi=`<div class="live-swap-controls"><label>未播時段 <select id="live-swap-block">${swappable.map(b=>{const item=state.library.find(p=>p.id===b.programId);return `<option value="${b.start}">${hourLabel(b.start)} 至 ${hourLabel(b.start+b.duration)} 《${safe(item?.title??b.programId)}》</option>`;}).join('')}</select></label><label>換上 <select id="live-swap-program">${candidates.map(p=>`<option value="${p.id}">《${safe(p.title)}》（預測收視 ${p.rating}）</option>`).join('')}</select></label><button class="gold-button" data-action="live-swap">臨場調播</button></div>`;
+  }
+  return `<section class="panel live-night-panel" id="live-night-panel" aria-label="直播夜"><div class="section-heading"><div><div class="eyebrow gold">LIVE BROADCAST</div><h2>直播夜 · 第 ${state.day} 日</h2></div><span class="report-meta-tag">${now.finished?'今日播畢':`播映中 ${now.clock}`} · 已播 ${ticks.length} 小時 · 贏 ${wins} 輸 ${losses}</span></div>${matchup}${liveCurveView(curvePoints,state.day)}${ticks.length?`<div class="live-ticker" aria-label="今日戰況">${ticks.join('')}</div>`:`<p class="live-ticker-empty">今日仲未播完第一個小時，戰況會逐小時喺度更新。</p>`}<div class="live-swap-box"><div class="live-swap-head"><strong>臨場調播</strong><span class="live-swap-state ${live.interventionUsed?'used':'ready'}">${live.interventionUsed?'已用':'未用（每日一次）'}</span></div><p class="live-swap-help">播出途中可以將一個未播時段換上另一套片庫節目，只限今日生效。</p>${swapUi}</div></section>`;
+}
+
 function broadcastResultsView(){
   const reports=state.broadcastReports?.length?state.broadcastReports:state.lastDayResult?[{day:state.lastDayResult.day,details:state.lastDayResult.details??[],highlights:state.lastDayResult.highlights}]:[];
   if(!reports.length)return '';
@@ -2948,10 +3016,18 @@ function reportsView() {
 
 function flash(message){notice=message;render();setTimeout(()=>{if(notice===message){notice='';render();}},3600)}
 
+// Phase C: pure navigation/display actions never change what today's
+// settlement will compute, so they leave the live script untouched. Any
+// other action marks the script stale and the panel recomputes it (with
+// already-aired hours pinned) the next time it is shown.
+const LIVE_UI_ACTIONS=new Set(['tab','broadcast-day','dismiss-alert','toggle-completed-expand','open-transfer','close-transfer','copy-save','reset-prompt','reset-cancel','switch-channel','schedule-day','schedule-period','select-hour','open-editor','close-editor','catalog-filter','catalog-network','catalog-available','catalog-subtab','replay-filter','open-replay-tab','open-renew-tab','report-filter','license-term','leaderboard-month','dismiss-month-result','dismiss-ceremony','dismiss-letter','reject-letter','clear-resolved-letters','talent-filter','rivals-tab','studio-subtab','crew-format-filter','actor-filter','actor-toggle','kind','genre','theme','topic','actor','budget','episode-hours','episode-count','style','hook','pick-title','recurrence','editor-program-group','editor-program-card','apply-sports-slot','go-sports','go-schedule','schedule-new','live-swap']);
+
 app.addEventListener('click',e=>{
   const button=e.target.closest('[data-action]');if(!button)return;
   const action=button.dataset.action, value=button.dataset.value;
   try {
+    if(state.liveDay&&!LIVE_UI_ACTIONS.has(action))state.liveDay.stale=true;
+    if(action==='live-swap'){const swap=liveSwapProgram(state,Number(app.querySelector('#live-swap-block')?.value),app.querySelector('#live-swap-program')?.value);flash(`【臨場調播】${hourLabel(swap.start)} 已改播《${swap.toTitle}》，只限今日。`);return;}
     if(action==='set-pricing-strategy'){setAdPricingStrategy(state,button.dataset.strategy);flash('已調整廣告定價策略！');render();return;}
     if(action==='sign-ad-contract'){const c=signAdContract(state,button.dataset.contractId);flash(`成功簽署《${c.name}》贊助合約！預付款已入帳。`);render();return;}
     if(action==='upgrade-facility'){const cfg=upgradeFacility(state,button.dataset.facility);flash(`成功擴建升級【${cfg.name}】！`);render();return;}
@@ -3263,8 +3339,8 @@ app.addEventListener('click',e=>{
     if(action==='select-hour'){const hour=Number(button.dataset.hour),day=state.day+((scheduleDay??weekdayForDay(state.day))-weekdayForDay(state.day)+7)%7,block=programAtHour(state,hour,day);resetProgramPicker();if(block){editor={start:block.start,duration:block.duration,programId:block.programId,days:[...daysForBlock(block)],recurrence:block.once?'once':(daysForBlock(block).length===7?'daily':daysForBlock(block).length===5?'weekday':daysForBlock(block).length===2?'weekend':'weekly'),allowRepeat:false};}else{const curProg=state.library.find(p=>p.id===editor.programId);editor={start:hour,duration:curProg?.episodeHours??1,programId:editor.programId,days:[scheduleDay??weekdayForDay(state.day)],recurrence:initialRecurrence(curProg),allowRepeat:false};}editorOpen=true;render();}
     if(action==='place'){const removed=scheduleProgram(state,editor.start,editor.programId,editor.duration,{days:editor.days,allowRepeat:editor.allowRepeat,once:editor.recurrence==='once'});editorOpen=false;flash(`已安排 ${editor.recurrence==='once'?'單次播映 ':''}${dayPattern(editor.days)} ${timeRange(editor.start,editor.duration)}${removed.length?`，替換 ${removed.length} 個原有時段`:''}。`);}
     if(action==='remove'){const day=scheduleDay??weekdayForDay(state.day),block=programAtHour(state,editor.start,state.day+(day-weekdayForDay(state.day)+7)%7);if(!block)throw Error('所選時間冇節目。');removeScheduledProgram(state,block.start,{weekday:day});editorOpen=false;flash(`已移除${WEEKDAYS[day]}呢個時段。`);}
-    if(action==='advance-day'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;const result=advanceDay(state);scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days:1,net:result.net,wins:result.wins,completed:result.completed,expired:result.expired};render();}
-    if(action==='advance-week'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;let net=0,wins=0,days=0,completed=[],expired=[],marketRefresh=false;for(let i=0;i<7;i++){const result=advanceDay(state);net+=result.net;wins+=result.wins;days++;completed=result.completed;expired=result.expired;marketRefresh=result.marketRefresh;if(completed.length||expired.length||marketRefresh||state.pendingPremieres?.length)break;}scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days,net,wins,completed,expired};if(marketRefresh)flash('外購市場已經換月，新片單上架。');else render();}
+    if(action==='advance-day'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;const result=advanceDay(state,liveDayRng(state));scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days:1,net:result.net,wins:result.wins,completed:result.completed,expired:result.expired};render();}
+    if(action==='advance-week'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;let net=0,wins=0,days=0,completed=[],expired=[],marketRefresh=false;for(let i=0;i<7;i++){const result=advanceDay(state,liveDayRng(state));net+=result.net;wins+=result.wins;days++;completed=result.completed;expired=result.expired;marketRefresh=result.marketRefresh;if(completed.length||expired.length||marketRefresh||state.pendingPremieres?.length)break;}scheduleDay=null;selectedBroadcastDay=null;tab='reports';resetScroll=true;runSummary={days,net,wins,completed,expired};if(marketRefresh)flash('外購市場已經換月，新片單上架。');else render();}
     if(action==='advance'){dismissedAlerts={completed:false,replay:false,expired:false};expandedCompleted=false;const result=advanceQuarter(state);runSummary=result.completed.length||result.expired.length?{days:1,net:result.net,wins:result.wins,completed:result.completed,expired:result.expired}:null;tab=result.marketRefresh?'catalog':result.completed.length||result.expired.length?'schedule':'reports';scheduleDay=null;selectedBroadcastDay=null;resetScroll=true;if(result.marketRefresh)flash('外購市場已經換月，新片單上架。');else render();}
     if(action==='open-transfer'){showTransfer=true;render();return;}
     if(action==='close-transfer'){showTransfer=false;render();return;}
@@ -3370,6 +3446,6 @@ app.addEventListener('keydown',e=>{
     else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
   }
 });
-app.addEventListener('submit',e=>{if(e.target.matches('.bid-form, #bid-form')){e.preventDefault();try{const eventId=e.target.dataset.event||null;const amount=Math.round(Number(new FormData(e.target).get('amount')??e.target.querySelector('input').value)*1_000_000);submitBid(state,amount,eventId);flash('暗標已封好，等開標日。')}catch(error){flash(error.message)}}});
+app.addEventListener('submit',e=>{if(e.target.matches('.bid-form, #bid-form')){e.preventDefault();try{if(state.liveDay)state.liveDay.stale=true;const eventId=e.target.dataset.event||null;const amount=Math.round(Number(new FormData(e.target).get('amount')??e.target.querySelector('input').value)*1_000_000);submitBid(state,amount,eventId);flash('暗標已封好，等開標日。')}catch(error){flash(error.message)}}});
 render();
 

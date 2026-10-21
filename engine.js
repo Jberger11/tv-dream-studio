@@ -3259,6 +3259,20 @@ export function migrateLegacyLicenses(state) {
   state.rivalBeatStreak ??= {};
   state.talentEventCooldownUntil ??= 0;
   state.pendingHeadline ??= null;
+  // Phase C: live broadcast night. A well-formed record is left untouched so
+  // a mid-day save/load keeps the day's seed, intervention and script.
+  if (state.liveDay === undefined) state.liveDay = null;
+  if (state.liveDay !== null) {
+    const liveDay = state.liveDay;
+    if (!liveDay || typeof liveDay !== 'object' || !Number.isInteger(liveDay.day) || !Number.isInteger(liveDay.seed)) {
+      state.liveDay = null;
+    } else {
+      liveDay.interventionUsed = Boolean(liveDay.interventionUsed);
+      liveDay.intervention ??= null;
+      if (!Array.isArray(liveDay.script)) liveDay.script = null;
+      liveDay.stale = liveDay.script ? Boolean(liveDay.stale) : true;
+    }
+  }
   // Saves that already opened the sub-channel before challenges existed
   // still earn that challenge honestly.
   if (state.subChannelUnlocked) state.challengeFlags['sub-channel'] = true;
@@ -3669,6 +3683,134 @@ export function broadcastNow(state) {
   const program=block && state.library.find(item=>item.id===block.programId);
   const event=block?.programId.startsWith('event:') && state.events.find(item=>`event:${item.id}`===block.programId);
   return {clock,hour,title:program?.title??event?.name??'未排節目',episode:episodeForBlock(state,block),block,finished:false};
+}
+
+// ---------------------------------------------------------------------------
+// Phase C: 直播夜 (Live broadcast night)
+// The live night is a way of WATCHING the day resolve, never a second
+// resolution path. advanceDay stays the single source of truth for money,
+// ratings records, challenges, mailboxes and story events. The engine is a
+// pure function of (state, rng stream), so the live panel runs advanceDay
+// once on a deep clone with a seeded rng (the "script") and reveals those
+// exact hourly outcomes as the broadcast clock reaches them. When the
+// player settles the day, the app calls the real advanceDay with a fresh
+// rng from the same seed, which reproduces the script exactly; revealed
+// hours are therefore always identical to the final daily report.
+// ---------------------------------------------------------------------------
+
+// mulberry32: tiny deterministic PRNG so a day's rng stream can be replayed.
+export function createSeededRng(seed) {
+  let a = (Number.isInteger(seed) ? seed : 0) >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function deriveLiveSeed(state) {
+  let h = (Math.imul(state.day, 2654435761) ^ Math.imul(state.quarter + 1, 40503) ^ Math.imul(Math.round(state.cash), 97) ^ Math.imul((state.log?.length ?? 0) + 7, 31)) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0x5bd1e995);
+  h ^= h >>> 15;
+  return (h >>> 0) || 1;
+}
+
+// One record per broadcast day: the day's seed, whether the single mid-day
+// intervention is still available, and the cached script of hourly outcomes.
+export function ensureLiveDay(state, seed = null) {
+  const live = state.liveDay;
+  if (live && typeof live === 'object' && live.day === state.day && Number.isInteger(live.seed)) {
+    live.interventionUsed = Boolean(live.interventionUsed);
+    live.intervention ??= null;
+    if (!Array.isArray(live.script)) { live.script = null; live.stale = true; }
+    return live;
+  }
+  state.liveDay = {
+    day: state.day,
+    seed: Number.isInteger(seed) ? (seed >>> 0) || 1 : deriveLiveSeed(state),
+    interventionUsed: false,
+    intervention: null,
+    script: null,
+    stale: true
+  };
+  return state.liveDay;
+}
+
+// The rng the real settlement must use for the current day, so the settled
+// result matches the revealed script. Returns undefined when no live day is
+// in progress, preserving the classic Math.random behaviour.
+export function liveDayRng(state) {
+  const live = state.liveDay;
+  if (!live || typeof live !== 'object' || live.day !== state.day || !Number.isInteger(live.seed)) return undefined;
+  return createSeededRng(live.seed);
+}
+
+export function liveCurrentHour(state) {
+  const minute = Math.min(1440, Math.max(0, state.liveMinute ?? 0));
+  return Math.floor(minute / 60);
+}
+
+const cloneForScript = state => (typeof structuredClone === 'function' ? structuredClone(state) : JSON.parse(JSON.stringify(state)));
+
+// Returns the day's script: the 24 hourly outcome entries the real
+// advanceDay will produce for today. Computed by a dry run on a clone, so
+// no cash, report, challenge or mailbox state is touched. Hours that have
+// already aired keep their previously revealed entries across recomputes.
+export function ensureLiveScript(state) {
+  const live = ensureLiveDay(state);
+  if (Array.isArray(live.script) && !live.stale) return live.script;
+  const previous = Array.isArray(live.script) ? live.script : null;
+  const daily = advanceDay(cloneForScript(state), createSeededRng(live.seed));
+  const hours = daily.hours;
+  if (previous) {
+    const elapsed = liveCurrentHour(state);
+    for (let h = 0; h < elapsed && h < 24; h++) if (previous[h]) hours[h] = previous[h];
+  }
+  live.script = hours;
+  live.stale = false;
+  return hours;
+}
+
+// The one mid-day intervention: swap ONE not-yet-aired block in today's
+// remaining schedule for another library programme. The block's own slot,
+// duration and day pattern are preserved by carving today out of the old
+// block (scheduleProgram's day-splitting) and placing a today-only block,
+// so every schedule-editor rule (duration fit, licence, episode length,
+// same-day duplicates, once-block consumption on airing) still applies.
+export function liveSwapProgram(state, blockStart, newProgramId) {
+  const live = ensureLiveDay(state);
+  if (live.interventionUsed) throw Error('今日嘅臨場調播已經用咗，每日只可以調播一次。');
+  if ((state.liveMinute ?? 0) >= 1440) throw Error('今日已經播畢，冇得再臨場調播。');
+  if (!Number.isInteger(blockStart)) throw Error('請揀一個仲未播出嘅時段。');
+  if (typeof newProgramId !== 'string' || newProgramId.startsWith('event:')) throw Error('臨場調播只可以換上片庫節目。');
+  const weekday = weekdayForDay(state.day);
+  const currentHour = liveCurrentHour(state);
+  const block = state.schedule.find(item => item.start === blockStart && runsOnWeekday(item, weekday));
+  if (!block) throw Error('呢個時段今日冇排播節目。');
+  if (block.programId.startsWith('event:')) throw Error('體育賽事直播已經簽約，唔可以臨場調播。');
+  if (block.start <= currentHour) throw Error('呢個時段已經開播，冇得臨場調播。');
+  if (newProgramId === block.programId) throw Error('新節目同原本嗰套一樣，唔使調播。');
+  const program = state.library.find(p => p.id === newProgramId);
+  if (!program) throw Error('片庫冇呢套節目。');
+  if (isUnavailable(program, state.day)) throw Error(`《${program.title}》而家播唔到（版權、集數或狀態問題）。`);
+  const from = state.library.find(p => p.id === block.programId);
+  scheduleProgram(state, block.start, newProgramId, block.duration, { days: [weekday], once: true });
+  live.interventionUsed = true;
+  live.intervention = {
+    day: state.day,
+    atHour: currentHour,
+    start: block.start,
+    fromId: block.programId,
+    fromTitle: from?.title ?? block.programId,
+    toId: newProgramId,
+    toTitle: program.title
+  };
+  note(state, `【臨場調播】${hourLabel(block.start)} 時段由《${live.intervention.fromTitle}》改播《${program.title}》，只限今日。`, 'neutral');
+  live.stale = true;
+  ensureLiveScript(state);
+  return live.intervention;
 }
 
 export function duplicateBooking(state,start,programId,duration,days=EVERY_DAY) {
