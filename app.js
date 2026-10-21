@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-auto-qc-v8';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, premierePreviewQuotes, getChallengeList, rivalPersonality, rivalGrudgeOf, rivalGrudgeTier, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-auto-qc-v8';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -1325,7 +1325,8 @@ function premiereView(){
   const spotlightExtra=item.kind==='night'&&item.start>=22?'、深夜檔收視額外 +2':item.kind==='variety'?'、熱度額外 +2':'';
   const improveExtra=item.kind==='drama'?'、劇集口碑額外 +2':item.kind==='news'||item.kind==='finance'?'、電視台口碑額外 +2':'';
   const momentum=item.momentum?`首播聲勢：下集預測收視 ${item.momentum.rating>0?'+':''}${item.momentum.rating}、話題 ${item.momentum.buzz>0?'+':''}${item.momentum.buzz}。`:'';
-  return `<div class="premiere-backdrop"><section class="premiere-modal ${mood} kind-${safe(item.kind)}" role="dialog" aria-modal="true" aria-labelledby="premiere-title"><div class="premiere-light" aria-hidden="true"></div><div class="premiere-top"><span>${safe(profile.symbol)} ON AIR · ${safe(profile.label)}</span><b>第 ${item.day} 日 · ${hourLabel(item.start)}</b></div><div class="premiere-stage"><span class="premiere-beam" aria-hidden="true">${safe(profile.symbol)}</span><p>全城同步見證</p><h2 id="premiere-title">《${safe(item.title)}》</h2><strong>${item.won?'首播搶贏對台！':'首播遇上強敵'}</strong></div><div class="premiere-score"><div><small>我台首播收視</small><b>${item.rating}</b></div><span>VS</span><div><small>最強對手</small><b>${item.rivalRating}</b></div><em class="${item.won?'win':'lose'}">${difference>0?'+':''}${difference}</em></div><p class="premiere-reaction">${safe(profile.hook)}。${safe(momentum)}${item.won?'觀眾有反應，趁勢決定下一步。':'觀眾有保留，下一集仍有反擊機會。'}</p><div class="premiere-decisions"><button data-action="premiere-choice" data-value="spotlight" ${state.cash<120_000?'disabled':''}><strong>${safe(profile.spotlight)}</strong><small>花 $120k · 後續收視 +3、話題 +8、熱度 +1${spotlightExtra}</small></button><button data-action="premiere-choice" data-value="improve" ${state.cash<70_000?'disabled':''}><strong>${safe(profile.improve)}</strong><small>花 $70k · 後續收視 +2、品質 +3、口碑 +4${improveExtra}</small></button><button data-action="premiere-choice" data-value="steady"><strong>按原定節奏播落去</strong><small>免費 · 電視台口碑 +1${item.won?'、熱度 +1':''}</small></button></div><p class="premiere-foot">首播選擇會改變節目之後嘅表現；處理完先繼續播出下一日。</p></section></div>`;
+  const previewQuotes=premierePreviewQuotes(item,state.library.find(p=>p.id===item.programId));
+  return `<div class="premiere-backdrop"><section class="premiere-modal ${mood} kind-${safe(item.kind)}" role="dialog" aria-modal="true" aria-labelledby="premiere-title"><div class="premiere-light" aria-hidden="true"></div><div class="premiere-top"><span>${safe(profile.symbol)} ON AIR · ${safe(profile.label)}</span><b>第 ${item.day} 日 · ${hourLabel(item.start)}</b></div><div class="premiere-stage"><span class="premiere-beam" aria-hidden="true">${safe(profile.symbol)}</span><p>全城同步見證</p><h2 id="premiere-title">《${safe(item.title)}》</h2><strong>${item.won?'首播搶贏對台！':'首播遇上強敵'}</strong></div><div class="premiere-score"><div><small>我台首播收視</small><b>${item.rating}</b></div><span>VS</span><div><small>最強對手</small><b>${item.rivalRating}</b></div><em class="${item.won?'win':'lose'}">${difference>0?'+':''}${difference}</em></div><p class="premiere-reaction">${safe(profile.hook)}。${safe(momentum)}${item.won?'觀眾有反應，趁勢決定下一步。':'觀眾有保留，下一集仍有反擊機會。'}</p>${previewQuotes.length?`<div class="premiere-preview"><h3>試映反應</h3>${previewQuotes.map(q=>`<p>「${safe(q.text)}」<small>${safe(q.from)}</small></p>`).join('')}</div>`:''}<div class="premiere-decisions"><button data-action="premiere-choice" data-value="spotlight" ${state.cash<120_000?'disabled':''}><strong>${safe(profile.spotlight)}</strong><small>花 $120k · 後續收視 +3、話題 +8、熱度 +1${spotlightExtra}</small></button><button data-action="premiere-choice" data-value="improve" ${state.cash<70_000?'disabled':''}><strong>${safe(profile.improve)}</strong><small>花 $70k · 後續收視 +2、品質 +3、口碑 +4${improveExtra}</small></button><button data-action="premiere-choice" data-value="steady"><strong>按原定節奏播落去</strong><small>免費 · 電視台口碑 +1${item.won?'、熱度 +1':''}</small></button></div><p class="premiere-foot">首播選擇會改變節目之後嘅表現；處理完先繼續播出下一日。</p></section></div>`;
 }
 
 function productionResult() {
@@ -1818,6 +1819,22 @@ function ratingTierLabel(rating) {
   return 'D 深宵';
 }
 
+function rivalStandingView(rival) {
+  const personality = rivalPersonality(rival.id);
+  if (!personality) return '';
+  const grudge = rivalGrudgeOf(state, rival.id);
+  const tier = rivalGrudgeTier(grudge);
+  const tierLabel = tier === 'hostile' ? '針對你' : tier === 'watch' ? '留意中' : '平靜';
+  const lines = personality.lines[tier] ?? personality.lines.calm;
+  const line = lines[state.day % lines.length];
+  return `<div class="rival-standing">
+    <div class="rival-standing-head"><span class="personality-tag">性格：${safe(personality.label)}</span><span class="grudge-label">恩怨值 ${grudge} / 100 · ${tierLabel}</span></div>
+    <div class="grudge-meter"><i style="width:${grudge}%"></i></div>
+    <p class="rival-standing-desc">${safe(personality.desc)}</p>
+    <p class="rival-standing-line">「${safe(line)}」</p>
+  </div>`;
+}
+
 function renderRivalDetail(rival, live) {
   if (!rival) return `<div class="panel"><p>找不到該電視台資料。</p></div>`;
   const now = rivalAtHour(state, rival, live.hour, state.day);
@@ -1843,6 +1860,7 @@ function renderRivalDetail(rival, live) {
       <div class="channel-user-profile-quote ${rival.id}">
         <strong>【台格定位】</strong>${safe(rival.profile)}
       </div>
+      ${rivalStandingView(rival)}
       <div class="channel-stars-row">
         <span class="channel-stars-label">旗下重點藝人：</span>
         ${(rival.stars || []).map(star => `<span class="star-pill">⭐ ${safe(star)}</span>`).join('')}
@@ -1948,6 +1966,7 @@ function renderRivalsOverview(live) {
             <div class="rival-card-quote">
               ${safe(rival.profile)}
             </div>
+            ${rivalStandingView(rival)}
             <div class="channel-stars-row" style="margin-top:4px;">
               ${(rival.stars || []).slice(0, 4).map(star => `<span class="star-pill" style="font-size:0.68rem;padding:2px 6px;">${safe(star)}</span>`).join('')}
             </div>
@@ -2892,6 +2911,12 @@ function shopView() {
   </div>`;
 }
 
+function challengesView() {
+  const list = getChallengeList(state);
+  const doneCount = list.filter(c => c.done).length;
+  return `<section class="panel challenges-panel"><div class="section-heading"><h2>挑戰任務</h2><span>已完成 ${doneCount} / ${list.length} · 獎勵於完成後翌日入賬</span></div><div class="challenge-list">${list.map(c => `<div class="challenge-row ${c.done ? 'done' : ''}"><div class="challenge-main"><strong>${c.done ? '✓ ' : ''}${safe(c.title)}</strong><small>${safe(c.desc)}</small></div><div class="challenge-side"><span class="challenge-progress">${c.done ? '已完成' : `${Math.min(c.progress, c.target)} / ${c.target}`}</span><small>${safe(c.rewardText)}</small></div></div>`).join('')}</div></section>`;
+}
+
 function reportsView() {
   return `<div class="page-head"><div><div class="eyebrow gold">BOARDROOM</div><h1>每日與季度報告</h1><p>每日節目表會逐日播映，每 90 日結算一季；報告按每小時收視計廣告收益。</p></div></div>${state.lastDayResult?`<section class="panel day-report"><div class="section-heading"><h2>最近一日 · ${state.lastDayResult.label}</h2><span>${quarterLabel(state.lastDayResult.quarter)}</span></div><div class="report-total"><div><small>當日廣告收入</small><strong>${hourlyMoney(state.lastDayResult.revenue)}</strong></div><div><small>當日營運開支</small><strong>${hourlyMoney(state.lastDayResult.overhead)}</strong></div><div><small>當日淨額</small><strong>${hourlyMoney(state.lastDayResult.net)}</strong></div></div><div class="day-episodes">${state.lastDayResult.details.filter(d=>d.episode && d.episode!=='每日新一期').map(d=>`<span>${safe(d.title)} · ${safe(d.episode)}</span>`).join('')}</div></section>`:''}
   ${dailyHighlightsView(state.lastDayResult?.highlights, state.lastDayResult?.day)}
@@ -2911,6 +2936,7 @@ function reportsView() {
     }).join('')}</div>
   </section>`:''}
   ${boardroomReportView()}
+  ${challengesView()}
   ${audienceView()}
   ${premiereHistoryView()}
   ${broadcastResultsView()}

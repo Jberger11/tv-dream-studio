@@ -318,6 +318,12 @@ export class StationState {
     this.crews = DEFAULT_CREWS.map(c => ({ ...c }));
     this.franchises = [];
     this.activeFilmingEvents = [];
+    // Phase B: 挑戰任務 / 對手恩怨 / 藝人故事事件 / 首播頭條
+    this.challenges = [];
+    this.rivalGrudge = { jade: 0, viu: 0, hoy: 0 };
+    this.rivalBeatStreak = {};
+    this.talentEventCooldownUntil = 0;
+    this.pendingHeadline = null;
     this.log = [{ quarter:0, text:'電視台開台。片庫已有 12 套節目，24 小時時段全部排好。', type:'neutral' }];
   }
 }

@@ -867,7 +867,20 @@ const rivalPremierePools={
 };
 export function rivalPremiere(rival,day) {
   const month=marketMonthForDay(day),pool=rivalPremierePools[rival.id]??rivalPremierePools.jade;
-  const [title,genre,rating]=pool[month%pool.length];
+  let entry;
+  if (rival.id==='viu'||rival.id==='local') {
+    // Phase B4: ViuTV (話題王) premieres skew toward high-buzz kinds
+    // (youth / idol / romance / comedy / sports heat), rotating the top three.
+    const buzzWords=['青春','偶像','愛情','喜劇','熱血','運動'];
+    const scored=pool.map((item,index)=>({item,index,score:item[2]+(buzzWords.some(word=>item[1].includes(word))?6:0)}))
+      .sort((a,b)=>b.score-a.score||a.index-b.index);
+    entry=scored[month%Math.min(3,scored.length)].item;
+  } else {
+    entry=pool[month%pool.length];
+  }
+  const [title,genre,baseRating]=entry;
+  // Phase B4: HOY TV (量產王) premieres rate slightly lower.
+  const rating=rival.id==='hoy'?baseRating-3:baseRating;
   return {title,genre,rating,month,slot:'19:00–21:00'};
 }
 
@@ -1114,6 +1127,7 @@ export function unlockSubChannel(state) {
   }
   state.cash -= licenseFee;
   state.subChannelUnlocked = true;
+  markChallenge(state, 'sub-channel');
   state.subChannelSchedule = [
     { start: 0, duration: 6, programId: 'sub-rerun', label: '深宵精選重溫' },
     { start: 6, duration: 6, programId: 'sub-news', label: '晨間新聞財經副台' },
@@ -1574,6 +1588,7 @@ export function signArtist(state, actorId, station = 'player') {
   talent.renewPromptSent = false;
   if (station === 'player') {
     note(state, `【藝人簽約】成功與【${actor.name}】簽下 1 年獨家藝人合約（簽約金 ${money(cost)}，合約期至第 ${talent.contractExpiresDay} 日）！`, 'good');
+    markChallenge(state, 'first-signing');
   }
   return talent;
 }
@@ -1604,10 +1619,22 @@ export function checkCompetitorArtistSignings(state, rng = Math.random) {
   if (!freeActors.length) return;
 
   const rivals = state.rivals ?? [{ id: 'jade', name: '翡翠台' }, { id: 'viu', name: 'ViuTV' }, { id: 'hoy', name: 'HOY TV' }];
+  // Phase B4: 翡翠台 (挖角王) prefers artists the player has cast recently.
+  const recentCastIds = new Set();
+  for (const program of state.library ?? []) {
+    if ((program.lastAiredDay ?? 0) >= state.day - 45) {
+      for (const id of program.castIds ?? []) recentCastIds.add(id);
+    }
+  }
   for (const rival of rivals) {
-    if (rng() < 0.50) {
-      const pool = freeActors.filter(a => (state.talent[a.id]?.station ?? 'free') === 'free');
+    const isPoacher = rival.id === 'jade' || rival.id === 'city';
+    if (rng() < (isPoacher ? 0.65 : 0.50)) {
+      let pool = freeActors.filter(a => (state.talent[a.id]?.station ?? 'free') === 'free');
       if (!pool.length) break;
+      if (isPoacher) {
+        const targets = pool.filter(a => recentCastIds.has(a.id));
+        if (targets.length) pool = targets;
+      }
       const pick = pool[Math.floor(rng() * pool.length)];
       if (pick) {
         state.talent[pick.id].station = rival.id;
@@ -1728,6 +1755,7 @@ export function newGame() {
   state.activeTools = [];
   state.adContractsMarket = AD_CONTRACT_TEMPLATES.map(t => ({ ...t, daysElapsed: 0, ratings: [] }));
   ensureEvents(state);
+  ensureChallenges(state);
   refreshMarketRivalBuys(state, () => 0.5);
   return state;
 }
@@ -1753,9 +1781,17 @@ export function productionQuote(state,{kind='drama',actorIds=[],budgetId='standa
 export function rivalAtHour(state,rival,hour,day=state.day) {
   const block=rival.schedule.find(item=>hoursInBlock(item).includes(hour));
   if (!block) return null;
-  const premiere=hour>=19&&hour<21?rivalPremiere(rival,day):null;
+  // Phase B4: premieres normally sit at 19:00-20:00; a rival with a serious
+  // grudge instead targets the player's strongest daypart.
+  let premiere=premiereWindowHours(state,rival).includes(hour)?rivalPremiere(rival,day):null;
   const deal=hour>=21&&hour<23?(state.distributionDeals??[]).find(item=>item.rivalId===rival.id&&item.startDay<=day&&day<item.expiresDay):null;
   const rivalMarketBuy=hour>=21&&hour<23&&!deal?(state.rivalPurchases??[]).find(item=>item.rivalId===rival.id&&item.startDay<=day&&day<item.expiresDay):null;
+  // Phase B4: HOY TV (量產王) runs a second, cheaper premiere at 21:00-22:00
+  // whenever a distribution deal or market buy has not taken the slot.
+  if (!premiere && rival.id==='hoy' && hour>=21 && hour<23 && !deal && !rivalMarketBuy) {
+    const altPool=rivalPremierePools.hoy,alt=altPool[(marketMonthForDay(day)+3)%altPool.length];
+    premiere={title:alt[0],genre:alt[1],rating:alt[2]-9,month:marketMonthForDay(day),slot:'21:00–23:00'};
+  }
   const title=deal?.title??rivalMarketBuy?.title??premiere?.title??block.rotation?.[state.quarter%block.rotation.length]??block.title;
   const wave=(day*11+hour*3+(rival.id==='jade'||rival.id==='city'?0:rival.id==='viu'||rival.id==='local'?2:4))%7-3;
   const base=deal?.rating??(rivalMarketBuy?rivalMarketBuy.rating+2:null)??premiere?.rating??block.rating;
@@ -1765,7 +1801,9 @@ export function rivalAtHour(state,rival,hour,day=state.day) {
     if ((hour === 17 || hour === 18) && state.breakingEvent.ratingMods?.kinds?.news) eventMod += Math.round(state.breakingEvent.ratingMods.kinds.news * 0.5);
     if (hour >= 9 && hour <= 10 && state.breakingEvent.ratingMods?.kinds?.finance) eventMod += Math.round(state.breakingEvent.ratingMods.kinds.finance * 0.5);
   }
-  return {title,rating:clamp(base+wave+Math.min(state.quarter%3,2)+eventMod,1,98),block,rivalMarketBuy,deal,premiere,category:block.category,desc:block.desc};
+  // Phase B4: ViuTV (話題王) carries a small buzz bonus in evening slots.
+  const personalityMod=(rival.id==='viu'||rival.id==='local')&&hour>=19&&hour<=22?2:0;
+  return {title,rating:clamp(base+wave+Math.min(state.quarter%3,2)+eventMod+personalityMod,1,98),block,rivalMarketBuy,deal,premiere,category:block.category,desc:block.desc};
 }
 
 export function distributionQuote(program,exclusive=false) {
@@ -1788,12 +1826,310 @@ export function sellProduction(state,programId,rivalId,exclusive=false) {
   state.cash+=amount;
   if(exclusive){program.soldExclusive=true;state.schedule=state.schedule.filter(item=>item.programId!==programId);}
   note(state,`《${program.title}》${exclusive?'獨家賣斷':'聯播授權'}畀${rival.name}，收取 ${money(amount)}；對方未來 30 日晚間播出。`,'good');
+  markChallenge(state, 'first-sale');
   return deal;
 }
 
 function note(state,text,type='neutral') {
   state.log.unshift({quarter:state.quarter,text,type});
   state.log = state.log.slice(0,16);
+}
+
+// ---------------------------------------------------------------------------
+// Phase B1: 挑戰任務 (Challenge missions)
+// Progress is evaluated at the end of advanceDay. Event-based challenges are
+// recorded as markers (state.challengeFlags) by the relevant action functions
+// so those actions never change cash themselves; rewards are queued on
+// completion and paid automatically at the start of the next broadcast day,
+// which keeps a single day's cash accounting (daily.net) exact.
+// ---------------------------------------------------------------------------
+export const CHALLENGES = [
+  { id:'prime-first', tier:'新手', title:'贏得第一個黃金時段', desc:'在 18:00 至 22:00 黃金時段內，任何一個小時收視贏過全部對台。', target:1, reward:{cash:200_000}, rewardText:'獎勵 $200k' },
+  { id:'win-five-hours', tier:'新手', title:'一日贏 5 個小時', desc:'單日贏出 5 個或以上小時時段（進度記錄最佳單日成績）。', target:5, reward:{cash:300_000}, rewardText:'獎勵 $300k' },
+  { id:'first-production', tier:'新手', title:'完成第一套自製劇', desc:'完成一套自家製作節目（即製節目或製作工程均可）。', target:1, reward:{cash:300_000}, rewardText:'獎勵 $300k' },
+  { id:'first-signing', tier:'新手', title:'簽第一位藝人', desc:'與任何一位藝人簽下藝人合約。', target:1, reward:{cash:200_000}, rewardText:'獎勵 $200k' },
+  { id:'prime-streak-3', tier:'進階', title:'連續 3 日贏 20:00 時段', desc:'連續 3 日在 20:00 時段收視贏過全部對台（中斷會重新計算）。', target:3, reward:{cash:600_000}, rewardText:'獎勵 $600k' },
+  { id:'monthly-champion', tier:'進階', title:'贏一次月度收視冠軍', desc:'在月度收視榜以我台節目奪得全港最高收視總冠軍。', target:1, reward:{cash:800_000, reputation:2}, rewardText:'獎勵 $800k · 口碑 +2' },
+  { id:'sports-rights', tier:'進階', title:'贏得一項體育版權', desc:'透過競投或一口價買斷贏得一項體育轉播權。', target:1, reward:{cash:800_000}, rewardText:'獎勵 $800k' },
+  { id:'first-sale', tier:'進階', title:'賣出一套自製節目', desc:'將一套自製節目聯播授權或獨家賣斷畀對台。', target:1, reward:{cash:600_000}, rewardText:'獎勵 $600k' },
+  { id:'annual-award', tier:'長遠', title:'贏年度大獎', desc:'在年度頒獎禮贏得任何一項大獎。', target:1, reward:{cash:1_500_000, fans:3}, rewardText:'獎勵 $1.5m · 熱度 +3' },
+  { id:'sub-channel', tier:'長遠', title:'開辦數碼二台', desc:'斥資開辦 24 小時數碼二台頻道。', target:1, reward:{cash:1_000_000}, rewardText:'獎勵 $1.0m' },
+  { id:'cash-50m', tier:'長遠', title:'資金達到 $50m', desc:'電視台現金儲備達到 $50m（進度以百萬計）。', target:50, reward:{cash:2_000_000}, rewardText:'獎勵 $2.0m' }
+];
+
+export function ensureChallenges(state) {
+  state.challenges ??= [];
+  state.challengeFlags ??= {};
+  state.pendingChallengeRewards ??= [];
+  for (const def of CHALLENGES) {
+    if (!state.challenges.some(entry => entry.id === def.id)) {
+      state.challenges.push({ id: def.id, progress: 0, done: false });
+    }
+  }
+  return state.challenges;
+}
+
+export function getChallengeList(state) {
+  ensureChallenges(state);
+  return CHALLENGES.map(def => {
+    const entry = state.challenges.find(item => item.id === def.id);
+    return { ...def, progress: entry?.progress ?? 0, done: entry?.done ?? false };
+  });
+}
+
+// Records an event-based challenge as achieved; the reward itself is granted
+// by the end-of-day evaluation, never synchronously inside an action.
+export function markChallenge(state, id) {
+  state.challengeFlags ??= {};
+  state.challengeFlags[id] = true;
+}
+
+export function payChallengeRewards(state) {
+  state.pendingChallengeRewards ??= [];
+  if (!state.pendingChallengeRewards.length) return [];
+  const paid = state.pendingChallengeRewards.splice(0, state.pendingChallengeRewards.length);
+  for (const reward of paid) {
+    if (reward.cash) state.cash += reward.cash;
+    if (reward.reputation) state.reputation = clamp(state.reputation + reward.reputation, 0, 100);
+    if (reward.fans) state.fans = clamp(state.fans + reward.fans, 0, 100);
+    const parts = [
+      reward.cash ? `獎金 ${money(reward.cash)}` : null,
+      reward.reputation ? `口碑 +${reward.reputation}` : null,
+      reward.fans ? `熱度 +${reward.fans}` : null
+    ].filter(Boolean).join('、');
+    note(state, `【挑戰達成】「${reward.title}」完成！${parts} 已入賬，繼續向其他挑戰進發。`, 'good');
+  }
+  return paid;
+}
+
+export function evaluateChallenges(state, daily) {
+  ensureChallenges(state);
+  const entries = Object.fromEntries(state.challenges.map(entry => [entry.id, entry]));
+  const defOf = id => CHALLENGES.find(def => def.id === id);
+  const setProgress = (id, value) => {
+    const entry = entries[id];
+    if (entry && !entry.done) entry.progress = clamp(Math.floor(value), 0, defOf(id).target);
+  };
+  const hours = daily?.hours ?? [];
+  if (hours.some(h => h.hour >= 18 && h.hour <= 22 && h.rating > Math.max(...h.rivals))) setProgress('prime-first', 1);
+  if (Number.isInteger(daily?.wins)) setProgress('win-five-hours', Math.max(entries['win-five-hours']?.progress ?? 0, daily.wins));
+  const hour20 = hours.find(h => h.hour === 20);
+  if (hour20 && entries['prime-streak-3'] && !entries['prime-streak-3'].done) {
+    entries['prime-streak-3'].progress = hour20.rating > Math.max(...hour20.rivals)
+      ? Math.min(3, (entries['prime-streak-3'].progress ?? 0) + 1)
+      : 0;
+  }
+  if (state.challengeFlags['first-signing']) setProgress('first-signing', 1);
+  if (state.challengeFlags['first-sale']) setProgress('first-sale', 1);
+  if (state.challengeFlags['sports-rights']) setProgress('sports-rights', 1);
+  if (state.challengeFlags['sub-channel']) setProgress('sub-channel', 1);
+  if (state.challengeFlags['first-production'] || (state.productionProjects ?? []).some(p => p.status === 'completed' || p.status === 'delivered')) {
+    setProgress('first-production', 1);
+  }
+  if (daily?.monthResult?.isOurWin) setProgress('monthly-champion', 1);
+  if ((daily?.ceremony?.ourWins ?? 0) >= 1) setProgress('annual-award', 1);
+  setProgress('cash-50m', Math.floor((state.cash ?? 0) / 1_000_000));
+  const completed = [];
+  for (const def of CHALLENGES) {
+    const entry = entries[def.id];
+    if (entry && !entry.done && entry.progress >= def.target) {
+      entry.done = true;
+      entry.progress = def.target;
+      state.pendingChallengeRewards.push({ id: def.id, title: def.title, ...def.reward });
+      completed.push(def.id);
+    }
+  }
+  updateRivalGrudgeDaily(state, daily);
+  return completed;
+}
+
+// ---------------------------------------------------------------------------
+// Phase B4: 對手性格與恩怨 (Rival personalities + grudge)
+// ---------------------------------------------------------------------------
+export const RIVAL_PERSONALITIES = {
+  jade: {
+    label: '挖角王',
+    desc: '專攻搶人：最鍾意撬走你用開嘅藝人，簽人出手又快又狠。',
+    lines: {
+      calm: ['翡翠台最近忙住排佢哋嘅長壽劇，暫時未有針對你嘅動作。', '翡翠台高層心情唔錯，仲未將你放喺眼內。'],
+      watch: ['翡翠台開始留意你台嘅排播，挖角名單據聞已經開咗個檔案。', '翡翠台對你近排嘅收視有啲眼紅，開會嗰陣提過你幾次。'],
+      hostile: ['翡翠台擺明車馬針對你：搶人搶版權都唔會手軟。', '翡翠台視你為眼中釘，黃金時段同你死過。']
+    }
+  },
+  viu: {
+    label: '話題王',
+    desc: '最識製造話題：首播專揀高熱度題材，晚間時段自帶討論度。',
+    lines: {
+      calm: ['ViuTV 埋首搞佢哋嘅偶像節目，同你井水不犯河水。', 'ViuTV 近排話題都喺自己台，暫時未燒到你嗰邊。'],
+      watch: ['ViuTV 留意到你嘅晚間收視，社交團隊開始追蹤你台嘅動向。', 'ViuTV 覺得你搶咗佢哋唔少年輕觀眾，面色唔多好。'],
+      hostile: ['ViuTV 將你列為頭號對手，首播專登揀嚟同你對撼。', 'ViuTV 話題攻勢全開，明刀明槍要同你爭晚間觀眾。']
+    }
+  },
+  hoy: {
+    label: '量產王',
+    desc: '產量驚人：首播一浪接一浪，質素參差但勝在密食當三番。',
+    lines: {
+      calm: ['HOY TV 繼續默默量產佢嘅生活節目，未有大動作。', 'HOY TV 排播密密麻麻，但暫時未針對你。'],
+      watch: ['HOY TV 發覺你嘅時段同佢撞到正，開始加碼排播。', 'HOY TV 對你嘅收視有啲唔忿氣，產量再加一成。'],
+      hostile: ['HOY TV 用數量同你死磕，首播排到密一密，務求磨贏你。', 'HOY TV 視你為假想敵，新節目專登排嚟撼你嘅強檔。']
+    }
+  }
+};
+
+export function rivalPersonality(rivalId) {
+  const id = rivalId === 'city' ? 'jade' : rivalId === 'local' ? 'viu' : rivalId;
+  return RIVAL_PERSONALITIES[id] ?? null;
+}
+
+export function rivalGrudgeTier(grudge) {
+  return grudge >= 50 ? 'hostile' : grudge >= 25 ? 'watch' : 'calm';
+}
+
+export function rivalGrudgeOf(state, rivalId) {
+  const id = rivalId === 'city' ? 'jade' : rivalId === 'local' ? 'viu' : rivalId;
+  return state.rivalGrudge?.[id] ?? 0;
+}
+
+export function addRivalGrudge(state, rivalId, points) {
+  state.rivalGrudge ??= { jade: 0, viu: 0, hoy: 0 };
+  const id = rivalId === 'city' ? 'jade' : rivalId === 'local' ? 'viu' : rivalId;
+  if (!(id in state.rivalGrudge)) return;
+  state.rivalGrudge[id] = clamp((state.rivalGrudge[id] ?? 0) + points, 0, 100);
+}
+
+function updateRivalGrudgeDaily(state, daily) {
+  state.rivalGrudge ??= { jade: 0, viu: 0, hoy: 0 };
+  state.rivalBeatStreak ??= {};
+  const hours = (daily?.hours ?? []).filter(h => h && Array.isArray(h.rivals));
+  if (hours.length) {
+    const ourBest = Math.max(...hours.map(h => h.rating));
+    (state.rivals ?? []).forEach((rival, idx) => {
+      const rivalBest = Math.max(...hours.map(h => h.rivals[idx] ?? 0));
+      if (ourBest > rivalBest) {
+        state.rivalBeatStreak[rival.id] = (state.rivalBeatStreak[rival.id] ?? 0) + 1;
+        if (state.rivalBeatStreak[rival.id] >= 3) {
+          addRivalGrudge(state, rival.id, 10);
+          state.rivalBeatStreak[rival.id] = 0;
+        }
+      } else {
+        state.rivalBeatStreak[rival.id] = 0;
+      }
+    });
+  }
+  if (daily?.monthResult?.isOurWin) {
+    const beaten = (daily.monthResult.top5 ?? []).find(entry => entry.station !== '你的電視台');
+    const rival = beaten ? (state.rivals ?? []).find(r => r.name === beaten.station) : null;
+    if (rival) addRivalGrudge(state, rival.id, 15);
+  }
+  if ((daily?.day ?? 0) % 3 === 0) {
+    for (const id of Object.keys(state.rivalGrudge)) {
+      state.rivalGrudge[id] = Math.max(0, state.rivalGrudge[id] - 1);
+    }
+  }
+}
+
+// The daypart (by scheduled programme ratings) a grudging rival aims its
+// premieres at when it is actively targeting the player.
+const DAYPART_WINDOWS = { morning: [6, 7], daytime: [12, 13], prime: [19, 20], late: [23, 0] };
+function daypartOfHour(hour) {
+  return hour >= 6 && hour <= 11 ? 'morning' : hour >= 12 && hour <= 17 ? 'daytime' : hour >= 18 && hour <= 22 ? 'prime' : 'late';
+}
+export function playerStrongestDaypart(state) {
+  const sums = { morning: 0, daytime: 0, prime: 0, late: 0 };
+  const counts = { morning: 0, daytime: 0, prime: 0, late: 0 };
+  for (const block of state.schedule ?? []) {
+    if (block.programId.startsWith('event:')) continue;
+    const program = (state.library ?? []).find(p => p.id === block.programId);
+    if (!program) continue;
+    for (const hour of hoursInBlock(block)) {
+      const part = daypartOfHour(hour);
+      sums[part] += program.rating ?? 0;
+      counts[part]++;
+    }
+  }
+  let best = 'prime', bestAvg = -1;
+  for (const part of Object.keys(sums)) {
+    if (!counts[part]) continue;
+    const avg = sums[part] / counts[part];
+    if (avg > bestAvg) { bestAvg = avg; best = part; }
+  }
+  return best;
+}
+function premiereWindowHours(state, rival) {
+  if (rivalGrudgeOf(state, rival.id) >= 50) return DAYPART_WINDOWS[playerStrongestDaypart(state)];
+  return [19, 20];
+}
+
+// ---------------------------------------------------------------------------
+// Phase B3: 藝人故事事件 (Talent story events)
+// At most one event per 9 to 14 days, none before day 8. The poach archetype
+// is delivered as a mailbox letter with costed choices handled by
+// replyToLetter (retainActorId / releaseActorId effects).
+// ---------------------------------------------------------------------------
+export function evaluateTalentStoryEvent(state, rng = Math.random) {
+  state.talentEventCooldownUntil ??= 0;
+  const gameDay = state.day;
+  if (gameDay < 8 || gameDay < state.talentEventCooldownUntil) return null;
+  state.talent ??= {};
+  state.lastAiredDays ??= {};
+  state.mailbox ??= [];
+  const pool = ACTORS.map(actor => ({ actor, t: state.talent[actor.id] })).filter(x => x.t);
+  const notable = pool.filter(x => (x.t.station && x.t.station !== 'free') || (x.t.fame ?? 0) >= 75);
+  const playerArtists = pool.filter(x => x.t.station === 'player');
+  const idleVeterans = pool.filter(x => x.actor.skill >= 75 && (gameDay - (state.lastAiredDays[x.actor.id] ?? 1)) >= 20);
+  const slumping = playerArtists.filter(x => (x.t.stamina ?? 100) < 60);
+  const kinds = [];
+  if (notable.length) kinds.push('scandal');
+  if (playerArtists.length) kinds.push('poach');
+  if (idleVeterans.length) kinds.push('comeback');
+  if (slumping.length) kinds.push('slump');
+  if (!kinds.length) {
+    state.talentEventCooldownUntil = gameDay + 3;
+    return null;
+  }
+  const kind = kinds[Math.floor(rng() * kinds.length)];
+  const pickFrom = list => list[Math.floor(rng() * list.length)];
+  let event = null;
+  if (kind === 'scandal') {
+    const { actor, t } = pickFrom(notable);
+    t.fame = clamp((t.fame ?? 50) + 4, 15, 100);
+    const reputationHit = t.station === 'player' && rng() < 0.45;
+    if (reputationHit) state.reputation = clamp(state.reputation - 2, 0, 100);
+    note(state, `【藝人緋聞】${getStationName(t.station)}藝人【${actor.name}】被拍到深夜密會神秘人，緋聞登上娛樂頭條，人氣微升${reputationHit ? '；佢係我台旗下藝人，公關要小心處理，口碑 -2' : ''}。`, reputationHit ? 'bad' : 'neutral');
+    event = { kind, actorId: actor.id };
+  } else if (kind === 'poach') {
+    const { actor, t } = pickFrom(playerArtists);
+    const rivals = state.rivals ?? [];
+    const rival = rivals[Math.floor(rng() * rivals.length)] ?? { id: 'jade', name: '翡翠台' };
+    const retainCost = Math.round(((t.fee ?? actor.fee) * 0.5) / 10_000) * 10_000;
+    const letterId = `poach-${actor.id}-${gameDay}`;
+    state.mailbox.unshift({
+      id: letterId, day: gameDay, type: 'poach', actorId: actor.id,
+      title: `${rival.name} 高薪挖角【${actor.name}】！`,
+      text: `${rival.name} 向我台藝人【${actor.name}】開出高薪長約，經理人話對方誠意十足。留人要加薪，唔留又怕走寶，你點決定？`,
+      options: [
+        { id: 'retain', label: `加薪挽留（${preciseMoney(retainCost)}）`, desc: '合約延長 90 日 · 人氣 +2', cost: retainCost, effects: { retainActorId: actor.id, actorId: actor.id, fame: 2 }, feedback: `成功加薪挽留【${actor.name}】，合約延長 90 日，佢都話會繼續為我台搏命。`, tone: 'good' },
+        { id: 'release', label: '放手，由佢決定', desc: '合約縮短至 30 日內屆滿 · 片酬要求 +15%', cost: 0, effects: { releaseActorId: actor.id }, feedback: `你決定唔強留【${actor.name}】，佢嘅合約將會提早完結，市場身價亦都水漲船高。`, tone: 'neutral' }
+      ],
+      resolved: false
+    });
+    state.mailbox = state.mailbox.slice(0, 18);
+    note(state, `【挖角警報】${rival.name} 高薪挖角我台【${actor.name}】，經理人來信已放入信箱，請到戰報決定去留。`, 'bad');
+    event = { kind, actorId: actor.id, letterId };
+  } else if (kind === 'comeback') {
+    const { actor, t } = pickFrom(idleVeterans);
+    t.fame = clamp((t.fame ?? 50) + 6, 15, 100);
+    note(state, `【翻紅熱話】久未露面嘅【${actor.name}】近日被網民翻出舊作熱議，人氣急升 +6，係時候安排佢出山。`, 'good');
+    event = { kind, actorId: actor.id };
+  } else {
+    const { actor, t } = pickFrom(slumping);
+    t.fame = clamp((t.fame ?? 50) - 3, 15, 100);
+    t.stamina = clamp((t.stamina ?? 100) - 10, 0, 100);
+    note(state, `【狀態低迷】旗下藝人【${actor.name}】近排狀態低迷，人氣同體力都跌；建議安排培訓進修或者放假充電，唔好夾硬安排佢開工。`, 'bad');
+    event = { kind, actorId: actor.id };
+  }
+  state.talentEventCooldownUntil = gameDay + 9 + Math.floor(rng() * 6);
+  return event;
 }
 
 export function generateSuggestedTitles(kind, genre = '刑偵', topic = '', themes = []) {
@@ -2815,6 +3151,7 @@ export function produce(state,{kind='drama',genre,themes=[],actorIds=[],topic=''
   state.productionProjects ??= [];
   state.productionProjects.push(proj);
   state.library.push(program);
+  markChallenge(state, 'first-production');
   state.lastProduction={...program,roll,cooldownUntil:state.cooldowns[key]??null};
   return program;
 }
@@ -2911,6 +3248,21 @@ export function migrateLegacyLicenses(state) {
   state.subChannelUnlocked ??= false;
   state.subChannelSchedule ??= [];
   state.activeTools ??= [];
+  // Phase B systems: challenges, rival grudge, talent story events, headlines
+  state.challenges ??= [];
+  state.challengeFlags ??= {};
+  state.pendingChallengeRewards ??= [];
+  state.rivalGrudge ??= { jade: 0, viu: 0, hoy: 0 };
+  for (const rivalId of ['jade', 'viu', 'hoy']) {
+    if (!Number.isFinite(state.rivalGrudge[rivalId])) state.rivalGrudge[rivalId] = 0;
+  }
+  state.rivalBeatStreak ??= {};
+  state.talentEventCooldownUntil ??= 0;
+  state.pendingHeadline ??= null;
+  // Saves that already opened the sub-channel before challenges existed
+  // still earn that challenge honestly.
+  if (state.subChannelUnlocked) state.challengeFlags['sub-channel'] = true;
+  ensureChallenges(state);
   if (!state.rivals || state.rivals.length < 3 || state.rivals.some(r => r.id === 'city' || r.id === 'local')) {
     const freshState = new StationState();
     state.rivals = freshState.rivals;
@@ -3012,6 +3364,42 @@ const premiereProfiles={
   pageant:{label:'選美之夜',symbol:'♛',spotlight:'宣傳佳麗故事',improve:'修正評審安排',hook:'佳麗與評審爭奪觀眾焦點'}
 };
 export function premiereProfile(kind){return premiereProfiles[kind]??{label:'新節目首播',symbol:'●',spotlight:'加強宣傳',improve:'聽取觀眾意見',hook:'新節目引起討論'};}
+
+// Phase B2: 試映反應 — deterministic preview-audience quotes for a pending
+// premiere, derived from a hash of programme id + day so re-renders of the
+// premiere view never reroll them.
+const premierePreviewPools={
+  drama:['試映場有觀眾喊到要紙巾，尾段全場靜晒。','啲對白好入肉，散場仲有人討論邊個先係兇手。','演員眼神戲好足，唔似一般師奶劇。'],
+  sitcom:['試映場笑聲冇停過，隔籬位笑到拍枱。','啲笑位好貼地，屋企人應該會鍾意。'],
+  variety:['試映觀眾玩到唔願走，氣氛好熱鬧。','嘉賓化學作用好強，笑位密到喘唔到氣。'],
+  talkshow:['嘉賓講到真情流露，試映場靜到針跌落地都聽到。','話題夠尖銳，完場仲喺度辯論。'],
+  reality:['試映場歡呼聲不斷，反轉位全場嘩一聲。','參賽者故事好有感染力，未播已經想追。'],
+  travel:['啲畫面靚到想即刻訂機票，試映場好多人影相。','介紹嘅地方好冷門，睇完成個人有衝動出發。'],
+  music:['試映場有人跟住唱，氣氛似演唱會。','編曲好有心，耳機黨會好滿足。'],
+  night:['深夜試映場出奇地多人，夜貓觀眾話啱晒口味。','節奏慢慢哋，好啱收工返屋企放空嗰陣睇。'],
+  children:['小朋友試映場笑到碌地，大人睇都唔悶。','色彩同節奏都啱小朋友，家長反應好好。'],
+  news:['試映觀眾話報導夠快夠準，會轉台過嚟睇。','畫面同資料圖表清楚，睇得舒服。'],
+  finance:['試映嘅投資者話分析夠貼市，會準時收睇。','講解深入淺出，新手都跟得到。'],
+  catalog:['重溫試映場好多老觀眾，情懷分好高。','畫質修復得唔錯，老戲新睇又有另一番味。'],
+  default:['試映觀眾反應唔錯，完場仲討論緊劇情。','製作睇落有誠意，值得畀機會，首播晚見真章。']
+};
+const premiereBandQuotes={
+  high:['試映評分係近期最高嗰批，台前幕後都鬆一口氣。','有資深劇評人試映後即刻問幾時正式播。','試映問卷九成人都話會追落去。'],
+  mid:['試映評分中規中矩，好唔好睇要等首播晚先知真章。','反應兩極，有人話正，有人話慢熱。','試映觀眾覺得合格有餘，驚喜未夠。'],
+  low:['試映評分偏低，完場氣氛有啲凝重。','試映場有人中途睇電話，製作組要諗諗計。','試映觀眾話節奏要執一執，先趕得切首播。']
+};
+const premierePreviewSpeakers=['試映觀眾 · 阿怡','試映觀眾 · 家明','資深劇迷 · May姐','試映觀眾 · 阿傑'];
+function premiereHash(text){let h=0;for(let i=0;i<text.length;i++)h=(h*31+text.charCodeAt(i))>>>0;return h;}
+export function premierePreviewQuotes(premiere,program=null){
+  const kind=program?.kind??premiere?.kind??'drama';
+  const quality=program?.quality??premiere?.rating??60;
+  const band=quality>=70?'high':quality>=50?'mid':'low';
+  const seed=premiereHash(`${premiere?.programId??premiere?.title??''}|${premiere?.day??0}|${kind}`);
+  const kindPool=premierePreviewPools[kind]??premierePreviewPools.default;
+  const bandPool=premiereBandQuotes[band];
+  const picks=[kindPool[seed%kindPool.length],kindPool[(seed+1)%kindPool.length],bandPool[seed%bandPool.length]];
+  return [...new Set(picks)].slice(0,3).map((text,i)=>({text,from:premierePreviewSpeakers[(seed+i)%premierePreviewSpeakers.length]}));
+}
 export function resolvePremiere(state,choice){
   const premiere=state.pendingPremieres?.[0];
   if(!premiere) throw Error('目前冇等待處理嘅首播。');
@@ -3058,6 +3446,16 @@ export function replyToLetter(state,id,choiceId=null) {
       }
       if(choice.effects.renewActorId&&state.talent[choice.effects.renewActorId]){
         renewArtistContract(state,choice.effects.renewActorId,false);
+      }
+      if(choice.effects.retainActorId&&state.talent[choice.effects.retainActorId]){
+        const retained=state.talent[choice.effects.retainActorId];
+        retained.contractExpiresDay=(Number.isInteger(retained.contractExpiresDay)?retained.contractExpiresDay:state.day)+90;
+      }
+      if(choice.effects.releaseActorId&&state.talent[choice.effects.releaseActorId]){
+        const released=state.talent[choice.effects.releaseActorId];
+        if(Number.isInteger(released.contractExpiresDay)) released.contractExpiresDay=Math.min(released.contractExpiresDay,state.day+30);
+        const releasedActor=ACTORS.find(a=>a.id===choice.effects.releaseActorId);
+        released.fee=Math.round(((released.fee??releasedActor?.fee??500_000)*1.15)/10_000)*10_000;
       }
     }
     letter.resolved=true;
@@ -3362,6 +3760,13 @@ export function resolveAuction(state,event,rng) {
   const local=Math.round(event.floor*(1.06+rng()*.28)/100_000)*100_000;
   const niche=Math.round(event.floor*(.96+rng()*.55)/100_000)*100_000;
   const bids=[{name:'翡翠台',amount:giant},{name:'ViuTV',amount:local},{name:'HOY TV',amount:niche}];
+  // Phase B4: a rival holding a serious grudge (恩怨 >= 50) bids 5% harder.
+  for (const bid of bids) {
+    const rival=(state.rivals??[]).find(r=>r.name===bid.name);
+    if (rival && rivalGrudgeOf(state, rival.id) >= 50) {
+      bid.amount = Math.round(bid.amount * 1.05 / 100_000) * 100_000;
+    }
+  }
   if (event.playerBid!==null) bids.push({name:'你的電視台',amount:event.playerBid});
   // Stable tie order favors the earlier submitted rival; player needs to beat a rival outright.
   const winner=bids.reduce((best,b)=>b.amount>best.amount?b:best,bids[0]);
@@ -3398,6 +3803,11 @@ export function resolveAuction(state,event,rng) {
     concludeDisplacedSports(state, event, displaced);
     note(state,`《${event.name}》中標！${config?.autoScheduleDesc??'已預排賽事直播時段'}；保證金 ${money(event.playerBid)} 轉作版權費。`,'good');
     if (!state.achievements.includes('體育版權首勝')) state.achievements.push('體育版權首勝');
+    markChallenge(state, 'sports-rights');
+    // The strongest rival bidder you outbid holds a grudge.
+    const topRivalBid=bids.filter(b=>b.name!=='你的電視台').sort((a,b)=>b.amount-a.amount)[0];
+    const beatenRival=topRivalBid?(state.rivals??[]).find(r=>r.name===topRivalBid.name):null;
+    if (beatenRival) addRivalGrudge(state, beatenRival.id, 12);
   } else {
     if (event.playerBid!==null) state.cash+=event.playerBid;
     note(state,`《${event.name}》由 ${winner.name} 以 ${money(winner.amount)} 中標。你的保證金已退回。`,'neutral');
@@ -3453,6 +3863,9 @@ export function buyoutSportsEvent(state, eventId) {
   concludeDisplacedSports(state, event, displaced);
   note(state, `成功以一口價 ${money(buyoutCost)} 買斷《${event.name}》轉播權！${cfg?.autoScheduleDesc ?? '已預排賽事直播時段'}。`, 'good');
   if (!state.achievements.includes('體育版權首勝')) state.achievements.push('體育版權首勝');
+  markChallenge(state, 'sports-rights');
+  // A buyout snatches the rights from under 翡翠台's fabricated top bid.
+  addRivalGrudge(state, 'jade', 8);
   return event;
 }
 
@@ -3769,6 +4182,20 @@ export function advanceDay(state,rng=Math.random) {
   const winningSports=getActiveSportsEvents(state);
   let sportsRevenue=0, sportsPenalty=0;
   const weekday=weekdayForDay(gameDay);
+  // Phase B2: yesterday's premiere result makes this morning's headlines.
+  if (state.pendingHeadline && state.pendingHeadline.day === gameDay) {
+    const headline=state.pendingHeadline;
+    state.pendingHeadline=null;
+    const margin=headline.margin;
+    const variants=margin>=10
+      ? [`《${headline.title}》首播大捷！${headline.rating} 分壓倒對台，街頭巷尾都喺度講。`,`《${headline.title}》一開播即爆紅，${headline.rating} 分成為報攤頭條。`,`《${headline.title}》首播橫掃同時段，贏對台 ${margin} 分，氣勢如虹。`]
+      : margin>0
+      ? [`《${headline.title}》首播險勝，${headline.rating} 分僅贏對台 ${margin} 分，觀眾話要睇定啲。`,`《${headline.title}》首播以 ${headline.rating} 分小勝一仗，口碑慢慢發酵。`,`《${headline.title}》首播贏得驚險，${margin} 分之差定勝負。`]
+      : [`《${headline.title}》首播 ${headline.rating} 分不敵對台，輸 ${-margin} 分，製作組連夜開會。`,`《${headline.title}》首播遇冷，${headline.rating} 分落後對台，下一集要急起直追。`,`《${headline.title}》首播反應平平，輸對台 ${-margin} 分，宣傳要加把勁。`];
+    note(state,`【今日頭條】${variants[gameDay%variants.length]}`,margin>0?'good':'neutral');
+  }
+  // Phase B1: challenge rewards completed on earlier days are paid out now.
+  payChallengeRewards(state);
   const todayRuns=new Map();
   const onceBlocksAired=[];
   for (const block of state.schedule) {
@@ -4135,6 +4562,15 @@ export function advanceDay(state,rng=Math.random) {
     p.rating=clamp(p.rating+ratingChange,1,100);p.buzz=clamp(p.buzz+buzzChange,0,100);
     if(margin>=10)state.fans=clamp(state.fans+1,0,100);
     premiere.momentum={rating:ratingChange,buzz:buzzChange};
+    // Phase B2: a premiere-specific audience feed post, and tomorrow's headline.
+    state.audienceFeed??=[];
+    const feedWin=[`「《${premiere.title}》首播 ${premiere.rating} 分，贏對台 ${margin} 分！我已經約定朋友下一集一齊追。」`,`「尋晚《${premiere.title}》首播真係好睇，${premiere.rating} 分實至名歸，贏 ${margin} 分唔係僥倖。」`,`「《${premiere.title}》首播一出街就知係好嘢，贏對台成 ${margin} 分。」`];
+    const feedLose=[`「《${premiere.title}》首播 ${premiere.rating} 分，輸咗 ${-margin} 分有啲可惜，不過個故事係吸引嘅，再睇多集先。」`,`「對台太強，《${premiere.title}》首播輸 ${-margin} 分唔出奇，希望之後追得返。」`,`「《${premiere.title}》首播開局慢熱，${premiere.rating} 分唔算差，畀多次機會佢啦。」`];
+    const feedText=margin>0?feedWin[(gameDay+premiere.start)%feedWin.length]:margin<0?feedLose[(gameDay+premiere.start)%feedLose.length]:`「《${premiere.title}》首播 ${premiere.rating} 分，同對台打成平手，兩邊粉絲都唔服氣。」`;
+    state.audienceFeed.unshift({day:gameDay,title:premiere.title,tone:margin>0?'good':'bad',text:feedText});
+    if(!state.pendingHeadline||premiere.rating>state.pendingHeadline.rating){
+      state.pendingHeadline={day:gameDay+1,title:premiere.title,rating:premiere.rating,rivalRating:premiere.rivalRating,margin};
+    }
   }
   state.pendingPremieres??=[];
   state.pendingPremieres.push(...firstAirings);
@@ -4223,6 +4659,10 @@ export function advanceDay(state,rng=Math.random) {
     return {id,name:actor.name,before,fame:talent.fame,fee:talent.fee,diff,feeDiff:talent.fee-before.fee,reason};
   });
   const wins=hours.filter(item=>item.rating>Math.max(...item.rivals)).length;
+  // Phase B3: at most one talent story event per cooldown window. Runs
+  // before the regular mailbox generation so a poach letter never hides
+  // that day's regular letter at the top of the mailbox.
+  evaluateTalentStoryEvent(state,rng);
   state.audienceFeed??=[];state.mailbox??=[];
   const aired=details.filter(item=>!item.special);
   if(aired.length){
@@ -4513,6 +4953,8 @@ export function advanceDay(state,rng=Math.random) {
     note(state, `👔 董事會總裁審批【${rank} 級】：${comment}`, rank === 'S' || rank === 'A' ? 'good' : rank === 'B' ? 'neutral' : 'bad');
     daily.quarterResult=result;
   }
+  // Phase B1 + B4: end-of-day challenge progress and rival grudge updates.
+  evaluateChallenges(state, daily);
   return daily;
 }
 
