@@ -99,6 +99,23 @@ const dayPattern=days=>days.length===7?'每日':days.length===5&&days.every((d,i
 const initialDays=p=>p?.category==='香港電影'||p?.kind==='variety'||p?.kind==='night'||p?.kind==='children'||isOneOffEvent(p?.kind)?[weekdayForDay(state.day)]:p?.kind==='drama'||isDailyFormat(p?.kind)?[0,1,2,3,4]:[...EVERY_DAY];
 const initialRecurrence=p=>(isOneOffEvent(p?.kind)||p?.episodes===1||p?.category==='香港電影')?'once':(p?.kind==='drama'||isDailyFormat(p?.kind))?'weekday':(p?.kind==='variety'||p?.kind==='night'||p?.kind==='children')?'weekly':'daily';
 const catalogProgressLabel=p=>p.episodes===1?`已放映 ${catalogCompletedAirings(p)} 次`:`已完整播出 ${catalogCompletedAirings(p)} 次`;
+const starsFor=rating=>{const full=Math.max(0,Math.min(5,Math.round((Number(rating)||0)/20)));return '★'.repeat(full)+'☆'.repeat(5-full);};
+const chipKeyFor=p=>{
+  const g=p?.group||'';
+  if(g==='film')return 'film';
+  if(g==='variety')return 'variety';
+  if(g==='documentary')return 'docu';
+  if(g==='information')return 'info';
+  if(g==='politics')return 'news';
+  if(g)return 'drama';
+  const k=p?.kind||'',cat=p?.category||'';
+  if(k==='news'||k==='finance')return 'news';
+  if(k==='documentary')return 'docu';
+  if(['variety','contest','pageant','charity','music','talkshow','reality','travel','night','children'].includes(k))return 'variety';
+  if(cat.includes('電影'))return 'film';
+  return 'drama';
+};
+const freshDot=tier=>`<span class="fresh-dot ${tier}" aria-hidden="true"></span>`;
 
 function transferModalView() {
   const currentSave=localStorage.getItem(SAVE_KEY)??JSON.stringify(state);
@@ -250,7 +267,7 @@ function render() {
           <button class="reset-link" data-action="reset-prompt" aria-label="重新開局">重新開局</button>
         </div>
       </header>
-      <div class="game-hud"><div class="hud-stats"><span>資金 <b class="${state.cash<0?'danger':''}">${money(state.cash)}</b></span><span>口碑 <b>${state.reputation}</b></span><span>熱度 <b>${state.fans}</b></span></div><div class="hud-broadcast"><span class="broadcast-clock"><span class="broadcast-clock-line"><i></i> <span id="broadcast-status">${live.finished?'今日播畢':'正在播映'}</span> <b id="live-clock">${live.clock}</b></span><small class="clock-rate">現實 30 秒＝遊戲 1 小時</small></span><strong id="now-title">${safe(live.title)}</strong><small id="now-episode">${safe(live.episode||'每日時段')}</small><small>下一節目 <b id="next-title"></b></small></div></div>
+      <div class="game-hud"><div class="hud-stats"><span>資金 <b id="hud-cash" class="${state.cash<0?'danger':''}">${money(state.cash)}</b></span><span>口碑 <b>${state.reputation}</b></span><span>熱度 <b>${state.fans}</b></span></div><div class="hud-broadcast"><span class="broadcast-clock"><span class="broadcast-clock-line"><span id="onair-pill" class="onair-pill ${live.finished?'is-off':'is-live'}"><span class="onair-dot"></span>ON AIR</span> <span id="broadcast-status">${live.finished?'今日播畢':'正在播映'}</span> <b id="live-clock">${live.clock}</b></span><small class="clock-rate">現實 30 秒＝遊戲 1 小時</small></span><strong id="now-title">${safe(live.title)}</strong><small id="now-episode">${safe(live.episode||'每日時段')}</small><small>下一節目 <b id="next-title"></b></small></div></div>
       ${breakingEventBannerView()}
       <nav class="tabs" aria-label="遊戲功能">
         ${[['schedule','排播'],['studio','製作'],['ads','招商'],['facilities','大樓'],['catalog','片庫'],['sports','體育'],['shop','道具'],['rivals','對手'],['reports','戰報']].map(([id,label])=>{
@@ -282,6 +299,30 @@ function render() {
   try {localStorage.setItem(SAVE_KEY,JSON.stringify(state));}catch {app.querySelector('.game-hud').insertAdjacentHTML('beforeend','<div class="save-warning" role="status">進度未能儲存；請檢查瀏覽器儲存空間。</div>');}
   lastLiveHour=null;
   refreshLive();
+  syncCash();
+}
+
+let cashShown=null,cashTweenToken=0;
+function syncCash(){
+  const el=app.querySelector('#hud-cash');
+  if(!el)return;
+  const target=state.cash;
+  const snap=()=>{cashShown=target;el.textContent=money(target);};
+  if(cashShown===null||cashShown===target)return snap();
+  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return snap();
+  const from=cashShown,token=++cashTweenToken,start=performance.now();
+  el.textContent=money(Math.round(from));
+  const step=now=>{
+    if(token!==cashTweenToken)return;
+    const t=Math.min(1,(now-start)/600),eased=1-Math.pow(1-t,3);
+    cashShown=Math.round(from+(target-from)*eased);
+    const current=app.querySelector('#hud-cash');
+    if(!current)return;
+    current.textContent=money(cashShown);
+    if(t<1)requestAnimationFrame(step);
+    else cashShown=target;
+  };
+  requestAnimationFrame(step);
 }
 
 let lastLiveHour=null;
@@ -291,6 +332,8 @@ function refreshLive() {
   if (!clock) return;
   clock.textContent=now.clock;
   app.querySelector('#broadcast-status').textContent=now.finished?'今日播畢':'正在播映';
+  const onairPill=app.querySelector('#onair-pill');
+  if(onairPill){onairPill.classList.toggle('is-live',!now.finished);onairPill.classList.toggle('is-off',now.finished);}
   app.querySelector('#now-title').textContent=now.title;
   app.querySelector('#now-episode').textContent=now.episode||'每日時段';
   const nextHour=now.finished?0:now.block?(now.block.start+now.block.duration)%24:(now.hour+1)%24;
@@ -1236,6 +1279,33 @@ function scheduleHome(){
   </div>`;
 }
 
+function ratingsChartView(report){
+  if(!report)return '';
+  let points=null;
+  if(state.lastDayResult?.day===report.day&&Array.isArray(state.lastDayResult.hours)){
+    points=state.lastDayResult.hours.map((h,i)=>h?{hour:Number.isInteger(h.hour)?h.hour:i,ours:Number(h.rating)||0,rival:Math.max(0,...(h.rivals??[0]).map(Number))}:null);
+  }else if(Array.isArray(report.details)){
+    const byHour=new Map();
+    for(const d of report.details){
+      if(!Number.isFinite(d.rating)||!Number.isFinite(d.rivalRating))continue;
+      for(let h=d.start;h<d.start+d.duration&&h<24;h++)byHour.set(h,{hour:h,ours:d.rating,rival:d.rivalRating});
+    }
+    points=Array.from({length:24},(_,h)=>byHour.get(h)??null);
+  }
+  if(!points||!points.some(Boolean))return '';
+  const W=720,H=208,ml=30,mr=10,mt=12,mb=24,pw=W-ml-mr,ph=H-mt-mb,step=pw/23;
+  const maxVal=Math.max(10,...points.filter(Boolean).flatMap(p=>[p.ours,p.rival]));
+  const yMax=Math.max(40,Math.ceil(maxVal/10)*10);
+  const X=h=>ml+step*h, Y=v=>mt+ph*(1-v/yMax);
+  const segments=[];
+  let run=[];
+  for(const p of points){if(p)run.push(p);else if(run.length){segments.push(run);run=[];}}
+  if(run.length)segments.push(run);
+  const path=key=>segments.map(seg=>seg.map((p,i)=>`${i?'L':'M'}${X(p.hour).toFixed(1)},${Y(p[key]).toFixed(1)}`).join(' ')).join(' ');
+  const bandX1=Math.max(ml,X(18)-step/2),bandX2=Math.min(ml+pw,X(22)+step/2);
+  const winDots=points.filter(p=>p&&p.ours>p.rival);
+  return `<div class="ratings-chart"><div class="ratings-chart-head"><span>收視曲線 · 第 ${report.day} 日</span><span class="chart-legend"><span class="legend-item"><i class="legend-line ours"></i>我台</span><span class="legend-item"><i class="legend-line rival"></i>最強對手</span><span class="legend-item"><i class="legend-dot"></i>勝出小時</span></span></div><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="第 ${report.day} 日逐小時收視曲線"><rect x="${bandX1.toFixed(1)}" y="${mt}" width="${(bandX2-bandX1).toFixed(1)}" height="${ph}" class="chart-prime-band"/><text x="${((bandX1+bandX2)/2).toFixed(1)}" y="${mt+11}" class="chart-band-label">黃金檔</text>${[0,yMax/2,yMax].map(v=>`<line x1="${ml}" y1="${Y(v).toFixed(1)}" x2="${ml+pw}" y2="${Y(v).toFixed(1)}" class="chart-grid"/><text x="${ml-5}" y="${(Y(v)+3).toFixed(1)}" class="chart-y-label">${v}</text>`).join('')}<path d="${path('rival')}" class="chart-line rival"/><path d="${path('ours')}" class="chart-line ours"/>${winDots.map(p=>`<circle cx="${X(p.hour).toFixed(1)}" cy="${Y(p.ours).toFixed(1)}" r="3.4" class="chart-win-dot"/>`).join('')}${[0,6,12,18,23].map(h=>`<text x="${X(h).toFixed(1)}" y="${H-6}" class="chart-x-label">${hourLabel(h)}</text>`).join('')}</svg></div>`;
+}
 function broadcastResultsView(){
   const reports=state.broadcastReports?.length?state.broadcastReports:state.lastDayResult?[{day:state.lastDayResult.day,details:state.lastDayResult.details??[],highlights:state.lastDayResult.highlights}]:[];
   if(!reports.length)return '';
@@ -1243,7 +1313,7 @@ function broadcastResultsView(){
   const entries=[...report.details].sort((a,b)=>a.start-b.start);
   const charity=entries.filter(item=>item.kind==='charity').length;
   const currentHighlights=report.highlights || (state.lastDayResult?.day===report.day ? state.lastDayResult.highlights : null);
-  return `<section class="panel broadcast-results" aria-label="逐套節目播映成績"><div class="section-heading"><div><div class="eyebrow gold">ON AIR RESULTS</div><h2>逐套節目成績戰報</h2></div><span class="report-meta-tag">第 ${report.day} 日 · ${entries.length} 個播映時段</span></div><p class="broadcast-results-help">即時播映成效報告：收視指數（0–100）與同時段最強對手比拼，廣告收入即日入帳。</p><div class="broadcast-days" aria-label="選擇播映日">${reports.map(item=>`<button data-action="broadcast-day" data-day="${item.day}" class="${item.day===report.day?'active':''}" aria-pressed="${item.day===report.day}">第 ${item.day} 日</button>`).join('')}</div>${dailyHighlightsView(currentHighlights, report.day)}${charity?`<p class="charity-summary">累計慈善籌款 ${hourlyMoney(state.charityRaised??0)} · 款項不屬電視台資金</p>`:''}<div class="broadcast-result-grid">${entries.length?entries.map(item=>{const rival=Number.isFinite(item.rivalRating)?item.rivalRating:state.lastDayResult?.day===report.day?Math.max(...(state.lastDayResult.hours??[]).filter(hour=>hour&&hour.title===item.title&&hour.hour>=item.start&&hour.hour<item.start+item.duration).flatMap(hour=>hour.rivals??[0])):null;const won=Number.isFinite(rival)?item.rating>rival:null;const diff=Number.isFinite(rival)?item.rating-rival:0;const diffText=diff>0?`+${diff}`:`${diff}`;const totalRatings=Math.max(1,(item.rating+(rival||0)));const ourShare=Math.min(95,Math.max(5,Math.round((item.rating/totalRatings)*100)));return `<article class="broadcast-result-card ${won===true?'won':won===false?'lost':''}"><div class="broadcast-result-top"><span class="broadcast-time-tag">${hourLabel(item.start)}–${hourLabel(item.start+item.duration)}</span>${item.freshness!==undefined?(()=>{const f=freshnessLabel(item.freshness,item.maxFreshness);return `<span class="freshness-result-pill ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`;})():''}${item.eventMod?`<span class="event-mod-tag ${item.eventMod>0?'boost':'debuff'}">${item.eventMod>0?`▲ 突發 +${item.eventMod}`:`▼ 突發 ${item.eventMod}`}</span>`:''}<b class="battle-badge ${won===true?'won':won===false?'lost':''}">${won===null?'成績':won?`搶贏對台 ${diffText}`:`未能勝出 ${diffText}`}</b></div><div class="broadcast-title-row"><h3>《${safe(item.title)}》</h3><span class="broadcast-cat-tag">${safe(item.category||'節目')}</span></div><p class="broadcast-ep-line">${safe(item.episode||item.category||'節目播映')}</p><div class="battle-bar-box" title="我台 ${item.rating} : 對手 ${Number.isFinite(rival)?rival:'—'}"><div class="battle-bar-labels"><span>我台 <b>${item.rating}</b></span><span>對手 <b>${Number.isFinite(rival)?rival:'—'}</b></span></div><div class="battle-bar-track"><div class="battle-bar-fill" style="width:${ourShare}%"></div></div></div><div class="broadcast-result-stats"><div><small>我台收視</small><strong>${item.rating}</strong></div><div><small>最強對手</small><strong>${Number.isFinite(rival)?rival:'—'}</strong></div><div><small>廣告收入</small><strong class="gold-text">${hourlyMoney(item.revenue??0)}</strong></div></div>${item.effect?`<p class="broadcast-result-effect">★ ${safe(item.effect)}</p>`:''}${item.eventMod&&item.eventTitle?`<p class="event-mod-note">${item.eventMod>0?'🔥':'⚡'} 突發效應【${safe(item.eventTitle)}】：收視 ${item.eventMod>0?`+${item.eventMod}`:item.eventMod} 點</p>`:''}</article>`}).join(''):'<p class="empty">當日冇節目播映，排檔後先有逐套成績。</p>'}</div></section>`;
+  return `<section class="panel broadcast-results" aria-label="逐套節目播映成績"><div class="section-heading"><div><div class="eyebrow gold">ON AIR RESULTS</div><h2>逐套節目成績戰報</h2></div><span class="report-meta-tag">第 ${report.day} 日 · ${entries.length} 個播映時段</span></div><p class="broadcast-results-help">即時播映成效報告：收視指數（0–100）與同時段最強對手比拼，廣告收入即日入帳。</p><div class="broadcast-days" aria-label="選擇播映日">${reports.map(item=>`<button data-action="broadcast-day" data-day="${item.day}" class="${item.day===report.day?'active':''}" aria-pressed="${item.day===report.day}">第 ${item.day} 日</button>`).join('')}</div>${ratingsChartView(report)}${dailyHighlightsView(currentHighlights, report.day)}${charity?`<p class="charity-summary">累計慈善籌款 ${hourlyMoney(state.charityRaised??0)} · 款項不屬電視台資金</p>`:''}<div class="broadcast-result-grid">${entries.length?entries.map(item=>{const rival=Number.isFinite(item.rivalRating)?item.rivalRating:state.lastDayResult?.day===report.day?Math.max(...(state.lastDayResult.hours??[]).filter(hour=>hour&&hour.title===item.title&&hour.hour>=item.start&&hour.hour<item.start+item.duration).flatMap(hour=>hour.rivals??[0])):null;const won=Number.isFinite(rival)?item.rating>rival:null;const diff=Number.isFinite(rival)?item.rating-rival:0;const diffText=diff>0?`+${diff}`:`${diff}`;const totalRatings=Math.max(1,(item.rating+(rival||0)));const ourShare=Math.min(95,Math.max(5,Math.round((item.rating/totalRatings)*100)));return `<article class="broadcast-result-card ${won===true?'won':won===false?'lost':''}"><div class="broadcast-result-top"><span class="broadcast-time-tag">${hourLabel(item.start)}–${hourLabel(item.start+item.duration)}</span>${item.freshness!==undefined?(()=>{const f=freshnessLabel(item.freshness,item.maxFreshness);return `<span class="freshness-result-pill ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>`;})():''}${item.eventMod?`<span class="event-mod-tag ${item.eventMod>0?'boost':'debuff'}">${item.eventMod>0?`▲ 突發 +${item.eventMod}`:`▼ 突發 ${item.eventMod}`}</span>`:''}<b class="battle-badge ${won===true?'won':won===false?'lost':''}">${won===null?'成績':won?`搶贏對台 ${diffText}`:`未能勝出 ${diffText}`}</b></div><div class="broadcast-title-row"><h3>《${safe(item.title)}》</h3><span class="broadcast-cat-tag">${safe(item.category||'節目')}</span></div><p class="broadcast-ep-line">${safe(item.episode||item.category||'節目播映')}</p><div class="battle-bar-box" title="我台 ${item.rating} : 對手 ${Number.isFinite(rival)?rival:'—'}"><div class="battle-bar-labels"><span>我台 <b>${item.rating}</b></span><span>對手 <b>${Number.isFinite(rival)?rival:'—'}</b></span></div><div class="battle-bar-track"><div class="battle-bar-fill" style="width:${ourShare}%"></div></div></div><div class="broadcast-result-stats"><div><small>我台收視</small><strong>${item.rating}</strong></div><div><small>最強對手</small><strong>${Number.isFinite(rival)?rival:'—'}</strong></div><div><small>廣告收入</small><strong class="gold-text">${hourlyMoney(item.revenue??0)}</strong></div></div>${item.effect?`<p class="broadcast-result-effect">★ ${safe(item.effect)}</p>`:''}${item.eventMod&&item.eventTitle?`<p class="event-mod-note">${item.eventMod>0?'🔥':'⚡'} 突發效應【${safe(item.eventTitle)}】：收視 ${item.eventMod>0?`+${item.eventMod}`:item.eventMod} 點</p>`:''}</article>`}).join(''):'<p class="empty">當日冇節目播映，排檔後先有逐套成績。</p>'}</div></section>`;
 }
 
 function premiereView(){
@@ -1640,6 +1710,7 @@ function scheduleView() {
               ${part.id==='prime'?'<span class="prime-multiplier-pill">🔥 廣告收益 x1.5~x2.5 · 核心決戰區</span>':''}
             </div>
             <div class="daypart-grid">
+              <div class="time-ruler" aria-hidden="true">${part.hours.map(h=>`<span class="${h>=18&&h<=22?'prime':''}">${hourLabel(h)}</span>`).join('')}</div>
               ${part.hours.map(hour=>{
                 const block=programAtHour(state,hour,previewDay);
                 const item=block&&(block.programId.startsWith('event:')?(state.events??[]).find(e=>`event:${e.id}`===block.programId):state.library.find(p=>p.id===block.programId));
@@ -2112,11 +2183,12 @@ function replayQueueView() {
             <div class="replay-card-main">
               <div class="replay-title-row">
                 <strong>${safe(p.title)}</strong>
-                <span class="replay-type-tag">${p.kind==='catalog'?'外購':'自製'} · ${safe(p.category||'劇集')}</span>
+                <span class="replay-type-tag kind-chip chip-${chipKeyFor(p)}">${p.kind==='catalog'?'外購':'自製'} · ${safe(p.category||'劇集')}</span>
+                ${Number.isFinite(p.rating)?`<span class="stars replay-stars" title="收視 ${p.rating}" aria-label="收視 ${p.rating}">${starsFor(p.rating)}</span>`:''}
               </div>
               <small>${catalogProgressLabel(p)}${rightsInfo}</small>
               <div class="replay-fresh-row">
-                <span class="freshness-badge ${f.tier}">${f.icon} 新鮮度 ${f.percent}% (上限 ${f.max}%)</span>
+                <span class="freshness-badge ${f.tier}">${freshDot(f.tier)}${f.icon} ${f.text} · 新鮮度 ${f.percent}% (上限 ${f.max}%)</span>
                 <span class="freshness-note">${isCooling ? '❄️ 剛播畢沉澱中（+2%/日），建議等待回溫後再排' : '✨ 回溫良好，隨時適合安排重溫！'}</span>
               </div>
             </div>
@@ -2238,6 +2310,8 @@ function catalogView() {
           return `<article class="renewal-item">
             <div>
               <strong>《${safe(p.title)}》</strong>
+              <span class="kind-chip chip-${chipKeyFor(p)}">${safe(p.category||'節目')}</span>
+              ${Number.isFinite(p.rating)?`<span class="stars renewal-stars" title="收視 ${p.rating}" aria-label="收視 ${p.rating}">${starsFor(p.rating)}</span>`:''}
               <small>${catalogProgressLabel(p)} · 原有成本 ${money(p.licenseBaseCost ?? p.cost)}</small>
             </div>
             <button class="catalog-button" data-action="renew" data-id="${safe(p.id)}" ${!canAfford?'disabled':''}>
@@ -2296,11 +2370,11 @@ function catalogView() {
               <b>${catalogPrice(cost)}</b>
             </div>
             <div class="program-spec">
-              <span class="spec-tag">${safe(p.subcategory)}</span>
+              <span class="spec-tag kind-chip chip-${chipKeyFor(p)}">${safe(p.subcategory)}</span>
               <span>${p.episodes===1?'電影':`全劇 ${p.episodes} 集`}</span>
-              <span class="rating-tag">預測收視 ${p.rating}</span>
+              <span class="rating-tag" title="預測收視 ${p.rating}"><span class="stars" aria-hidden="true">${starsFor(p.rating)}</span> 預測收視 ${p.rating}</span>
               <span>話題 ${p.buzz}</span>
-              ${owned ? `<span class="freshness-spec ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${f.icon} ${f.percent}%</span>` : ''}
+              ${owned ? `<span class="freshness-spec ${f.tier}" title="新鮮度 ${f.percent}% (上限 ${f.max}%) · ${f.desc}">${freshDot(f.tier)}${f.text} ${f.percent}%</span>` : ''}
             </div>
             ${isRival ? `
               <div class="rival-bought-notice ${rivalBuy.rivalId}">
@@ -2448,7 +2522,7 @@ function hourlyComparisonView() {
     <div class="hour-report">${visible.length?visible.map(h=>{
       const strongest=Math.max(...h.rivals),outcome=h.rating>strongest?'勝出':h.rating===strongest?'打和':'落後';
       const stations=[['我台',h.rating,'ours'],...state.rivals.map((r,idx)=>[r.name,h.rivals[idx]??0,r.id])];
-      return `<article class="hour-match ${outcome==='勝出'?'is-win':'is-behind'} ${h.hour>=18&&h.hour<=22?'is-prime':''}">
+      return `<article class="hour-match ${outcome==='勝出'?'is-win win-flash':'is-behind'} ${h.hour>=18&&h.hour<=22?'is-prime':''}">
         <div class="hour-match-title"><strong>${hourLabel(h.hour)}</strong><span>${safe(h.title)}${h.episode?` · ${safe(h.episode)}`:''}${h.freshness!==undefined?(()=>{const f=freshnessLabel(h.freshness,h.maxFreshness);return ` · <small class="match-freshness ${f.tier}">${f.icon} ${f.percent}%</small>`;})():''}</span><b>${outcome}</b></div>
         <div class="score-cards">${stations.map(([name,score,kind])=>`<div class="score-card ${kind}"><div><span>${safe(name)}</span><strong>${score}</strong></div><span class="score-meter" aria-hidden="true"><i style="width:${Math.max(0,Math.min(100,Number(score)||0))}%"></i></span></div>`).join('')}</div>
         <div class="hour-match-revenue"><span>每小時廣告收入</span><strong>${hourlyMoney(h.revenue)}</strong></div>
