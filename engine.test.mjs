@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL, getChallengeList, evaluateChallenges, premierePreviewQuotes, evaluateTalentStoryEvent, rivalGrudgeOf, playerStrongestDaypart} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL, getChallengeList, evaluateChallenges, premierePreviewQuotes, evaluateTalentStoryEvent, rivalGrudgeOf, playerStrongestDaypart, createSeededRng, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, liveCurrentHour} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -2445,4 +2445,188 @@ test('a grudging rival targets the player strongest daypart with its premieres',
   boost(calm);
   assert.equal(rivalAtHour(calm, viu, 19, calm.day).title, premiere.title, 'Without a grudge the premiere stays at 19:00');
   assert.notEqual(rivalAtHour(calm, viu, 12, calm.day).title, premiere.title);
+});
+
+// ---------------------------------------------------------------------------
+// Phase C: 直播夜 (live broadcast night)
+// ---------------------------------------------------------------------------
+
+test('seeded rng replays the same stream for the same seed', () => {
+  const first = createSeededRng(7);
+  const second = createSeededRng(7);
+  const streamA = Array.from({ length: 5 }, () => first());
+  const streamB = Array.from({ length: 5 }, () => second());
+  assert.deepEqual(streamA, streamB);
+  assert.ok(streamA.every(v => v >= 0 && v < 1));
+  const other = createSeededRng(8);
+  assert.notDeepEqual(Array.from({ length: 5 }, () => other()), streamA);
+});
+
+test('live script reveals exactly what the single settlement produces', () => {
+  const live = newGame();
+  const instant = newGame();
+  ensureLiveDay(live, 424242);
+  ensureLiveDay(instant, 424242);
+  const script = ensureLiveScript(live);
+  assert.equal(script.length, 24);
+  // Watching the day must not settle anything by itself.
+  assert.equal(live.cash, instant.cash);
+  assert.equal(live.lastDayResult ?? null, null);
+
+  const liveDaily = advanceDay(live, liveDayRng(live));
+  const instantDaily = advanceDay(instant, createSeededRng(424242));
+  assert.equal(live.cash, instant.cash, 'Same cash as the instant settlement');
+  assert.deepEqual(liveDaily.hours, instantDaily.hours, 'Same hourly report');
+  assert.deepEqual(liveDaily.details, instantDaily.details, 'Same programme details');
+  assert.deepEqual(script, liveDaily.hours, 'The revealed script IS the final report');
+  assert.deepEqual(live.challenges, instant.challenges, 'Same challenge progress');
+  assert.deepEqual(live.pendingChallengeRewards, instant.pendingChallengeRewards);
+  assert.deepEqual(live.mailbox, instant.mailbox, 'Same mailbox side effects');
+  assert.deepEqual(live.log, instant.log, 'Same notes');
+});
+
+test('live reveal stays identical over a 30 day run with scripts computed daily', () => {
+  const live = newGame();
+  const instant = newGame();
+  for (let day = 1; day <= 30; day++) {
+    const seed = 1000 + day * 77;
+    ensureLiveDay(live, seed);
+    const script = ensureLiveScript(live);
+    live.liveMinute = (day * 137) % 1440;
+    const liveDaily = advanceDay(live, liveDayRng(live));
+    const instantDaily = advanceDay(instant, createSeededRng(seed));
+    assert.equal(live.cash, instant.cash, `Day ${day} cash`);
+    assert.deepEqual(liveDaily.hours, instantDaily.hours, `Day ${day} hours`);
+    assert.deepEqual(script, liveDaily.hours, `Day ${day} script matches settlement`);
+  }
+  assert.deepEqual(live.challenges, instant.challenges);
+  assert.deepEqual(live.mailbox, instant.mailbox);
+});
+
+test('live current hour follows the broadcast clock', () => {
+  const state = newGame();
+  const at = minute => { state.liveMinute = minute; return liveCurrentHour(state); };
+  assert.equal(at(0), 0);
+  assert.equal(at(59), 0);
+  assert.equal(at(60), 1);
+  assert.equal(at(13 * 60), 13);
+  assert.equal(at(1439), 23);
+  assert.equal(at(1440), 24);
+});
+
+test('intervention swaps a pending block for today only and the day still settles like an instant swap', () => {
+  const build = () => {
+    const state = newGame();
+    const show = produce(state, { kind: 'variety', topic: '遊戲競賽', budgetId: 'lean', episodeHours: 2, episodeCount: 8 }, () => 0.5);
+    ensureLiveDay(state, 777);
+    return { state, show };
+  };
+  const live = build();
+  const instant = build();
+  assert.equal(live.show.id, instant.show.id);
+
+  // Live twin: watch the day, reach 13:00, then swap the 19:00 sitcom out.
+  ensureLiveScript(live.state);
+  live.state.liveMinute = 13 * 60;
+  const sitcom = live.state.library.find(p => p.id === 'start-sitcom');
+  const swap = liveSwapProgram(live.state, 19, live.show.id);
+  assert.equal(swap.start, 19);
+  assert.equal(swap.fromTitle, sitcom.title);
+  assert.equal(swap.toTitle, live.show.title);
+  assert.equal(swap.atHour, 13);
+  // The swap holds for today only; tomorrow the sitcom is back at 19:00.
+  assert.equal(programAtHour(live.state, 19)?.programId, live.show.id);
+  assert.equal(programAtHour(live.state, 19, live.state.day + 1)?.programId, 'start-sitcom');
+  // The revealed script for the swapped hour already names the new show.
+  assert.equal(live.state.liveDay.script[19].title, live.show.title);
+
+  // Instant twin: apply the same swap, then settle with the same seed.
+  liveSwapProgram(instant.state, 19, instant.show.id);
+  const liveDaily = advanceDay(live.state, liveDayRng(live.state));
+  const instantDaily = advanceDay(instant.state, createSeededRng(777));
+  assert.equal(live.state.cash, instant.state.cash);
+  assert.deepEqual(liveDaily.hours, instantDaily.hours);
+  assert.equal(liveDaily.hours[19].title, live.show.title, 'The swapped hour resolves with the new programme');
+  assert.notEqual(liveDaily.hours[19].title, sitcom.title);
+});
+
+test('intervention is once per day and resets on the next day', () => {
+  const state = newGame();
+  const show = produce(state, { kind: 'variety', topic: '遊戲競賽', budgetId: 'lean', episodeHours: 2, episodeCount: 8 }, () => 0.5);
+  ensureLiveDay(state, 5);
+  liveSwapProgram(state, 19, show.id);
+  assert.equal(state.liveDay.interventionUsed, true);
+  assert.throws(() => liveSwapProgram(state, 21, show.id), /已經用咗/);
+  advanceDay(state, liveDayRng(state));
+  const next = ensureLiveDay(state);
+  assert.equal(next.day, state.day);
+  assert.equal(next.interventionUsed, false, 'A fresh day restores the intervention');
+  assert.equal(next.intervention, null);
+});
+
+test('intervention cannot touch aired or airing hours, sports blocks, or a finished day', () => {
+  const state = newGame();
+  const show = produce(state, { kind: 'variety', topic: '遊戲競賽', budgetId: 'lean', episodeHours: 2, episodeCount: 8 }, () => 0.5);
+  ensureLiveDay(state, 5);
+  state.liveMinute = 19 * 60 + 30; // 19:30, the 19:00 block is on air
+  assert.throws(() => liveSwapProgram(state, 19, show.id), /已經開播/);
+  assert.throws(() => liveSwapProgram(state, 14, show.id), /已經開播/, 'A fully aired block is locked too');
+  assert.throws(() => liveSwapProgram(state, 21, 'event:pl-1'), /片庫節目/, 'Sports rights are not a swap target');
+  assert.equal(state.liveDay.interventionUsed, false, 'Failed attempts do not consume the intervention');
+  state.liveMinute = 13 * 60;
+  assert.throws(() => liveSwapProgram(state, 21, 'start-show'), /一樣/, 'Swapping in the same programme is rejected');
+  state.liveMinute = 1440;
+  assert.throws(() => liveSwapProgram(state, 21, show.id), /已經播畢/);
+
+  // A sports block already in today's schedule cannot be swapped out.
+  const sports = newGame();
+  const ev = sports.events.find(e => !e.resolved);
+  ev.resolved = true; ev.winner = '你的電視台'; ev.wonDay = 1; ev.wonQuarter = 0; ev.playerBid = null;
+  scheduleProgram(sports, 19, `event:${ev.id}`, 4);
+  ensureLiveDay(sports, 5);
+  sports.liveMinute = 13 * 60;
+  const sportsShow = produce(sports, { kind: 'variety', topic: '遊戲競賽', budgetId: 'lean', episodeHours: 2, episodeCount: 8 }, () => 0.5);
+  assert.throws(() => liveSwapProgram(sports, 19, sportsShow.id), /體育賽事直播/);
+});
+
+test('intervention validates the replacement like the schedule editor', () => {
+  const state = newGame();
+  ensureLiveDay(state, 5);
+  state.liveMinute = 13 * 60;
+  const oneHour = produce(state, { kind: 'variety', topic: '遊戲競賽', budgetId: 'lean', episodeHours: 1, episodeCount: 8 }, () => 0.5);
+  assert.throws(() => liveSwapProgram(state, 19, oneHour.id), /每集固定/, 'Episode length must fit the block');
+  const exhausted = state.library.find(p => p.id === 'start-crime');
+  exhausted.runs = exhausted.episodes;
+  assert.throws(() => liveSwapProgram(state, 19, exhausted.id), /播唔到/, 'An exhausted programme cannot be swapped in');
+  assert.equal(state.liveDay.interventionUsed, false, 'Rejected swaps leave the intervention available');
+  assert.equal(programAtHour(state, 19)?.programId, 'start-sitcom', 'Schedule is untouched by rejected swaps');
+  const twoHour = produce(state, { kind: 'variety', topic: '訪談', budgetId: 'lean', episodeHours: 2, episodeCount: 8 }, () => 0.5);
+  const swap = liveSwapProgram(state, 19, twoHour.id);
+  assert.equal(swap.toId, twoHour.id, 'A valid swap still works after rejections');
+});
+
+test('live day state migrates into old saves and survives a JSON round-trip mid-day', () => {
+  const state = newGame();
+  delete state.liveDay;
+  migrateLegacyLicenses(state);
+  assert.equal(state.liveDay, null, 'Old saves gain a null live day');
+
+  ensureLiveDay(state, 99);
+  ensureLiveScript(state);
+  state.liveMinute = 13 * 60;
+  state.liveDay.interventionUsed = true;
+  state.liveDay.intervention = { day: 1, atHour: 13, start: 19, fromId: 'start-sitcom', fromTitle: '鄰里有計', toId: 'start-show', toTitle: '今晚開咪' };
+  const revived = JSON.parse(JSON.stringify(state));
+  assert.equal(revived.liveDay.seed, 99);
+  assert.equal(revived.liveDay.interventionUsed, true);
+  assert.equal(revived.liveDay.intervention.start, 19);
+  assert.equal(revived.liveDay.script.length, 24, 'The revealed script survives the round-trip');
+  migrateLegacyLicenses(revived);
+  assert.equal(revived.liveDay.seed, 99, 'Migration keeps a well-formed mid-day record');
+  assert.equal(revived.liveDay.script.length, 24);
+
+  const malformed = newGame();
+  malformed.liveDay = { day: 'soon', seed: 1 };
+  migrateLegacyLicenses(malformed);
+  assert.equal(malformed.liveDay, null, 'A malformed record is reset, never trusted');
 });
