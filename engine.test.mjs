@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -264,7 +264,9 @@ test('new finance productions follow news: one upfront issue, then paid daily is
   scheduleProgram(state,10,program.id,2);
   const first=advanceDay(state,()=>.5);
   const second=advanceDay(state,()=>.5);
-  assert.equal(first.overhead,second.overhead-quote.perEpisode);
+  // Corrected behaviour: the first airing is charged its episode cost too, so
+  // day 1 and day 2 overheads match (previously day 1 was charged nothing).
+  assert.equal(first.overhead,second.overhead);
   assert.equal(program.episodes,0);
   for(let day=0;day<25;day++) advanceDay(state,()=>.5);
   assert.equal(program.runs,27);
@@ -2035,4 +2037,163 @@ test('setProjectQCStrategy updates project strategy and delivers waiting qc_read
   assert.equal(ep.status, 'delivered');
   assert.equal(result.batchCount, 1);
   assert.equal(proj.deliveredEpisodesCount, 1);
+});
+
+test('digital sub-channel revenue is credited exactly once per day', () => {
+  const off = newGame();
+  const on = newGame();
+  on.subChannelUnlocked = true;
+  const offReport = advanceDay(off, () => 0.5);
+  const onReport = advanceDay(on, () => 0.5);
+  const credit = Math.round(offReport.revenue * 0.28);
+  assert.ok(credit > 0, 'Sub-channel credit should be positive for a normal broadcast day');
+  assert.equal(onReport.revenue - offReport.revenue, credit, 'Daily revenue must include the sub-channel credit once');
+  assert.equal(on.cash - off.cash, credit, 'Cash must gain exactly one sub-channel credit, not two');
+  assert.equal(on.quarterLedger.revenue - off.quarterLedger.revenue, credit, 'Quarter ledger must gain exactly one sub-channel credit');
+});
+
+test('actors who aired today do not recover stamina while idle actors do', () => {
+  const state = newGame();
+  const crime = state.library.find(p => p.id === 'start-crime');
+  crime.castIds = ['edaan']; // start-crime is scheduled every day at 16:00
+  state.day = 2;
+  state.talent['edaan'].stamina = 50;
+  state.talent['sheren'].stamina = 50;
+  state.lastAiredDays['sheren'] = 0;
+  advanceDay(state, () => 0.5);
+  assert.equal(state.talent['edaan'].stamina, 50, 'Actor whose show aired today must not recover stamina');
+  assert.equal(state.talent['sheren'].stamina, 52, 'Idle actor still recovers +2 stamina');
+});
+
+test('monthly results are stored on the evaluated month’s last day and the annual highest-rating award includes December', () => {
+  const state = newGame();
+  state.day = 361; // advanceDay has already moved past day 360 when month 12 is evaluated
+  const monthResult = evaluateMonthlyRatings(state, 11);
+  assert.equal(monthResult.day, 360, 'Month 12 result must be stored with day 360, not 361');
+
+  const state2 = newGame();
+  state2.monthlyLeaderboards = Array.from({ length: 12 }, (_, i) => ({
+    month: i + 1,
+    day: (i + 1) * 30,
+    champion: i === 11
+      ? { title: '十二月壓軸大劇', station: '你的電視台', peakRating: 95, avgRating: 90, category: '劇集' }
+      : { title: `第 ${i + 1} 月冠軍`, station: '翡翠台', peakRating: 50, avgRating: 45, category: '劇集' },
+    top5: [], ourBest: null, isOurWin: i === 11, bonusWon: false, isNew: false
+  }));
+  const ceremony = evaluateAnnualAwards(state2, 1, () => 0.99);
+  const ratingAward = ceremony.awards.find(a => a.category === '年度全港最高收視大獎');
+  assert.equal(ratingAward.isOurs, true, 'December champion must be eligible for the annual highest-rating award');
+  assert.ok(ratingAward.winner.includes('十二月壓軸大劇'));
+});
+
+test('the first airing of a daily news programme is charged its episode cost like any later airing', () => {
+  const build = runs => {
+    const state = newGame();
+    const program = produce(state, { kind: 'news', topic: '晚間', budgetId: 'standard', episodeHours: 1 }, () => 0.5);
+    scheduleProgram(state, 3, program.id, 1);
+    program.runs = runs;
+    const cashBefore = state.cash;
+    const report = advanceDay(state, () => 0.5);
+    return { delta: state.cash - cashBefore, overhead: report.overhead, cost: program.episodeCost };
+  };
+  const first = build(0);
+  const later = build(5);
+  assert.ok(first.cost > 0, 'Produced news programme must carry a per-airing episode cost');
+  assert.equal(first.delta, later.delta, 'First-ever airing must be charged exactly like a later airing');
+  assert.equal(first.overhead, later.overhead);
+  assert.ok(first.overhead > 18_333, 'First day overhead must already include the episode cost');
+});
+
+test('a once-only block survives a day its programme cannot air and is consumed by the first real airing', () => {
+  const state = newGame();
+  const proj = createProductionProject(state, {
+    title: '單次播映測試劇',
+    format: 'drama',
+    episodesCount: 3,
+    actorIds: ['bosco', 'sheren']
+  });
+  proj.episodes[0].status = 'delivered';
+  deliverEpisode(state, proj, proj.episodes[0]);
+  const libItem = state.library.find(p => p.projectId === proj.id);
+  libItem.runs = 1; // Episode 1 already aired; episode 2 is not delivered yet
+  scheduleProgram(state, 20, libItem.id, 2, { days: [1], once: true });
+
+  advanceDay(state, () => 0.5); // Day 1 (Monday): block not scheduled today
+  const gapDay = advanceDay(state, () => 0.5); // Day 2 (Tuesday): production gap, only filler airs
+  assert.ok(gapDay.details.some(d => d.effect?.includes('脫期')), 'Day 2 should be a schedule-gap filler day');
+  assert.ok(state.schedule.some(b => b.programId === libItem.id && b.once), 'Once block must survive a day the programme cannot really air');
+  assert.equal(libItem.runs, 1, 'Gap day must not advance runs');
+
+  proj.episodes[1].status = 'delivered';
+  deliverEpisode(state, proj, proj.episodes[1]);
+  for (let i = 0; i < 7; i++) advanceDay(state, () => 0.5); // Days 3-9; next Tuesday is day 9
+  assert.equal(libItem.runs, 2, 'Episode 2 airs on the next scheduled Tuesday');
+  assert.equal(state.schedule.some(b => b.programId === libItem.id), false, 'Once block is consumed by the first real airing');
+});
+
+test('UCL contract revenue is spread over the whole rights period and settled against its own cumulative', () => {
+  const state = newGame();
+  state.cash = 50_000_000;
+  state.day = 2; // Buyout on day 2: the 90-day contract concludes on day 91, just after the day-90 quarter reset
+  const ev = buyoutSportsEvent(state, 'ucl-2028');
+  assert.equal(ev.adTarget, 8_500_000);
+  let daily = null;
+  for (let i = 0; i < 200 && !ev.settled; i++) daily = advanceDay(state, () => 0.5);
+  assert.ok(ev.settled, 'Contract must conclude');
+  assert.equal(daily.day, 91, 'Contract concludes on day 91, right after the quarterly ledger reset');
+  const earned = ev.sportsRevenueEarned;
+  assert.ok(earned >= 8_500_000 * 0.4 && earned <= 8_500_000 * 2.5, `Cumulative UCL revenue ${earned} must land within 0.4x-2.5x of the $8.5m target`);
+  const expectedPenalty = Math.max(0, Math.round((8_500_000 - earned) * 0.55));
+  assert.equal(daily.sportsPenalty, expectedPenalty, 'Penalty must be computed from the contract’s own cumulative revenue');
+  const noteEntry = state.log.find(n => n.text.includes('轉播權合約期滿'));
+  assert.ok(noteEntry, 'Conclusion note must be logged');
+  assert.ok(noteEntry.text.includes(money(earned)), 'Conclusion note must report the contract’s own cumulative revenue');
+  assert.ok(!noteEntry.text.includes('$0.0m'), 'Conclusion note must not read the reset quarterly ledger');
+});
+
+test('UCL blocks stay silent on non-match weeks and during the summer break but air on match nights', () => {
+  const state = newGame();
+  state.cash = 60_000_000;
+  const ev = buyoutSportsEvent(state, 'ucl-2029'); // Full-season UCL, won on day 1
+  while (state.day < 9) advanceDay(state, () => 0.5);
+  const matchDay = advanceDay(state, () => 0.5); // Day 9: Tuesday of a match week
+  const matchDetail = matchDay.details.find(d => d.programId === `event:${ev.id}`);
+  assert.ok(matchDetail && matchDetail.revenue > 0, 'Match-week Tuesday must air UCL and earn');
+  assert.equal(matchDay.hours[2].title, ev.name);
+
+  state.day = 16; // Tuesday of a non-match week
+  const quietDay = advanceDay(state, () => 0.5);
+  assert.equal(quietDay.details.some(d => d.programId === `event:${ev.id}`), false, 'Non-match week must produce no UCL broadcast');
+  assert.equal(quietDay.sportsRevenue, 0, 'Non-match week must earn no sports revenue');
+  assert.ok(state.schedule.some(b => b.programId === `event:${ev.id}`), 'Block stays scheduled for future match nights');
+
+  state.day = 184; // Tuesday in the July summer break
+  const summerDay = advanceDay(state, () => 0.5);
+  assert.equal(summerDay.details.some(d => d.programId === `event:${ev.id}`), false, 'Summer break must produce no UCL broadcast');
+  assert.equal(summerDay.sportsRevenue, 0, 'Summer break must earn no sports revenue');
+});
+
+test('knockout-only UCL rights last one quarter and a same-type takeover concludes displaced rights early', () => {
+  const state = newGame();
+  state.cash = 100_000_000;
+  const ko = state.events.find(e => e.id === 'ucl-2028');
+  const full = state.events.find(e => e.id === 'ucl-2029');
+  assert.equal(sportsDurationDays(ko), 90, 'Knockout-only package lasts 90 days');
+  assert.equal(sportsDurationDays(full), 360, 'Full-season package lasts 360 days');
+
+  buyoutSportsEvent(state, ko.id); // Won on day 1
+  state.day = 90;
+  assert.equal(isSportsActive(ko, state), true, 'Knockout rights still active on day 90');
+  state.day = 91;
+  assert.equal(isSportsActive(ko, state), false, 'Knockout rights must be inactive after wonDay + 90');
+  state.day = 1;
+
+  const cashBefore = state.cash;
+  buyoutSportsEvent(state, full.id); // Same type (ucl), same Tue/Wed 01:00 slot: displaces the knockout blocks
+  assert.equal(ko.settled, true, 'Displaced knockout rights must be concluded on the spot');
+  assert.equal(state.schedule.some(b => b.programId === `event:${ko.id}`), false, 'Displaced blocks are removed');
+  assert.ok(state.schedule.some(b => b.programId === `event:${full.id}`), 'New rights are scheduled');
+  assert.ok(state.log.some(n => n.text.includes('提前結束') && n.text.includes(ko.name)), 'Player must be told the old contract ended early');
+  const expectedPenalty = Math.round(ko.adTarget * 0.55); // Nothing aired yet, so nothing earned
+  assert.equal(state.cash, cashBefore - 8_100_000 - expectedPenalty, 'Takeover charges the buyout plus the displaced contract’s own shortfall penalty');
 });
