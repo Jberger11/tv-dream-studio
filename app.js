@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-auto-qc-v8';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261013-auto-qc-v8';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -2195,10 +2195,8 @@ function catalogView() {
       <span class="sports-badge">🏆 體育轉播權</span>
       <div class="sports-bar-text">
         ${activeSports.map(s => {
-          const cfg = getSportsConfig(s);
-          const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || (s.name && s.name.includes('全季'));
           const wonDay = s.wonDay ?? Math.max(1, (s.wonQuarter ?? (s.quarter - 1)) * DAYS_PER_QUARTER + 1);
-          const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
+          const validDuration = sportsDurationDays(s);
           const daysLeft = Math.max(0, wonDay + validDuration - state.day);
           return `<strong>${safe(s.name)}</strong>（尚餘 ${daysLeft} 天）`;
         }).join(' · ')}
@@ -2346,9 +2344,8 @@ function sportsView() {
         <div class="sports-active-grid">
           ${activeSports.map(s => {
             const cfg = getSportsConfig(s);
-            const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || cfg?.type === 'racing' || (s.name && s.name.includes('全季'));
             const wonDay = s.wonDay ?? Math.max(1, (s.wonQuarter ?? (s.quarter - 1)) * DAYS_PER_QUARTER + 1);
-            const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
+            const validDuration = sportsDurationDays(s);
             const daysLeft = Math.max(0, wonDay + validDuration - state.day);
             const bookedBlocks = state.schedule.filter(b => b.programId === `event:${s.id}`);
             const bookedSummary = bookedBlocks.length ? bookedBlocks.map(b => `${dayPattern(daysForBlock(b))} ${hourLabel(b.start)}`).join('、') : '尚未排播';
@@ -2424,7 +2421,7 @@ function sportsView() {
                   <label for="bid-${safe(event.id)}">暗標出價</label>
                   <div class="bid-input">
                     <span>$</span>
-                    <input id="bid-${safe(event.id)}" name="amount" type="number" step="0.1" min="${event.floor/1_000_000}" max="100" required value="${(event.floor*1.35/1_000_000).toFixed(1)}"/>
+                    <input id="bid-${safe(event.id)}" name="amount" type="number" step="0.1" min="${event.floor/1_000_000}" max="100" required value="${(Math.round(event.floor*1.35/100_000)*100_000/1_000_000).toFixed(1)}"/>
                     <span>m</span>
                   </div>
                   <button class="primary-button bid-submit-btn" type="submit">封標投出 <span>↗</span></button>

@@ -164,7 +164,7 @@ export const FILMING_EVENTS_POOL = [
 ];
 
 export const GENRES = ['刑偵','處境劇','宮鬥','科幻','歷史','青春','律政','醫療','家庭','商戰','武俠','奇幻','社會寫實'];
-export const THEMES = ['懸疑','喜劇','愛情','恐怖','冒險','家庭','復仇','職場','友情','時空','成長','權力'];
+export const THEMES = ['懸疑','喜劇','愛情','恐怖','冒險','復仇','職場','友情','時空','成長','權力'];
 export const DAYS_PER_QUARTER = 90;
 export const DAYS_PER_MARKET_MONTH = 30;
 export const marketMonthForDay = day => Math.floor((day-1)/DAYS_PER_MARKET_MONTH);
@@ -1353,13 +1353,19 @@ export function getSportsConfig(event) {
   };
 }
 
+export function sportsDurationDays(event) {
+  if (!event) return DAYS_PER_QUARTER;
+  const cfg = getSportsConfig(event);
+  // Only genuine full-season packages run for a full year (360 days). A
+  // knockout-only package (e.g. ucl-2028 歐聯淘汰賽與決賽） lasts one quarter.
+  const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'racing' || (cfg?.type === 'ucl' && (event.name ?? '').includes('全季'));
+  return isFullSeason ? DAYS_PER_QUARTER * 4 : DAYS_PER_QUARTER;
+}
+
 export function isSportsActive(event, state) {
   if (!event || !event.resolved || event.winner !== '你的電視台') return false;
-  const cfg = getSportsConfig(event);
-  const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || cfg?.type === 'racing' || (event.name && event.name.includes('全季'));
   const wonDay = event.wonDay ?? Math.max(1, (event.wonQuarter ?? (event.quarter - 1)) * DAYS_PER_QUARTER + 1);
-  const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
-  return state.day >= wonDay && state.day < wonDay + validDuration;
+  return state.day >= wonDay && state.day < wonDay + sportsDurationDays(event);
 }
 
 export function getActiveSportsEvents(state) {
@@ -2957,6 +2963,7 @@ export function migrateLegacyLicenses(state) {
     program.lastAiredDay ??= null;
   }
   for (const ev of state.events ?? []) {
+    ev.sportsRevenueEarned ??= 0;
     if (ev.resolved && ev.winner === '你的電視台') {
       ev.wonDay ??= Math.max(1, (ev.wonQuarter ?? (ev.quarter - 1)) * DAYS_PER_QUARTER + 1);
     }
@@ -3322,6 +3329,31 @@ export function submitBid(state,amount,eventId=null) {
   note(state,`已向《${event.name}》提交暗標 ${money(amount)}，全額保證金已凍結；開標前可修改。`);
 }
 
+// Snapshot player-won, still-active events of the same sports type that hold
+// scheduled blocks, so an award that displaces their slots can conclude them.
+function displacedSportsCandidates(state, event, cfg) {
+  if (!cfg) return new Map();
+  return new Map((state.events ?? [])
+    .filter(e => e !== event && e.resolved && e.winner === '你的電視台' && !e.settled && isSportsActive(e, state) && getSportsConfig(e)?.type === cfg.type)
+    .map(e => [e, state.schedule.filter(b => b.programId === `event:${e.id}`).length])
+    .filter(([, count]) => count > 0));
+}
+
+function concludeDisplacedSports(state, newEvent, candidates) {
+  for (const [old] of candidates) {
+    if (state.schedule.some(b => b.programId === `event:${old.id}`)) continue; // blocks survived
+    old.settled = true;
+    const target = old.adTarget ?? 8_000_000;
+    const earned = old.sportsRevenueEarned ?? 0;
+    const penalty = Math.max(0, Math.round((target - earned) * 0.55));
+    if (penalty) {
+      state.cash -= penalty;
+      if (state.quarterLedger) state.quarterLedger.sportsPenalty += penalty;
+    }
+    note(state, `《${old.name}》轉播權因《${newEvent.name}》接手相同時段而提前結束。累計體育廣告收入 ${money(earned)}${penalty ? `，對賭差額賠付 ${money(penalty)}` : '，圓滿達成贊助商目標！'}。`, penalty ? 'bad' : 'neutral');
+  }
+}
+
 export function resolveAuction(state,event,rng) {
   if (event.resolved) return;
   // Rival profiles: large network bids high, regional network near floor,
@@ -3338,6 +3370,7 @@ export function resolveAuction(state,event,rng) {
     event.wonDay = state.day;
     event.wonQuarter = state.quarter;
     const config=getSportsConfig(event);
+    const displaced=displacedSportsCandidates(state, event, config);
     const replaced=[];
     if (config?.defaultSlots?.length) {
       for (const slot of config.defaultSlots) {
@@ -3362,6 +3395,7 @@ export function resolveAuction(state,event,rng) {
       } catch (_) {}
     }
     event.replacedBlocks=replaced;
+    concludeDisplacedSports(state, event, displaced);
     note(state,`《${event.name}》中標！${config?.autoScheduleDesc??'已預排賽事直播時段'}；保證金 ${money(event.playerBid)} 轉作版權費。`,'good');
     if (!state.achievements.includes('體育版權首勝')) state.achievements.push('體育版權首勝');
   } else {
@@ -3392,6 +3426,7 @@ export function buyoutSportsEvent(state, eventId) {
   event.wonDay = state.day;
   event.wonQuarter = state.quarter;
 
+  const displaced = displacedSportsCandidates(state, event, cfg);
   const replaced = [];
   if (cfg?.defaultSlots?.length) {
     for (const slot of cfg.defaultSlots) {
@@ -3415,6 +3450,7 @@ export function buyoutSportsEvent(state, eventId) {
     } catch (_) {}
   }
   event.replacedBlocks = replaced;
+  concludeDisplacedSports(state, event, displaced);
   note(state, `成功以一口價 ${money(buyoutCost)} 買斷《${event.name}》轉播權！${cfg?.autoScheduleDesc ?? '已預排賽事直播時段'}。`, 'good');
   if (!state.achievements.includes('體育版權首勝')) state.achievements.push('體育版權首勝');
   return event;
@@ -3507,7 +3543,9 @@ export function evaluateMonthlyRatings(state, monthIndex) {
 
   const result = {
     month: monthNum,
-    day: state.day,
+    // advanceDay has already incremented state.day when this runs; store the
+    // last day of the month actually evaluated, not the first day of the next.
+    day: (monthIndex + 1) * DAYS_PER_MARKET_MONTH,
     champion,
     top5,
     ourBest,
@@ -3631,7 +3669,10 @@ export function evaluateAnnualAwards(state, year, rng = Math.random) {
   });
 
   // 5. 年度全港最高收視大獎
-  const yearLeaderboards = (state.monthlyLeaderboards ?? []).filter(m => m.day > (year - 1) * 360 && m.day <= year * 360);
+  const yearLeaderboards = (state.monthlyLeaderboards ?? []).filter(m => {
+    const month = Number.isInteger(m.month) ? m.month : Math.round(m.day / DAYS_PER_MARKET_MONTH);
+    return month > (year - 1) * 12 && month <= year * 12;
+  });
   let highestProg = null;
   for (const lb of yearLeaderboards) {
     if (!highestProg || lb.champion.peakRating > highestProg.peakRating) {
@@ -3732,7 +3773,6 @@ export function advanceDay(state,rng=Math.random) {
   const onceBlocksAired=[];
   for (const block of state.schedule) {
     if(!runsOnWeekday(block,weekday)) continue;
-    if(block.once) onceBlocksAired.push(block);
     const times=hoursInBlock(block), special=block.programId.startsWith('event:');
     const p=special?null:state.library.find(item=>item.id===block.programId);
     const blockEvent=special?(state.events??[]).find(e=>`event:${e.id}`===block.programId):null;
@@ -3741,6 +3781,13 @@ export function advanceDay(state,rng=Math.random) {
     const run=p?p.runs+(todayRuns.get(p.id)??0):0;
     const runLimit = (p && Number.isInteger(p.replayCount) && p.replayCount > 0 && Number.isInteger(p.replayEndRuns)) ? p.replayEndRuns : p?.episodes;
     if (!special && (isUnavailable(p,gameDay) || (p.episodes && run>=runLimit))) continue;
+    // Champions League rights only broadcast on live match nights: on
+    // non-match weeks and during the summer break the slot stays empty
+    // instead of airing paid filler under the UCL banner.
+    if (special && blockEvent) {
+      const earlyCfg=getSportsConfig(blockEvent);
+      if (earlyCfg?.type==='ucl' && !times.some(hour=>earlyCfg.isLiveHour(gameDay,hour))) continue;
+    }
 
     const project = p?.projectId ? (state.productionProjects ?? []).find(pr => pr.id === p.projectId) : null;
     const isScheduleGap = Boolean(
@@ -3824,13 +3871,18 @@ export function advanceDay(state,rng=Math.random) {
       continue;
     }
 
+    // A once-only block is consumed only when the programme actually airs in
+    // it; blocks skipped above (unavailable, run limit) or falling into a
+    // production gap stay scheduled for a later day.
+    if (block.once) onceBlocksAired.push(block);
+
     const currentEpNum = run + 1;
     const epObj = project?.episodes.find(e => e.episodeNumber === currentEpNum);
 
     const episode=episodeForBlock(state,block,gameDay);
     // Each complete pass makes a licensed programme less fresh; cap the decline.
     const decay=p?.kind==='catalog' ? Math.max(.72,Math.pow(p.episodes===1?.96:.90,Number.isInteger(p.replayCount)&&p.replayCount>0?p.replayCount:Math.floor(run/Math.max(1,p.episodes)))) : 1;
-    if (p && isDailyFormat(p.kind) && !p.episodes && p.episodeCost && run>0) dailyProduction+=p.episodeCost;
+    if (p && isDailyFormat(p.kind) && !p.episodes && p.episodeCost) dailyProduction+=p.episodeCost;
     let blockRevenue=0, ratingTotal=0;
     const cfg=special?getSportsConfig(blockEvent):null;
     for (const hour of times) {
@@ -3884,13 +3936,18 @@ export function advanceDay(state,rng=Math.random) {
       let ads;
       if (special) {
         const target=blockEvent?.adTarget??8_000_000;
-        const expectedDays=cfg?.matchdaysInMonth??30;
+        // The sponsorship target covers the whole contract, so spread it over
+        // the total expected matchdays of the rights period, not one month.
+        const contractDays=sportsDurationDays(blockEvent);
+        let expectedDays=(cfg?.matchdaysInMonth??30)*(contractDays/DAYS_PER_MARKET_MONTH);
+        if (cfg?.isSummerBreak && contractDays>DAYS_PER_QUARTER) expectedDays*=10/12;
         const expectedHoursPerDay=cfg?.type==='racing'?4.5:(cfg?.type==='pl'?5:cfg?.type==='ucl'?4:cfg?.type==='olympics'?8:6);
         const basePerHour=target/(expectedDays*expectedHoursPerDay);
         const repMod=0.90+state.reputation/500;
         const liveMod=isLiveSports?(1.05+(rng()*0.15-0.05)):0.25;
         ads=Math.round(basePerHour*liveMod*repMod);
         sportsRevenue+=ads;
+        if (blockEvent) blockEvent.sportsRevenueEarned=(blockEvent.sportsRevenueEarned??0)+ads;
       } else {
         // A completed series earns its ad package over its finite run. Daily
         // evergreen shows pay a much smaller rate because they never expire.
@@ -4023,9 +4080,9 @@ export function advanceDay(state,rng=Math.random) {
   // Multi-Channel Sub-channel Simulation
   let subChannelRevenue = 0;
   if (state.subChannelUnlocked) {
+    // Credit once, through the shared settlement below (state.cash and
+    // quarterLedger both add `revenue` later in this function).
     subChannelRevenue = Math.round(revenue * 0.28);
-    state.cash += subChannelRevenue;
-    state.quarterLedger.revenue += subChannelRevenue;
     revenue += subChannelRevenue;
   }
 
@@ -4033,7 +4090,7 @@ export function advanceDay(state,rng=Math.random) {
   for (const actor of ACTORS) {
     const t = state.talent[actor.id];
     if (t) {
-      if (!todayRuns.has(actor.id)) {
+      if ((state.lastAiredDays?.[actor.id] ?? 0) !== gameDay) {
         t.stamina = Math.min(100, (t.stamina ?? 100) + 2);
       }
       if (t.contractType === 'exclusive' && (t.contractDaysLeft ?? 0) > 0) {
@@ -4111,20 +4168,20 @@ export function advanceDay(state,rng=Math.random) {
   state.quarterLedger.sportsRevenue+=sportsRevenue;
   const concludingSports = (state.events ?? []).filter(e => {
     if (!e.resolved || e.winner !== '你的電視台' || e.settled) return false;
-    const cfg = getSportsConfig(e);
-    const isFullSeason = cfg?.type === 'pl' || cfg?.type === 'ucl' || cfg?.type === 'racing' || (e.name && e.name.includes('全季'));
     const wonDay = e.wonDay ?? Math.max(1, (e.wonQuarter ?? (e.quarter - 1)) * DAYS_PER_QUARTER + 1);
-    const validDuration = isFullSeason ? (DAYS_PER_QUARTER * 4) : DAYS_PER_QUARTER;
-    return gameDay >= wonDay + validDuration - 1;
+    return gameDay >= wonDay + sportsDurationDays(e) - 1;
   });
   if (concludingSports.length) {
     for (const s of concludingSports) {
       s.settled = true;
       const target = s.adTarget ?? 8_000_000;
-      const penalty = Math.max(0, Math.round((target - state.quarterLedger.sportsRevenue) * 0.55));
+      // Settle against this contract's own cumulative sports revenue, not
+      // the quarterly ledger (which resets every 90 days and pools all sports).
+      const earned = s.sportsRevenueEarned ?? 0;
+      const penalty = Math.max(0, Math.round((target - earned) * 0.55));
       sportsPenalty += penalty;
       state.quarterLedger.sportsPenalty += penalty;
-      note(state, `《${s.name}》轉播權合約期滿圓滿結束。累計體育廣告收入 ${money(state.quarterLedger.sportsRevenue)}${penalty ? `，對賭差額賠付 ${money(penalty)}` : '，圓滿達成贊助商目標！'}。`, penalty ? 'bad' : 'good');
+      note(state, `《${s.name}》轉播權合約期滿圓滿結束。累計體育廣告收入 ${money(earned)}${penalty ? `，對賭差額賠付 ${money(penalty)}` : '，圓滿達成贊助商目標！'}。`, penalty ? 'bad' : 'good');
       state.schedule = state.schedule.filter(block => block.programId !== `event:${s.id}`);
       for (const old of s.replacedBlocks ?? []) {
         const available = daysForBlock(old).filter(day => state.schedule.every(block => !runsOnWeekday(block, day) || !hoursInBlock(old).some(hour => hoursInBlock(block).includes(hour))));
