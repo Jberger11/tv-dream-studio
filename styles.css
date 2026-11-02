@@ -4367,3 +4367,129 @@ html,body,#app{height:100%;overflow:hidden}
 }
 
 
+
+/* ============================================================
+   Phase A — Master-control theme, ON AIR pill, time ruler,
+   ratings chart, programme card chips/stars, settlement motion
+   ============================================================ */
+
+/* A3: deeper slate / near-black surfaces, restrained accents */
+body{background:radial-gradient(circle at 87% -10%,#1c2739 0,transparent 31%),#07090f}
+.topbar{border-bottom:1px solid #262c40;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0))}
+.panel{background:#12151f;border-color:#262b3d}
+.hud-stats>span{background:#101623;border-color:#2a3247}
+.hud-broadcast{background:#101623;border:1px solid #2a3247;border-radius:10px;padding:7px 12px}
+
+/* A3: ON AIR pill — lit and pulsing while the live clock runs */
+.onair-pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;border:1px solid #3a4358;background:#131926;color:#8b96a9;font-size:.62rem;font-weight:800;letter-spacing:.14em;vertical-align:middle}
+.onair-pill .onair-dot{width:7px;height:7px;border-radius:50%;background:#525d73;flex:none}
+.onair-pill.is-live{border-color:rgba(255,71,87,.65);background:rgba(255,71,87,.14);color:#ff8a94}
+.onair-pill.is-live .onair-dot{background:#ff4757;box-shadow:0 0 8px #ff4757;animation:onair-pulse 1.6s ease-in-out infinite}
+.onair-pill.is-off{opacity:.75}
+@keyframes onair-pulse{50%{opacity:.4}}
+
+/* A3: broadcast time ruler above each daypart grid */
+.time-ruler{grid-column:1/-1;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:inherit;padding:0 1px 3px;border-bottom:1px solid #22314a}
+.time-ruler span{position:relative;text-align:center;font-size:.6rem;font-weight:700;letter-spacing:.05em;color:#7d8aa0;padding-top:5px}
+.time-ruler span::before{content:'';position:absolute;top:0;left:50%;width:1px;height:4px;background:#3d5a7d}
+.time-ruler span.prime{color:#f6bc6e}
+.time-ruler span.prime::before{background:#f59e0b}
+
+/* A1: daily ratings line chart */
+.ratings-chart{margin:2px 0 14px;padding:12px 14px 6px;border:1px solid #2b3042;border-radius:11px;background:#10141f}
+.ratings-chart-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:.74rem;font-weight:700;color:#c6d2e2;margin-bottom:6px}
+.chart-legend{display:inline-flex;gap:12px;font-size:.66rem;font-weight:600;color:#93a2b8}
+.legend-item{display:inline-flex;align-items:center;gap:5px}
+.legend-line{display:inline-block;width:16px;border-top:3px solid #f6bc6e;border-radius:2px}
+.legend-line.rival{border-top:2px dashed #8494ad}
+.legend-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#ff5252}
+.ratings-chart svg{display:block}
+.chart-prime-band{fill:rgba(246,188,110,.09)}
+.chart-band-label{fill:#a8823f;font-size:9px;font-weight:700;text-anchor:middle}
+.chart-grid{stroke:#232a3c;stroke-width:1}
+.chart-y-label{fill:#66738a;font-size:9px;text-anchor:end}
+.chart-x-label{fill:#66738a;font-size:9px;text-anchor:middle}
+.chart-line{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.chart-line.ours{stroke:#f6bc6e;stroke-width:2.5}
+.chart-line.rival{stroke:#8494ad;stroke-width:2;stroke-dasharray:5 4}
+.chart-win-dot{fill:#ff5252;stroke:#0b0e18;stroke-width:1.2}
+
+/* A2: genre/kind colour chips, rating stars, freshness tier dots */
+.kind-chip{display:inline-flex;align-items:center;padding:1px 7px;border-radius:999px;border:1px solid;font-size:.66rem;font-weight:800;letter-spacing:.03em;white-space:nowrap}
+.chip-drama{color:#7cc4ff;border-color:rgba(124,196,255,.5);background:rgba(56,132,246,.16)}
+.chip-film{color:#d3a6ff;border-color:rgba(211,166,255,.5);background:rgba(147,84,246,.16)}
+.chip-variety{color:#ffb37c;border-color:rgba(255,179,124,.5);background:rgba(246,132,56,.15)}
+.chip-docu{color:#6fe3c1;border-color:rgba(111,227,193,.5);background:rgba(20,184,166,.14)}
+.chip-info{color:#a7e07f;border-color:rgba(167,224,127,.5);background:rgba(110,196,60,.14)}
+.chip-news{color:#ff9d9d;border-color:rgba(255,157,157,.5);background:rgba(240,70,70,.13)}
+.stars{color:#f6bc6e;letter-spacing:.08em;font-size:.78rem;white-space:nowrap}
+.rating-tag .stars{font-size:.72rem}
+.renewal-item .kind-chip{margin:3px 6px 3px 0}
+.renewal-stars{font-size:.72rem}
+.fresh-dot{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}
+.fresh-dot.high{background:#fbbf24;box-shadow:0 0 6px rgba(251,191,36,.8)}
+.fresh-dot.good{background:#38bdf8;box-shadow:0 0 6px rgba(56,189,248,.8)}
+.fresh-dot.medium{background:#cbd5e1}
+.fresh-dot.low{background:#c7d2fe}
+
+/* A4: one-shot highlight on winning hours in the daily report */
+.hour-match.win-flash{animation:win-flash 1s ease-out 1}
+@keyframes win-flash{0%{border-color:#f6bc6e;background:#3a2f1c;box-shadow:0 0 0 3px rgba(246,188,110,.4)}100%{border-color:#4f8a80;background:#20333c;box-shadow:0 0 0 0 rgba(246,188,110,0)}}
+
+@media (prefers-reduced-motion: reduce){
+  .onair-pill.is-live .onair-dot{animation:none}
+  .hour-match.win-flash{animation:none}
+}
+
+/* Phase B: challenges panel, premiere preview quotes, rival standing */
+.challenge-list{display:grid;gap:8px}
+.challenge-row{display:flex;justify-content:space-between;gap:14px;align-items:center;background:#1a2030;border:1px solid #323a50;border-radius:9px;padding:12px 14px}
+.challenge-row.done{border-color:#57603f;background:#232a24}
+.challenge-main strong{display:block;font-size:.88rem;color:#eef0f5}
+.challenge-main small{display:block;color:#98a3b5;font-size:.72rem;margin-top:3px;line-height:1.5}
+.challenge-side{text-align:right;flex:none}
+.challenge-progress{display:block;color:#f4c37d;font-weight:800;font-size:.85rem}
+.challenge-row.done .challenge-progress{color:#9fd48a}
+.challenge-side small{color:#98a3b5;font-size:.7rem}
+.premiere-preview{border:1px solid #ffffff2e;background:#0b172480;border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.premiere-preview h3{margin:0 0 7px;font-size:.75rem;color:var(--glow);letter-spacing:.08em}
+.premiere-preview p{font-size:.78rem;color:#d8e5e9;line-height:1.55;margin:4px 0}
+.premiere-preview small{color:#9eb6c2;font-size:.68rem;margin-left:6px;white-space:nowrap}
+.rival-standing{margin-top:10px;border-top:1px solid #343a4b;padding-top:10px}
+.rival-standing-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap}
+.personality-tag{color:#f4c37d;font-weight:800;font-size:.78rem}
+.grudge-label{color:#98a3b5;font-size:.72rem}
+.grudge-meter{height:6px;border-radius:10px;background:#30374b;overflow:hidden;margin:8px 0}
+.grudge-meter i{display:block;height:100%;background:linear-gradient(90deg,#e6a65c,#e2574c);border-radius:10px}
+.rival-standing-desc{color:#b9c3d1;font-size:.76rem;line-height:1.55}
+.rival-standing-line{color:#8e99ac;font-size:.74rem;font-style:italic;margin-top:4px;line-height:1.55}
+
+/* Phase C: 直播夜 (live broadcast night) */
+.live-night-panel{border-color:#3a2f1d;background:linear-gradient(180deg,#131722,#101623)}
+.live-matchup{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:10px 12px;margin-bottom:12px;border:1px solid #2b3042;border-radius:11px;background:#0d1220}
+.live-matchup-main{display:flex;flex-direction:column;gap:2px;min-width:200px}
+.live-matchup-label{font-size:.68rem;font-weight:700;letter-spacing:.08em;color:#e2574c}
+.live-matchup-main strong{font-size:1.02rem;color:#f2e7ce}
+.live-matchup-main small{color:#93a2b8;font-size:.74rem}
+.live-matchup-score{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:#b9c3d1}
+.live-matchup-score b{color:#f6bc6e;font-size:.92rem}
+.live-curve{margin-top:0}
+.live-ticker{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 12px}
+.live-tick{display:inline-flex;gap:4px;align-items:center;padding:4px 9px;border-radius:999px;border:1px solid #2b3042;background:#12172a;font-size:.72rem;color:#c6d2e2}
+.live-tick b{color:#8e99ac;font-weight:700}
+.live-tick.win{border-color:#3d5a35;background:#16241a;color:#bfe3b4}
+.live-tick.loss{border-color:#5a3535;background:#241618;color:#e8b7b0}
+.live-tick.draw{border-color:#4a4a35;background:#22231a;color:#ddd9a8}
+.live-tick.empty{opacity:.62}
+.live-ticker-empty{color:#8e99ac;font-size:.78rem;margin:2px 0 12px}
+.live-swap-box{border-top:1px dashed #2b3042;padding-top:10px}
+.live-swap-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.live-swap-head strong{color:#f2e7ce;font-size:.9rem}
+.live-swap-state{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid #3d5a35;color:#bfe3b4;background:#16241a}
+.live-swap-state.used{border-color:#4a4030;color:#cbb98a;background:#221d12}
+.live-swap-help{color:#8e99ac;font-size:.74rem;margin:6px 0 10px}
+.live-swap-controls{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.live-swap-controls label{display:flex;flex-direction:column;gap:4px;font-size:.72rem;color:#98a3b5;font-weight:600}
+.live-swap-controls select{min-width:210px;max-width:320px;padding:7px 9px;border-radius:8px;border:1px solid #2b3042;background:#0d1220;color:#e6ecf5;font-size:.8rem}
+.live-swap-done{font-size:.8rem;color:#cbb98a;background:#221d12;border:1px solid #4a4030;border-radius:9px;padding:8px 11px}
+.live-swap-none{font-size:.78rem;color:#8e99ac;margin:0}

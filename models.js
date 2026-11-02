@@ -157,7 +157,7 @@ export const DEFAULT_CREWS = [
 
 export class BiddingEvent {
   constructor({ id, name, quarter, floor, adTarget, sport = '', icon = '🏅' }) {
-    Object.assign(this, { id, name, quarter, floor, adTarget, sport, icon, playerBid: null, resolved: false, winner: null, bids: null, wonDay: null, wonQuarter: null, settled: false });
+    Object.assign(this, { id, name, quarter, floor, adTarget, sport, icon, playerBid: null, resolved: false, winner: null, bids: null, wonDay: null, wonQuarter: null, settled: false, sportsRevenueEarned: 0 });
   }
 }
 
@@ -318,6 +318,14 @@ export class StationState {
     this.crews = DEFAULT_CREWS.map(c => ({ ...c }));
     this.franchises = [];
     this.activeFilmingEvents = [];
+    // Phase B: 挑戰任務 / 對手恩怨 / 藝人故事事件 / 首播頭條
+    this.challenges = [];
+    this.rivalGrudge = { jade: 0, viu: 0, hoy: 0 };
+    this.rivalBeatStreak = {};
+    this.talentEventCooldownUntil = 0;
+    this.pendingHeadline = null;
+    // Phase C: 直播夜 (per-day seed, one mid-day intervention, revealed script)
+    this.liveDay = null;
     this.log = [{ quarter:0, text:'電視台開台。片庫已有 12 套節目，24 小時時段全部排好。', type:'neutral' }];
   }
 }
