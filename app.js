@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, calcFourStationShares, rivalAtHour, productionQuote, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, premierePreviewQuotes, getChallengeList, rivalPersonality, rivalGrudgeOf, rivalGrudgeTier, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261102-overseas-v4';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, calcFourStationShares, rivalAtHour, productionQuote, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, refreshAcquisitionMarket, purgeExpiredCatalogLicenses, surrenderCatalogLicense, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, premierePreviewQuotes, getChallengeList, rivalPersonality, rivalGrudgeOf, rivalGrudgeTier, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261102-overseas-v5';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -2463,6 +2463,11 @@ function replayQueueView() {
             🌏 一鍵打包賣斷自製舊作海外版權（清理舊數據）
           </button>
         ` : ''}
+        ${state.library.some(p => p.kind === 'catalog' && licenseExpired(p, state.day)) ? `
+          <button class="filter-chip" style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.45); font-weight:700;" data-action="open-renew-tab">
+            ⏰ 前往清理 ${state.library.filter(p => p.kind === 'catalog' && licenseExpired(p, state.day)).length} 套已到期外購版權 →
+          </button>
+        ` : ''}
       </div>
     </div>
     ${filtered.length ? `
@@ -2493,6 +2498,10 @@ function replayQueueView() {
                 <button class="catalog-button" style="background:rgba(14, 165, 233, 0.18); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.45);" data-action="sell-overseas" data-program-id="${safe(p.id)}">
                   🌏 賣斷海外版權 (+${money(overseasQuote)} · 清理數據)
                 </button>
+              ` : p.kind === 'catalog' ? `
+                <button class="catalog-button" style="background:rgba(148, 163, 184, 0.15); color:#94a3b8; border:1px solid rgba(148, 163, 184, 0.3);" data-action="surrender-catalog" data-id="${safe(p.id)}" title="已播畢且不再重播，提前退約並從片庫移除">
+                  📦 提前退約（移出片庫）
+                </button>
               ` : ''}
             </div>
           </article>`;
@@ -2503,7 +2512,7 @@ function replayQueueView() {
 }
 
 function catalogView() {
-  const listings = catalogForMonth(state.day);
+  const listings = catalogForMonth(state.day, state);
   const month = marketMonthForDay(state.day) + 1;
   const nextRefresh = month * DAYS_PER_MARKET_MONTH + 1;
   const expiredLicenses = state.library.filter(p => p.kind === 'catalog' && licenseExpired(p, state.day));
@@ -2596,9 +2605,16 @@ function catalogView() {
   ${catalogSubTab === 'replay' ? replayQueueView() : catalogSubTab === 'renew' ? `
     <section class="renewal-list">
       <div class="subview-header">
-        <div>
-          <h2>⏰ 到期外購播映權 · 續約續期</h2>
-          <p>以下外購節目播映期已滿，續約後保留原有播映紀錄與輪次。</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; width:100%;">
+          <div>
+            <h2>⏰ 到期外購播映權 · 續約或清理 (${expiredLicenses.length} 套待處理)</h2>
+            <p>以下外購節目播映期已滿，可續約保留輪次，或直接註銷移出片庫以釋放儲存空間。</p>
+          </div>
+          ${expiredLicenses.length ? `
+            <button class="gold-button" style="background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.45); font-weight:700; font-size:0.82rem; padding:6px 14px; cursor:pointer;" data-action="purge-all-expired-licenses">
+              🗑️ 一鍵註銷全數 ${expiredLicenses.length} 套已到期版權（清理片庫）
+            </button>
+          ` : ''}
         </div>
       </div>
       <div class="license-picker" role="group" aria-label="選擇續購播映權期限">
@@ -2616,14 +2632,31 @@ function catalogView() {
               ${Number.isFinite(p.rating)?`<span class="stars renewal-stars" title="收視 ${p.rating}" aria-label="收視 ${p.rating}">${starsFor(p.rating)}</span>`:''}
               <small>${catalogProgressLabel(p)} · 原有成本 ${money(p.licenseBaseCost ?? p.cost)}</small>
             </div>
-            <button class="catalog-button" data-action="renew" data-id="${safe(p.id)}" ${!canAfford?'disabled':''}>
-              ${canAfford ? `續購 ${licenseDays===180?'6 個月':'1 年'} · ${catalogPrice(cost)}` : '資金不足'}
-            </button>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <button class="catalog-button" data-action="renew" data-id="${safe(p.id)}" ${!canAfford?'disabled':''}>
+                ${canAfford ? `續購 ${licenseDays===180?'6 個月':'1 年'} · ${catalogPrice(cost)}` : '資金不足'}
+              </button>
+              <button class="catalog-button" style="background:rgba(239, 68, 68, 0.15); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.35);" data-action="purge-expired-license" data-id="${safe(p.id)}">
+                🗑️ 不再續約
+              </button>
+            </div>
           </article>`;
         }).join('')}
       </div>
     </section>
   ` : `
+    <div class="market-refresh-bar" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px; padding:10px 14px; background:rgba(30, 41, 59, 0.65); border:1px solid rgba(56, 189, 248, 0.28); border-radius:10px;">
+      <div>
+        <strong style="color:#38bdf8; font-size:0.95rem;">🌐 國際外購節目市場 · 第 ${Math.floor((state.day - 1) / 360) + 1} 年度（${2028 + Math.floor((state.day - 1) / 360)}年全新片單）</strong>
+        <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">
+          包含最新各國熱門影視與續篇大作；每 30 天自動輪換，亦可隨時派星探刷新換新批片源。
+        </div>
+      </div>
+      <button class="gold-button" style="background:rgba(14, 165, 233, 0.2); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.5); font-weight:700; font-size:0.82rem; padding:6px 14px; cursor:pointer;" data-action="refresh-market">
+        🔄 派星探開拓海外新片源（花費 $200k · 即時換一批）
+      </button>
+    </div>
+
     <div class="license-picker" role="group" aria-label="選擇外購播映權期限">
       <strong>播映權期限</strong>
       ${LICENSE_TERMS.map(term=>`<button data-action="license-term" data-value="${term.days}" class="${licenseDays===term.days?'active':''}" aria-pressed="${licenseDays===term.days}">${term.label}${term.days===360?' · 1.7 倍價':''}</button>`).join('')}
@@ -3480,6 +3513,30 @@ app.addEventListener('click',e=>{
     if(action==='clean-old-data'){
       cleanOldGameData(state);
       flash('🧹 已清理過期歷史戰報、腰斬企劃及舊存檔緩存數據！');
+      render();
+      return;
+    }
+    if(action==='refresh-market'){
+      const res=refreshAcquisitionMarket(state);
+      flash(`🔄 成功派遣星探開拓海外新片源（花費 ${preciseMoney(res.cost)}），外購節目市場已換上全新一批熱門片單！`);
+      render();
+      return;
+    }
+    if(action==='purge-all-expired-licenses'){
+      const res=purgeExpiredCatalogLicenses(state);
+      flash(`🗑️ 成功一鍵註銷全數 ${res.purgedCount} 套已過期外購播映權，片庫已成功釋放！`);
+      render();
+      return;
+    }
+    if(action==='purge-expired-license'){
+      const res=purgeExpiredCatalogLicenses(state,{programId:button.dataset.id});
+      flash(`🗑️ 已註銷《${res.titles[0]}》已到期播映權，移出電視台片庫！`);
+      render();
+      return;
+    }
+    if(action==='surrender-catalog'){
+      const p=surrenderCatalogLicense(state,button.dataset.id);
+      flash(`📦 已將外購節目《${p.title}》提前退約，移出電視台片庫！`);
       render();
       return;
     }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, calcFourStationShares, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL, getChallengeList, evaluateChallenges, premierePreviewQuotes, evaluateTalentStoryEvent, rivalGrudgeOf, playerStrongestDaypart, createSeededRng, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, liveCurrentHour} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, calcFourStationShares, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, refreshAcquisitionMarket, purgeExpiredCatalogLicenses, surrenderCatalogLicense, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL, getChallengeList, evaluateChallenges, premierePreviewQuotes, evaluateTalentStoryEvent, rivalGrudgeOf, playerStrongestDaypart, createSeededRng, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, liveCurrentHour} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -2779,4 +2779,85 @@ test('live day state migrates into old saves and survives a JSON round-trip mid-
   malformed.liveDay = { day: 'soon', seed: 1 };
   migrateLegacyLicenses(malformed);
   assert.equal(malformed.liveDay, null, 'A malformed record is reset, never trusted');
+});
+
+test('Year 2 and Year 3 (day 785) acquisition market evolves with modern hits, sequels and refresh scouting', () => {
+  const state = newGame();
+  state.day = 785; // Day 785 is in Year 3 (month 26)
+  state.cash = 10_000_000;
+
+  const y3Listings = catalogForMonth(785, state);
+  assert.ok(y3Listings.length >= 35, 'Should have rich listings in Year 3');
+
+  // Should have modern extensions or evolved sequel titles
+  const titles = y3Listings.map(l => l.title);
+  const hasEvolvedOrModern = titles.some(t =>
+    t.includes('第二季') || t.includes('第三季') || t.includes('2030') || t.includes('續篇') || t.includes('終章') ||
+    t.includes('淚之女王') || t.includes('Moving') || t.includes('九龍城寨') || t.includes('VIVANT') || t.includes('繁花')
+  );
+  assert.ok(hasEvolvedOrModern, 'Year 3 acquisition market should feature modern hits and sequels');
+
+  // Test manual refresh scouting
+  const beforeCount = state.marketRefreshCount;
+  const beforeCash = state.cash;
+  const refreshRes = refreshAcquisitionMarket(state);
+  assert.equal(refreshRes.refreshCount, beforeCount + 1);
+  assert.equal(state.cash, beforeCash - 200_000);
+
+  const refreshedListings = catalogForMonth(785, state);
+  assert.ok(refreshedListings.length >= 35);
+  // Refreshed listing IDs include the new refresh count
+  assert.ok(refreshedListings.some(l => l.id.includes('r1-') || l.id.startsWith('viu-original-')));
+});
+
+test('purgeExpiredCatalogLicenses safely removes expired foreign programs and keeps active/scheduled ones', () => {
+  const state = newGame();
+  state.day = 785;
+  state.cash = 10_000_000;
+
+  // Add 1 active license and 2 expired licenses
+  state.library.push({
+    id: 'active-cat-1',
+    title: '有效外購韓劇',
+    kind: 'catalog',
+    category: '外購韓劇',
+    licenseExpiresDay: 850 // expires after 785 -> active
+  });
+  state.library.push({
+    id: 'expired-cat-1',
+    title: '過期日劇 A',
+    kind: 'catalog',
+    category: '外購日劇',
+    licenseExpiresDay: 700 // expired
+  });
+  state.library.push({
+    id: 'expired-cat-2',
+    title: '過期歐美劇 B',
+    kind: 'catalog',
+    category: '外購歐美劇',
+    licenseExpiresDay: 720 // expired
+  });
+
+  const initialCatalogCount = state.library.filter(p => p.kind === 'catalog').length;
+  assert.ok(initialCatalogCount >= 3);
+
+  // Single purge
+  const singleRes = purgeExpiredCatalogLicenses(state, { programId: 'expired-cat-1' });
+  assert.equal(singleRes.purgedCount, 1);
+  assert.equal(singleRes.titles[0], '過期日劇 A');
+  assert.ok(!state.library.some(p => p.id === 'expired-cat-1'));
+
+  // Batch purge all remaining expired
+  const batchRes = purgeExpiredCatalogLicenses(state);
+  assert.equal(batchRes.purgedCount, 1);
+  assert.equal(batchRes.titles[0], '過期歐美劇 B');
+  assert.ok(!state.library.some(p => p.id === 'expired-cat-2'));
+
+  // Active unexpired one remains untouched
+  assert.ok(state.library.some(p => p.id === 'active-cat-1'));
+
+  // Surrender active catalog
+  const surrendered = surrenderCatalogLicense(state, 'active-cat-1');
+  assert.equal(surrendered.id, 'active-cat-1');
+  assert.ok(!state.library.some(p => p.id === 'active-cat-1'));
 });
