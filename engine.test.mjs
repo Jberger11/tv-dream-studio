@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, calcFourStationShares, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, refreshAcquisitionMarket, purgeExpiredCatalogLicenses, surrenderCatalogLicense, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL, getChallengeList, evaluateChallenges, premierePreviewQuotes, evaluateTalentStoryEvent, rivalGrudgeOf, playerStrongestDaypart, createSeededRng, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, liveCurrentHour} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, calcFourStationShares, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, refreshAcquisitionMarket, purgeExpiredCatalogLicenses, surrenderCatalogLicense, getViuDramasForMarket, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, sportsDurationDays, money, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL, getChallengeList, evaluateChallenges, premierePreviewQuotes, evaluateTalentStoryEvent, rivalGrudgeOf, playerStrongestDaypart, createSeededRng, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, liveCurrentHour} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -2861,3 +2861,40 @@ test('purgeExpiredCatalogLicenses safely removes expired foreign programs and ke
   assert.equal(surrendered.id, 'active-cat-1');
   assert.ok(!state.library.some(p => p.id === 'active-cat-1'));
 });
+
+test('getViuDramasForMarket rotates 6 ViuTV dramas per month/refresh and prioritizes unowned titles', () => {
+  const state = newGame();
+  state.day = 1;
+  const dramasM1 = getViuDramasForMarket(1, state, 6);
+  assert.equal(dramasM1.length, 6);
+  assert.ok(dramasM1.every(d => d.network === 'ViuTV' && d.id.startsWith('viu-original-')));
+
+  // In month 2 (day 31), dramas rotate
+  const dramasM2 = getViuDramasForMarket(31, state, 6);
+  assert.equal(dramasM2.length, 6);
+  // Titles should not be identical between different months
+  const titlesM1 = dramasM1.map(d => d.title).join(',');
+  const titlesM2 = dramasM2.map(d => d.title).join(',');
+  assert.notEqual(titlesM1, titlesM2);
+
+  // Manual market refresh rotates ViuTV dramas
+  state.marketRefreshCount = 1;
+  const dramasRefreshed = getViuDramasForMarket(1, state, 6);
+  assert.equal(dramasRefreshed.length, 6);
+  const titlesRefreshed = dramasRefreshed.map(d => d.title).join(',');
+  assert.notEqual(titlesM1, titlesRefreshed);
+
+  // When player owns some dramas, getViuDramasForMarket prioritizes unowned dramas
+  const firstDrama = dramasM1[0];
+  state.library.push({
+    id: firstDrama.id,
+    title: firstDrama.title,
+    kind: 'catalog',
+    network: 'ViuTV',
+    licenseExpiresDay: 200
+  });
+  const unownedPicks = getViuDramasForMarket(1, state, 6);
+  assert.equal(unownedPicks.length, 6);
+  assert.ok(!unownedPicks.some(d => d.title === firstDrama.title), 'Should prioritize unowned ViuTV dramas');
+});
+

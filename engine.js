@@ -972,6 +972,25 @@ export function catalogForMonth(day, state = null) {
   });
 }
 
+// Each month or on refresh, pick 6 ViuTV original dramas randomly from the 47+ pool,
+// prioritizing unowned titles to give a fresh and balanced market experience.
+export function getViuDramasForMarket(day = 1, state = null, count = 6) {
+  const month = marketMonthForDay(day);
+  const refreshSeed = state?.marketRefreshCount || 0;
+  const seed = ((month + 1) * 10007 + refreshSeed * 997) % 2147483647;
+  let s = seed || 1;
+  const rng = () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  const pool = [...VIU_ORIGINALS];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  const ownedTitles = new Set((state?.library || []).filter(p => !licenseExpired(p, day)).map(p => p.title));
+  const unowned = pool.filter(p => !ownedTitles.has(p.title));
+  const finalPool = unowned.length >= count ? unowned : pool;
+  return finalPool.slice(0, count);
+}
+
 const rivalPremierePools={
   jade:[['刑偵日記 II','刑偵劇',84],['豪門風雲錄','商戰劇',85],['白色強人 3','律政醫療',86],['金宵怪談新篇','奇幻懸疑',83],['巾幗梟雄風雲','年代史詩',87],['宮心計之深宮鬥','宮廷權謀',84]],
   viu:[['男排熱血新章','青春運動',76],['二月廿九之約','奇幻愛情',79],['大叔甜蜜愛火','都市喜劇',81],['繩角格鬥王','熱血拳擊',77],['季前熱血單挑','偶像籃球',78],['瑪嘉烈與大衛新篇','都會愛情',76]],

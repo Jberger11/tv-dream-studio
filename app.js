@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, calcFourStationShares, rivalAtHour, productionQuote, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, refreshAcquisitionMarket, purgeExpiredCatalogLicenses, surrenderCatalogLicense, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, premierePreviewQuotes, getChallengeList, rivalPersonality, rivalGrudgeOf, rivalGrudgeTier, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261102-overseas-v5';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, calcFourStationShares, rivalAtHour, productionQuote, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, refreshAcquisitionMarket, purgeExpiredCatalogLicenses, surrenderCatalogLicense, getViuDramasForMarket, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, premierePreviewQuotes, getChallengeList, rivalPersonality, rivalGrudgeOf, rivalGrudgeTier, ensureLiveDay, ensureLiveScript, liveSwapProgram, liveDayRng, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, sportsDurationDays, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261102-overseas-v6';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -58,6 +58,7 @@ let catalogAvailableOnly=false;
 let catalogNetwork='all';
 let catalogYear='all';
 let catalogQuery='';
+let viuShowAllMode=false;
 let licenseDays=180;
 let replayFilter='all';
 let replaySearch='';
@@ -2512,7 +2513,17 @@ function replayQueueView() {
 }
 
 function catalogView() {
-  const listings = catalogForMonth(state.day, state);
+  const allListings = catalogForMonth(state.day, state);
+  const selectedViuDramas = getViuDramasForMarket(state.day, state, 6);
+  const selectedViuIds = new Set(selectedViuDramas.map(p => p.id));
+  const query = catalogQuery.trim().toLocaleLowerCase('zh-HK');
+  const listings = allListings.filter(p => {
+    if (p.network === 'ViuTV') {
+      if (viuShowAllMode || (query && query.length > 0) || catalogYear !== 'all') return true;
+      return selectedViuIds.has(p.id);
+    }
+    return true;
+  });
   const month = marketMonthForDay(state.day) + 1;
   const nextRefresh = month * DAYS_PER_MARKET_MONTH + 1;
   const expiredLicenses = state.library.filter(p => p.kind === 'catalog' && licenseExpired(p, state.day));
@@ -2539,7 +2550,6 @@ function catalogView() {
     { id: 'other', label: '🎪 綜藝／資訊', count: listings.filter(p => ['variety', 'documentary', 'information', 'politics'].includes(p.group)).length }
   ];
 
-  const query = catalogQuery.trim().toLocaleLowerCase('zh-HK');
   const shown = listings.filter(p => {
     if (catalogFilter === 'viu') {
       if (p.network !== 'ViuTV') return false;
@@ -2672,6 +2682,9 @@ function catalogView() {
       <label>搜尋片名／地區 <input data-action="catalog-search" type="search" value="${safe(catalogQuery)}" placeholder="例如 黑暗榮耀、半澤直樹、IT狗" aria-label="搜尋外購節目" /></label>
       ${catalogFilter === 'viu' ? `
         <label>年份 <select data-action="catalog-year"><option value="all">全部年份</option>${[2020,2021,2022,2023,2024,2025,2026].map(year=>`<option value="${year}" ${catalogYear===String(year)?'selected':''}>${year}</option>`).join('')}</select></label>
+        <button class="filter-chip" style="background:${viuShowAllMode?'rgba(56, 189, 248, 0.2)':'transparent'}; color:${viuShowAllMode?'#38bdf8':'#94a3b8'}; border:1px solid ${viuShowAllMode?'rgba(56, 189, 248, 0.5)':'rgba(148, 163, 184, 0.3)'}; font-size:0.75rem; padding:4px 8px; border-radius:6px; cursor:pointer;" data-action="toggle-all-viu">
+          ${viuShowAllMode ? '🎲 恢復隨機精選 6 套' : '📜 展開全部 47 套'}
+        </button>
       ` : ''}
       <button data-action="catalog-available" aria-pressed="${catalogAvailableOnly}" class="${catalogAvailableOnly?'active':''}">只睇未購</button>
       <label>排序 <select data-action="catalog-sort">
@@ -3293,7 +3306,7 @@ function flash(message){notice=message;render();setTimeout(()=>{if(notice===mess
 // settlement will compute, so they leave the live script untouched. Any
 // other action marks the script stale and the panel recomputes it (with
 // already-aired hours pinned) the next time it is shown.
-const LIVE_UI_ACTIONS=new Set(['tab','broadcast-day','dismiss-alert','toggle-completed-expand','open-transfer','close-transfer','copy-save','reset-prompt','reset-cancel','switch-channel','schedule-day','schedule-period','select-hour','open-editor','close-editor','catalog-filter','catalog-network','catalog-available','catalog-subtab','replay-filter','open-replay-tab','open-renew-tab','report-filter','license-term','leaderboard-month','dismiss-month-result','dismiss-ceremony','dismiss-letter','reject-letter','clear-resolved-letters','talent-filter','rivals-tab','studio-subtab','crew-format-filter','actor-filter','actor-toggle','kind','genre','theme','topic','actor','budget','episode-hours','episode-count','style','hook','pick-title','recurrence','editor-program-group','editor-program-card','apply-sports-slot','go-sports','go-schedule','schedule-new','live-swap']);
+const LIVE_UI_ACTIONS=new Set(['tab','broadcast-day','dismiss-alert','toggle-completed-expand','open-transfer','close-transfer','copy-save','reset-prompt','reset-cancel','switch-channel','schedule-day','schedule-period','select-hour','open-editor','close-editor','catalog-filter','catalog-network','catalog-available','catalog-subtab','toggle-all-viu','replay-filter','open-replay-tab','open-renew-tab','report-filter','license-term','leaderboard-month','dismiss-month-result','dismiss-ceremony','dismiss-letter','reject-letter','clear-resolved-letters','talent-filter','rivals-tab','studio-subtab','crew-format-filter','actor-filter','actor-toggle','kind','genre','theme','topic','actor','budget','episode-hours','episode-count','style','hook','pick-title','recurrence','editor-program-group','editor-program-card','apply-sports-slot','go-sports','go-schedule','schedule-new','live-swap']);
 
 app.addEventListener('click',e=>{
   const button=e.target.closest('[data-action]');if(!button)return;
@@ -3647,6 +3660,7 @@ app.addEventListener('click',e=>{
     if(action==='catalog-filter'){catalogFilter=value;if(!['all','series','variety'].includes(value))catalogNetwork='all';resetScroll=true;render();}
     if(action==='catalog-network'){catalogNetwork=value;catalogFilter='all';catalogYear='all';resetScroll=true;render();}
     if(action==='catalog-available'){catalogAvailableOnly=!catalogAvailableOnly;resetScroll=true;render();}
+    if(action==='toggle-all-viu'){viuShowAllMode=!viuShowAllMode;resetScroll=true;render();return;}
     if(action==='report-filter'){reportFilter=value;render();}
     if(action==='license-term'){licenseDays=Number(value);render();}
     if(action==='buy'){const p=buyProgram(state,button.dataset.id,licenseDays);resetProgramPicker();editor={start:p.category==='香港電影'?21:20,duration:p.episodeHours??2,programId:p.id,days:initialDays(p),recurrence:initialRecurrence(p),allowRepeat:false};tab='schedule';editorOpen=true;resetScroll=true;flash(`已購入${licenseDays===180?'6 個月':'1 年'}播映權，可喺有效期內重播。`);}
