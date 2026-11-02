@@ -1,4 +1,4 @@
-import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, calcFourStationShares, rivalAtHour, productionQuote, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261016-share100-v12';
+import { ACTORS, BUDGETS, GENRES, THEMES, CONTENT_TYPES, DAYS_PER_QUARTER, DAYS_PER_MARKET_MONTH, EPISODE_COUNTS, PRODUCTION_STYLES, PRODUCTION_HOOKS, ACQUISITION_GROUPS, WEEKDAYS, EVERY_DAY, LICENSE_TERMS, VIU_ORIGINALS, money, preciseMoney, quarterLabel, hourLabel, compatibility, exactKey, catalogForMonth, marketMonthForDay, rivalPremiere, currentEvent, activeBiddingEvents, isSportsActive, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, programAtHour, episodeForBlock, broadcastNow, advanceBroadcastClock, calcFourStationShares, rivalAtHour, productionQuote, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, hoursInBlock, isDailyFormat, isOneOffEvent, clearCompletedPrograms, migrateLegacyLicenses, licensePrice, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, freshnessLabel, getFreshnessFactor, isUnavailable, duplicateBooking, daysForBlock, runsOnWeekday, weekdayForDay, premiereProfile, resolvePremiere, newGame, produce, buyProgram, renewLicense, scheduleProgram, removeScheduledProgram, submitBid, advanceDay, advanceQuarter, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, generateSuggestedTitles, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, contractTargetDesc, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, TARGET_AUDIENCES, PRODUCTION_STRATEGIES, PRODUCTION_STAGES, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages } from './engine.js?v=20261102-overseas-v1';
 
 const SAVE_KEY='tv-dream-studio-v1';
 function loadGame(){
@@ -436,7 +436,7 @@ function studioView() {
   const pendingEventsCount = activeProjs.flatMap(p => (p.episodes || []).filter(e => Boolean(e.pendingEvent))).length;
   const qcReadyCount = activeProjs.flatMap(p => (p.episodes || []).filter(e => e.status === 'qc_ready')).length;
   const activeProjsCount = activeProjs.length;
-  const completedProjsCount = (state.productionProjects ?? []).filter(p => p.status === 'completed' || p.status === 'delivered').length;
+  const completedProjsCount = getSellableOverseasOriginals(state).length;
 
   return `<div class="studio-main-container">
     <div class="studio-sub-tabs">
@@ -1017,28 +1017,56 @@ function renderStudiosCrewView() {
 
 function renderFranchisesView() {
   const completed = (state.productionProjects ?? []).filter(p => p.status === 'completed' || p.status === 'delivered');
-  if (!completed.length) {
+  const allSellable = getSellableOverseasOriginals(state, { onlyUnscheduled: false });
+  const unscheduledSellable = getSellableOverseasOriginals(state, { onlyUnscheduled: true });
+  const batchCandidates = unscheduledSellable.length ? unscheduledSellable : allSellable;
+  const batchTotal = batchCandidates.reduce((sum, item) => sum + item.quote, 0);
+  const standaloneOriginals = allSellable.filter(item => !item.projectId);
+
+  if (!completed.length && !standaloneOriginals.length) {
     return `<div class="panel" style="text-align: center; padding: 48px 24px;">
       <div style="font-size: 2.5rem; margin-bottom: 12px;">🏆</div>
       <h2>暫未有歷年殺青系列</h2>
       <p style="color: #94a3b8; max-width: 500px; margin: 8px auto 20px;">
-        當你的影視作品全部集數製作交付並播映後，將會在此處歸檔為經典 IP。可一鍵立項續作（Season 2）或外傳，傳承口碑與收視期待！
+        當你的影視作品全部集數製作交付並播映後，將會在此處歸檔為經典 IP。可一鍵立項續作（Season 2）、開拍外傳，或將舊作永久版權賣斷至海外 OTT 平台並清理舊存檔數據！
       </p>
+      <button class="secondary-button" style="width:auto; margin:0 auto; padding:8px 18px;" data-action="clean-old-data">
+        🧹 清理過期歷史戰報與舊存檔緩存
+      </button>
     </div>`;
   }
 
   return `<div class="franchises-list">
+    <div class="panel" style="margin-bottom: 16px; padding: 16px 20px; border: 1px solid rgba(56, 189, 248, 0.35); background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(14, 116, 144, 0.18));">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <div style="font-size:0.75rem; font-weight:800; color:#38bdf8; letter-spacing:0.06em;">OVERSEAS COPYRIGHT DISTRIBUTION & DATA CLEANUP</div>
+          <h3 style="margin:4px 0;">🌏 海外版權買斷發行與舊數據清理（共 ${allSellable.length} 套自製作品）</h3>
+          <p style="margin:0; font-size:0.82rem; color:#94a3b8;">將已播畢或閒置嘅舊自製劇／綜藝永久版權賣斷予海外 OTT 平台（Netflix／Disney+／星馬歐美華語台），即時套現龐大資金，並同步徹底清除該作品嘅舊片庫、分集及歷史緩存數據！</p>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="primary-button" style="width:auto; padding:10px 18px; background:linear-gradient(135deg, #0ea5e9, #2563eb);" data-action="sell-all-overseas">
+            🌏 一鍵打包賣斷 ${batchCandidates.length} 套舊作海外版權（+${money(batchTotal)} · 清理舊數據）
+          </button>
+          <button class="secondary-button" style="width:auto; padding:10px 14px;" data-action="clean-old-data">
+            🧹 單獨清理過期緩存數據
+          </button>
+        </div>
+      </div>
+    </div>
+
     ${completed.map(p => {
       const avgRating = p.ratingsHistory?.length
         ? (p.ratingsHistory.reduce((s, r) => s + r.rating, 0) / p.ratingsHistory.length).toFixed(1)
         : '尚未播出';
+      const quote = overseasCopyrightQuote(p, state);
 
       return `<div class="franchise-card">
         <div class="franchise-card-header">
           <div>
             <div class="franchise-title">《${safe(p.title)}》</div>
             <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">
-              ${p.genre} · 共 ${p.episodesCount} 集 · 均值收視 ${avgRating}點
+              ${p.genre} · 共 ${p.episodesCount} 集 · 均值收視 ${avgRating}點 · 海外買斷估值 <strong style="color:#38bdf8;">${money(quote)}</strong>
             </div>
           </div>
           <div>
@@ -1056,16 +1084,42 @@ function renderFranchisesView() {
           </div>
         ` : ''}
 
-        <div class="franchise-actions">
+        <div class="franchise-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
           <button class="franchise-btn" data-action="create-sequel" data-project-id="${p.id}" data-type="next_season">
             🎬 立項第 ${(p.seasonNumber || 1) + 1} 季 (Season ${(p.seasonNumber || 1) + 1})
           </button>
           <button class="franchise-btn" data-action="create-sequel" data-project-id="${p.id}" data-type="spin_off">
             🌟 開拍外傳前傳 (Spin-off)
           </button>
+          <button class="franchise-btn" style="background:rgba(14, 165, 233, 0.18); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.45);" data-action="sell-overseas" data-project-id="${safe(p.id)}">
+            🌏 賣斷海外版權 (+${money(quote)} · 清理舊數據)
+          </button>
         </div>
       </div>`;
     }).join('')}
+
+    ${standaloneOriginals.map(item => `
+      <div class="franchise-card">
+        <div class="franchise-card-header">
+          <div>
+            <div class="franchise-title">《${safe(item.title)}》</div>
+            <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">
+              ${safe(item.genre)} · 共 ${item.episodes} 集 · 已播畢 ${item.completedRuns} 輪 · 海外買斷估值 <strong style="color:#38bdf8;">${money(item.quote)}</strong>
+            </div>
+          </div>
+          <div>
+            <span style="background:#38bdf820; color:#38bdf8; padding:3px 10px; border-radius:10px; font-size:0.75rem; font-weight:800; border:1px solid #38bdf850;">
+              自製片庫作品
+            </span>
+          </div>
+        </div>
+        <div class="franchise-actions" style="display:flex; flex-wrap:wrap; gap:8px;">
+          <button class="franchise-btn" style="background:rgba(14, 165, 233, 0.18); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.45);" data-action="sell-overseas" data-program-id="${safe(item.programId)}">
+            🌏 賣斷海外版權 (+${money(item.quote)} · 清理舊數據)
+          </button>
+        </div>
+      </div>
+    `).join('')}
   </div>`;
 }
 
@@ -2242,12 +2296,17 @@ function replayQueueView() {
         <h2>🔄 經典重播庫 (${ready.length} 套待機)</h2>
         <p>播畢一輪後進入片庫冷卻。未排播每日回溫 +2% 新鮮度（上限為該輪上限）。可隨時在此開新一輪重播！</p>
       </div>
-      <div class="replay-filter-bar">
+      <div class="replay-filter-bar" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
         <div class="btn-group" role="group">
           <button class="filter-chip ${replayFilter==='all'?'active':''}" data-action="replay-filter" data-value="all">全部 ${ready.length}</button>
           <button class="filter-chip ${replayFilter==='drama'?'active':''}" data-action="replay-filter" data-value="drama">自製經典 ${ready.filter(p=>p.kind!=='catalog').length}</button>
           <button class="filter-chip ${replayFilter==='catalog'?'active':''}" data-action="replay-filter" data-value="catalog">外購節目 ${ready.filter(p=>p.kind==='catalog').length}</button>
         </div>
+        ${ready.some(p => p.kind !== 'catalog' && !p.id.startsWith('start-')) ? `
+          <button class="filter-chip" style="background:rgba(14, 165, 233, 0.2); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.45); font-weight:700;" data-action="sell-all-overseas">
+            🌏 一鍵打包賣斷自製舊作海外版權（清理舊數據）
+          </button>
+        ` : ''}
       </div>
     </div>
     ${filtered.length ? `
@@ -2256,6 +2315,8 @@ function replayQueueView() {
           const f = freshnessLabel(p.freshness, p.maxFreshness);
           const rightsInfo = p.kind === 'catalog' ? ` · 播映權至第 ${p.licenseExpiresDay-1} 日` : ' · 自製永久版權';
           const isCooling = f.percent < 50;
+          const isSellableSelfMade = p.kind !== 'catalog' && !p.id.startsWith('start-');
+          const overseasQuote = isSellableSelfMade ? overseasCopyrightQuote(p, state) : 0;
           return `<article class="replay-card ${isCooling ? 'is-cooling' : 'is-ready'}">
             <div class="replay-card-main">
               <div class="replay-title-row">
@@ -2268,7 +2329,14 @@ function replayQueueView() {
                 <span class="freshness-note">${isCooling ? '❄️ 剛播畢沉澱中（+2%/日），建議等待回溫後再排' : '✨ 回溫良好，隨時適合安排重溫！'}</span>
               </div>
             </div>
-            <button class="catalog-button" data-action="start-replay" data-id="${safe(p.id)}">開新一輪重播 ↳</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <button class="catalog-button" data-action="start-replay" data-id="${safe(p.id)}">開新一輪重播 ↳</button>
+              ${isSellableSelfMade ? `
+                <button class="catalog-button" style="background:rgba(14, 165, 233, 0.18); color:#38bdf8; border:1px solid rgba(56, 189, 248, 0.45);" data-action="sell-overseas" data-program-id="${safe(p.id)}">
+                  🌏 賣斷海外版權 (+${money(overseasQuote)} · 清理數據)
+                </button>
+              ` : ''}
+            </div>
           </article>`;
         }).join('')}
       </div>
@@ -3221,6 +3289,24 @@ app.addEventListener('click',e=>{
     if(action==='cancel-project'){
       const p=cancelProductionProject(state,button.dataset.projectId);
       flash(`【企劃腰斬】《${p.title}》已終止製作，騰出片廠與演職人員。`);
+      render();
+      return;
+    }
+    if(action==='sell-overseas'){
+      const res=sellOverseasCopyright(state,{programId:button.dataset.programId||null,projectId:button.dataset.projectId||null});
+      flash(`🌏《${res.title}》海外永久版權成功賣斷予「${res.buyer}」，進帳 ${preciseMoney(res.amount)}，並已同步清理舊片庫及企劃數據！`);
+      render();
+      return;
+    }
+    if(action==='sell-all-overseas'){
+      const res=sellAllOldOverseasCopyrights(state);
+      flash(`🌏 一鍵打包賣斷 ${res.count} 套舊自製作品海外版權，合共進帳 ${preciseMoney(res.totalAmount)}，並已徹底清理舊數據！`);
+      render();
+      return;
+    }
+    if(action==='clean-old-data'){
+      cleanOldGameData(state);
+      flash('🧹 已清理過期歷史戰報、腰斬企劃及舊存檔緩存數據！');
       render();
       return;
     }

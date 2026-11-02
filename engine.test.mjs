@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, calcFourStationShares, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
+import {newGame, advanceDay, advanceQuarter, resolvePremiere, broadcastNow, advanceBroadcastClock, calcFourStationShares, clearCompletedPrograms, produce, productionQuote, scheduleProgram, programAtHour, buyProgram, renewLicense, licenseExpired, isCatalogCycleComplete, catalogCycleProgress, catalogCompletedAirings, startCatalogReplay, startProgramReplay, canReplayProgram, getFreshnessFactor, freshnessLabel, migrateLegacyLicenses, catalogForQuarter, catalogForMonth, marketMonthForDay, weekdayForDay, isSportsActive, rivalAtHour, rivalPremiere, distributionQuote, sellProduction, overseasCopyrightQuote, cleanOldGameData, getSellableOverseasOriginals, sellOverseasCopyright, sellAllOldOverseasCopyrights, replyToLetter, rejectLetter, dismissLetter, holdFanMeeting, launchAudiencePoll, activeBiddingEvents, submitBid, generateSuggestedTitles, EPISODE_COUNTS, VIU_ORIGINALS, episodeForBlock, removeScheduledProgram, BREAKING_EVENTS_POOL, getBreakingRatingMod, evaluateMonthlyRatings, evaluateAnnualAwards, dismissCeremony, dismissMonthResult, ACTORS, refreshMarketRivalBuys, ACQUISITION_GROUPS, getSportsConfig, isEuropeanFootballSummerBreak, isUclMatchWeek, isPlPausedWeek, resolveAuction, runsOnWeekday, daysForBlock, isDailyFormat, isOneOffEvent, getActiveSportsEvents, buyoutSportsEvent, revealAuctionNow, AD_CONTRACT_TEMPLATES, FACILITY_CONFIGS, signAdContract, setAdPricingStrategy, upgradeFacility, signExclusiveTalent, trainTalent, restTalent, unlockSubChannel, SHOP_TOOLS, buyShopTool, isToolActive, getToolTimeRemaining, signArtist, renewArtistContract, getStationName, artistSignCost, artistRenewCost, ARTIST_CONTRACT_DAYS, checkCompetitorArtistSignings, createProductionProject, reconcileProductionEvents, advanceProduction, deliverEpisode, syncProjectToLibrary, handleFilmingEventChoice, resetProjectAutoChoices, handleQualityControlDecision, setProjectQCStrategy, createSeasonOrSpinOff, cancelProductionProject, upgradeStudioFacility, checkPerformerAvailability, getFormatStages, DEFAULT_STUDIOS, DEFAULT_CREWS, getAllCrews, getCrewsForFormat, PRODUCTION_STRATEGIES, TARGET_AUDIENCES, FILMING_EVENTS_POOL} from './engine.js';
 
 test('cash permits more than three productions and an optional filming hook changes the quote', () => {
   const state=newGame(),base=productionQuote(state,{kind:'finance',topic:'開市',budgetId:'lean'});
@@ -2138,5 +2138,52 @@ test('reconcileProductionEvents and cancelProductionProject purge orphaned filmi
   reconcileProductionEvents(state);
   assert.equal(state.activeFilmingEvents.length, 0, 'reconcileProductionEvents must purge ghost events when 0 active projects exist');
 });
+
+test('sellOverseasCopyright and sellAllOldOverseasCopyrights sell completed self-made shows and clean old data', () => {
+  const state = newGame();
+  const proj1 = createProductionProject(state, {
+    title: '香江風雲錄',
+    format: 'drama',
+    genre: '商戰',
+    themes: ['野心'],
+    episodesCount: 5,
+    episodeHours: 2,
+    actorIds: ['edaan', 'anson_lo'],
+    budgetId: 'standard'
+  });
+  for (const ep of proj1.episodes) {
+    deliverEpisode(state, proj1, ep);
+  }
+  assert.equal(proj1.status, 'completed');
+  assert.ok(state.library.some(p => p.projectId === proj1.id));
+
+  const standalone = produce(state, { kind: 'variety', topic: '遊戲競賽', budgetId: 'lean', episodeCount: 8 }, () => 0.5);
+  assert.ok(state.library.some(p => p.id === standalone.id));
+
+  const sellable = getSellableOverseasOriginals(state);
+  assert.equal(sellable.length, 2, 'Should find both completed project and standalone self-made show');
+
+  const cashBefore = state.cash;
+  const quote1 = overseasCopyrightQuote(proj1, state);
+  assert.ok(quote1 >= 150_000);
+
+  const sold1 = sellOverseasCopyright(state, { projectId: proj1.id });
+  assert.equal(sold1.amount, quote1);
+  assert.equal(state.cash, cashBefore + quote1);
+  assert.equal(state.productionProjects.some(p => p.id === proj1.id), false, 'Project must be removed from productionProjects');
+  assert.equal(state.library.some(p => p.projectId === proj1.id), false, 'Linked program must be removed from library');
+
+  // Batch sell remaining old self-made programs and verify old data cleanup
+  for (let i = 0; i < 25; i++) {
+    state.broadcastReports.push({ day: i + 1, details: [], hours: [] });
+  }
+  const cashBeforeBatch = state.cash;
+  const batchRes = sellAllOldOverseasCopyrights(state);
+  assert.equal(batchRes.count, 1);
+  assert.ok(state.cash > cashBeforeBatch);
+  assert.equal(state.library.some(p => p.id === standalone.id), false, 'Standalone self-made program must be removed');
+  assert.ok(state.broadcastReports.length <= 14, 'Old broadcastReports must be trimmed to keep save lightweight');
+});
+
 
 

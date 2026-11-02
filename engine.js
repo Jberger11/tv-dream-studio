@@ -1883,6 +1883,207 @@ export function sellProduction(state,programId,rivalId,exclusive=false) {
   return deal;
 }
 
+export const OVERSEAS_BUYERS = [
+  'Netflix 亞太區',
+  'Disney+ 華語平台',
+  '新加坡新傳媒 (Mediacorp)',
+  '馬來西亞 Astro 華麗台',
+  '北美 TVB Anywhere 海外台',
+  '英國及歐洲華語衛星台'
+];
+
+export function overseasCopyrightQuote(item, state = null) {
+  if (!item) return 0;
+  const isProject = Array.isArray(item.episodes) || item.episodesCount !== undefined;
+  const linkedProg = isProject && state
+    ? (state.library ?? []).find(p => p.projectId === item.id || p.id === item.programId || p.id === `prog-${item.id}`)
+    : (!isProject ? item : null);
+  const linkedProj = !isProject && state
+    ? (state.productionProjects ?? []).find(pr => pr.id === item.projectId || pr.programId === item.id || `prog-${pr.id}` === item.id)
+    : (isProject ? item : null);
+
+  const episodes = linkedProj?.episodesCount || linkedProg?.episodes || 8;
+  const avgHistRating = linkedProj?.ratingsHistory?.length
+    ? Math.round(linkedProj.ratingsHistory.reduce((s, r) => s + r.rating, 0) / linkedProj.ratingsHistory.length)
+    : null;
+  const quality = linkedProg?.quality || (linkedProj?.episodes?.length
+    ? Math.round(linkedProj.episodes.reduce((s, e) => s + ((e.fun ?? 60) * 0.25 + (e.acting ?? 60) * 0.3 + (e.direction ?? 60) * 0.25 + (e.technical ?? 60) * 0.2), 0) / linkedProj.episodes.length)
+    : 65);
+  const rating = avgHistRating || linkedProg?.rating || 60;
+  const buzz = linkedProg?.buzz || 55;
+
+  const raw = episodes * 65_000 + quality * 9_500 + rating * 6_500 + buzz * 4_000;
+  return Math.max(150_000, Math.round(raw / 10_000) * 10_000);
+}
+
+export function cleanOldGameData(state) {
+  if (Array.isArray(state.broadcastReports) && state.broadcastReports.length > 14) {
+    state.broadcastReports = state.broadcastReports.slice(0, 14);
+  }
+  if (Array.isArray(state.history) && state.history.length > 30) {
+    state.history = state.history.slice(0, 30);
+  }
+  if (Array.isArray(state.premiereHistory) && state.premiereHistory.length > 20) {
+    state.premiereHistory = state.premiereHistory.slice(0, 20);
+  }
+  if (Array.isArray(state.breakingEventsHistory) && state.breakingEventsHistory.length > 15) {
+    state.breakingEventsHistory = state.breakingEventsHistory.slice(0, 15);
+  }
+  if (Array.isArray(state.monthlyLeaderboards) && state.monthlyLeaderboards.length > 12) {
+    state.monthlyLeaderboards = state.monthlyLeaderboards.slice(0, 12);
+  }
+  if (Array.isArray(state.awardCeremonies) && state.awardCeremonies.length > 8) {
+    state.awardCeremonies = state.awardCeremonies.slice(0, 8);
+  }
+  if (Array.isArray(state.distributionDeals)) {
+    state.distributionDeals = state.distributionDeals.filter(d => !d.expiresDay || d.expiresDay > state.day);
+  }
+  if (Array.isArray(state.mailbox) && state.mailbox.length > 15) {
+    state.mailbox = state.mailbox.filter(l => !l.resolved).concat(state.mailbox.filter(l => l.resolved).slice(0, 5));
+  }
+  if (Array.isArray(state.audienceFeed) && state.audienceFeed.length > 16) {
+    state.audienceFeed = state.audienceFeed.slice(0, 16);
+  }
+  if (Array.isArray(state.productionProjects)) {
+    state.productionProjects = state.productionProjects.filter(p => p.status !== 'cancelled');
+  }
+  reconcileProductionEvents(state);
+}
+
+export function getSellableOverseasOriginals(state, { onlyUnscheduled = false } = {}) {
+  const scheduledIds = new Set([
+    ...(state.schedule ?? []).map(s => s.programId),
+    ...(state.subChannelSchedule ?? []).map(s => s.programId)
+  ]);
+  const activeProjIds = new Set(
+    (state.productionProjects ?? []).filter(p => p.status === 'in_production').map(p => p.id)
+  );
+  const items = [];
+  const seenProjIds = new Set();
+  const seenProgIds = new Set();
+
+  for (const proj of (state.productionProjects ?? [])) {
+    if (proj.status !== 'completed' && proj.status !== 'delivered') continue;
+    const prog = (state.library ?? []).find(p => p.projectId === proj.id || p.id === proj.programId || p.id === `prog-${proj.id}`);
+    const progId = prog?.id || proj.programId || `prog-${proj.id}`;
+    const isScheduled = scheduledIds.has(progId);
+    if (onlyUnscheduled && isScheduled) continue;
+    seenProjIds.add(proj.id);
+    if (prog) seenProgIds.add(prog.id);
+    items.push({
+      projectId: proj.id,
+      programId: prog?.id || proj.programId || null,
+      title: proj.title,
+      genre: proj.genre || prog?.genre || '自製節目',
+      episodes: proj.episodesCount || prog?.episodes || 8,
+      quote: overseasCopyrightQuote(proj, state),
+      isScheduled,
+      completedRuns: prog?.completedRuns ?? (proj.ratingsHistory?.length ? 1 : 0)
+    });
+  }
+
+  for (const prog of (state.library ?? [])) {
+    if (seenProgIds.has(prog.id)) continue;
+    if (prog.id.startsWith('start-') || prog.kind === 'catalog') continue;
+    if (isDailyFormat(prog.kind) && !prog.episodes) continue;
+    if (prog.projectId && activeProjIds.has(prog.projectId)) continue;
+    if (prog.projectId && seenProjIds.has(prog.projectId)) continue;
+    const isScheduled = scheduledIds.has(prog.id);
+    if (onlyUnscheduled && isScheduled) continue;
+    seenProgIds.add(prog.id);
+    items.push({
+      projectId: prog.projectId || null,
+      programId: prog.id,
+      title: prog.title,
+      genre: prog.genre || prog.category || '自製節目',
+      episodes: prog.episodes || 8,
+      quote: overseasCopyrightQuote(prog, state),
+      isScheduled,
+      completedRuns: prog.completedRuns ?? 0
+    });
+  }
+
+  return items;
+}
+
+export function sellOverseasCopyright(state, { programId = null, projectId = null } = {}) {
+  const proj = projectId
+    ? (state.productionProjects ?? []).find(p => p.id === projectId)
+    : programId
+    ? (state.productionProjects ?? []).find(p => p.programId === programId || `prog-${p.id}` === programId)
+    : null;
+  const prog = programId
+    ? (state.library ?? []).find(p => p.id === programId)
+    : proj
+    ? (state.library ?? []).find(p => p.projectId === proj.id || p.id === proj.programId || p.id === `prog-${proj.id}`)
+    : null;
+
+  if (!proj && !prog) throw Error('搵唔到要賣出海外版權嘅自製節目。');
+  if (proj && proj.status === 'in_production') throw Error('節目仲喺度拍攝製作中，殺青之後先可以賣斷海外版權。');
+  if (prog && (prog.id.startsWith('start-') || prog.kind === 'catalog')) throw Error('只有本台自製節目先可以賣斷海外版權。');
+  if (prog && isDailyFormat(prog.kind) && !prog.episodes) throw Error('每日新聞同財經係常規直播，唔可以賣斷海外版權。');
+
+  const target = prog || proj;
+  const title = prog?.title || proj?.title || '自製節目';
+  const amount = overseasCopyrightQuote(target, state);
+  const buyerIdx = Math.abs((title.charCodeAt(0) || 0) + (state.day || 1)) % OVERSEAS_BUYERS.length;
+  const buyer = OVERSEAS_BUYERS[buyerIdx];
+
+  const targetProgId = prog?.id || proj?.programId || (proj ? `prog-${proj.id}` : null);
+  const targetProjId = proj?.id || prog?.projectId || null;
+
+  state.cash += amount;
+  if (state.quarterLedger) {
+    state.quarterLedger.revenue = (state.quarterLedger.revenue || 0) + amount;
+  }
+
+  if (targetProgId) {
+    state.library = (state.library ?? []).filter(p => p.id !== targetProgId && (!targetProjId || p.projectId !== targetProjId));
+    state.schedule = (state.schedule ?? []).filter(s => s.programId !== targetProgId);
+    if (Array.isArray(state.subChannelSchedule)) {
+      state.subChannelSchedule = state.subChannelSchedule.filter(s => s.programId !== targetProgId);
+    }
+    if (Array.isArray(state.distributionDeals)) {
+      state.distributionDeals = state.distributionDeals.filter(d => d.programId !== targetProgId);
+    }
+    if (Array.isArray(state.pendingPremieres)) {
+      state.pendingPremieres = state.pendingPremieres.filter(p => p.programId !== targetProgId);
+    }
+    if (state.lastProduction?.id === targetProgId) {
+      state.lastProduction = null;
+    }
+  }
+  if (targetProjId) {
+    state.productionProjects = (state.productionProjects ?? []).filter(p => p.id !== targetProjId);
+  }
+
+  cleanOldGameData(state);
+
+  note(state, `【海外版權買斷】《${title}》永久海外播映版權成功賣斷予「${buyer}」，進帳 ${money(amount)}，並已同步清理舊片庫及企劃緩存數據！`, 'good');
+  return { title, buyer, amount, programId: targetProgId, projectId: targetProjId };
+}
+
+export function sellAllOldOverseasCopyrights(state) {
+  let candidates = getSellableOverseasOriginals(state, { onlyUnscheduled: true });
+  if (!candidates.length) {
+    candidates = getSellableOverseasOriginals(state, { onlyUnscheduled: false });
+  }
+  if (!candidates.length) {
+    cleanOldGameData(state);
+    throw Error('目前暫無可打包賣出海外版權嘅舊自製節目（已為你清理舊歷史緩存數據）。');
+  }
+  let totalAmount = 0;
+  const soldTitles = [];
+  for (const item of candidates) {
+    const res = sellOverseasCopyright(state, { programId: item.programId, projectId: item.projectId });
+    totalAmount += res.amount;
+    soldTitles.push(res.title);
+  }
+  cleanOldGameData(state);
+  note(state, `【海外發行打包買斷】一鍵打包賣斷 ${soldTitles.length} 套舊自製節目海外版權，合共進帳 ${money(totalAmount)}，並已徹底清理舊片庫與歷史緩存數據！`, 'good');
+  return { count: soldTitles.length, totalAmount, titles: soldTitles };
+}
+
 function note(state,text,type='neutral') {
   state.log.unshift({quarter:state.quarter,text,type});
   state.log = state.log.slice(0,16);
